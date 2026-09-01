@@ -89,6 +89,10 @@
   margin-bottom: 10px;
 }
 
+.chart-type-toggle {
+  flex: none;
+}
+
 .executive-pies {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
