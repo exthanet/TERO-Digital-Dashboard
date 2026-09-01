@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./quick-filter.css";
 
 export const metadata: Metadata = {
   title: "Entertainment Performance Dashboard",
