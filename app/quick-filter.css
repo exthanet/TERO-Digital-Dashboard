@@ -12,7 +12,27 @@
   font-weight: 800;
 }
 
+.kpi-grid {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+@media (max-width: 1250px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 520px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
   .date-filter .quick-range {
     width: 100%;
   }
