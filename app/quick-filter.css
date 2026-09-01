@@ -4,7 +4,7 @@
 
 .date-filter > div {
   display: grid;
-  grid-template-columns: 112px minmax(138px, 1fr) 12px minmax(138px, 1fr);
+  grid-template-columns: 165px minmax(138px, 1fr) 12px minmax(138px, 1fr);
   gap: 8px;
 }
 
@@ -22,12 +22,12 @@
 
 @media (min-width: 1251px) {
   .topbar {
-    grid-template-columns: 150px minmax(480px, 2.2fr) 135px 135px 145px minmax(205px, 1fr) auto;
+    grid-template-columns: 150px minmax(530px, 2.3fr) 135px 135px 145px minmax(205px, 1fr) auto;
   }
 }
 
 .date-filter .quick-range {
-  width: 112px;
+  width: 165px;
   flex: none;
   padding: 5px 7px;
   border-radius: 6px;
@@ -38,6 +38,28 @@
 
 .kpi-grid {
   grid-template-columns: repeat(6, 1fr);
+}
+
+.sidebar-import {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #2f6fbe;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #0870ff, #0344bc);
+  color: #fff;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 7px 20px #0068ff35;
+}
+
+.sidebar-import svg {
+  width: 17px;
 }
 
 .ai-analysis {
@@ -200,7 +222,7 @@
   }
 
   .date-filter > div {
-    grid-template-columns: 112px minmax(138px, 1fr) 12px minmax(138px, 1fr);
+    grid-template-columns: 165px minmax(138px, 1fr) 12px minmax(138px, 1fr);
   }
 }
 
