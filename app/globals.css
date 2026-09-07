@@ -13,6 +13,7 @@
 @media(max-width:800px){.top-table-actions label span{display:none}.top-table-actions select{max-width:125px}}
 @media(max-width:520px){.topbar{grid-template-columns:1fr}.date-filter,.search-box{grid-column:span 1}.date-filter>div{flex-wrap:wrap}.kpi-grid{grid-template-columns:1fr}.kpi-card{min-height:105px}.status-line{flex-wrap:wrap}.status-line button{margin-left:0}.panel{padding:11px}.segmented button{padding:5px 8px;font-size:10px}}
 .scrollbar-hide{scrollbar-width:none;-ms-overflow-style:none}.scrollbar-hide::-webkit-scrollbar{display:none}
+.top-tab-bar{display:flex;gap:6px;align-items:center;background:#e9eef7;border:1px solid #d8e1ed;border-radius:12px;padding:4px;margin-bottom:10px;position:sticky;top:8px;z-index:20;box-shadow:0 5px 14px #16305b12}.top-tab-bar a{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:9px;color:#53627a;text-decoration:none;font-weight:800;font-size:12px;transition:.2s}.top-tab-bar a svg{width:16px;height:16px}.top-tab-bar a:hover,.top-tab-bar a.active{background:#fff;color:#0757e8;box-shadow:0 3px 8px #16305b18}.top-tab-bar a:last-child.active{color:#0f766e}.top-tab-bar a:last-child:hover{color:#0f766e}
 .map-note{margin:8px 4px 0;color:#718096;font-size:10px}
 /* utility contracts used by the shared UI catalog */
 .scrollbar-stable{scrollbar-gutter:stable}.scroll-fade-reveal-b{mask-image:linear-gradient(to bottom,black 0%,black calc(100% - 18px),transparent 100%)}
