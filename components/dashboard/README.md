@@ -1,8 +1,11 @@
 # Dashboard Components
 
-โฟลเดอร์นี้เก็บ component ที่แยกจาก `app/dashboard.tsx` เพื่อให้แก้ไขง่ายและลดความเสี่ยงกระทบ filter หลัก
+อ่าน [คู่มือโครงสร้างภาษาไทย](../../docs/PROJECT_STRUCTURE_TH.md) สำหรับตารางเลือกไฟล์ที่ต้องแก้
 
+- `sections/` — ส่วนต่าง ๆ ของหน้าจอ เช่น ตัวกรอง KPI กราฟ ตาราง และหน้าต่างนำเข้า
+- `shared/` — การ์ด ตัวเลือก สถานะว่าง และหัวตารางที่ใช้ร่วมกัน
+- `charts/` — Tooltip และกราฟวงกลมที่ใช้ร่วมกัน
 - `AffiliateReport.tsx` — รายงาน Affiliate Program
 - `TvRatingChoropleth.tsx` — แผนที่ Rating ตาม Audience Zone
 
-ถ้าจะเพิ่มกราฟใหม่ ให้สร้าง component แยกในโฟลเดอร์นี้ แล้ว import เข้าที่ `app/dashboard.tsx`
+State และคำสั่งต่าง ๆ อยู่ใน `hooks/useDashboard.ts` ส่วน `app/dashboard.tsx` ประกอบหน้าจอจาก components เหล่านี้

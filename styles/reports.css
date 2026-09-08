@@ -1,0 +1,346 @@
+.top-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.top-table-actions > button {
+  border: 0;
+  background: #eef4ff;
+  color: #0757e8;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-weight: 700;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+.top-table-actions > button svg {
+  width: 15px;
+}
+.top-table-actions label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #526079;
+  font-size: 11px;
+  font-weight: 700;
+}
+.top-table-actions select {
+  border: 1px solid #dce3ee;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #172139;
+  max-width: 180px;
+}
+.tv-map-panel {
+  margin-top: 10px;
+}
+.province-count {
+  background: #eef4ff;
+  color: #0757e8;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.province-tile-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 7px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 4px;
+}
+.province-tile {
+  min-height: 48px;
+  border-radius: 8px;
+  padding: 7px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 0 0 1px #ffffff55;
+}
+.province-tile span {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.province-tile b {
+  font-size: 13px;
+}
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  color: #718096;
+  font-size: 10px;
+  margin-top: 8px;
+}
+.map-legend i {
+  width: 24px;
+  height: 9px;
+  border-radius: 3px;
+}
+.map-empty {
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: linear-gradient(135deg, #f8fbff, #f0f5fd);
+  border: 1px dashed #bdcbe0;
+  border-radius: 12px;
+  padding: 25px;
+}
+.map-empty > div:last-child {
+  max-width: 620px;
+}
+.map-empty strong {
+  font-size: 14px;
+}
+.map-empty p {
+  color: #6b7b91;
+  line-height: 1.6;
+  margin: 6px 0;
+}
+.map-empty small {
+  color: #52657a;
+}
+.thailand-outline {
+  width: 110px;
+  height: 150px;
+  border-radius: 58% 42% 54% 46%/34% 36% 64% 66%;
+  background: #dbe8fb;
+  color: #176bce;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 900;
+  transform: rotate(12deg);
+  box-shadow: inset 0 0 0 2px #b8cbe6;
+}
+.affiliate-report {
+  margin-top: 10px;
+  background: #f7fafc;
+  border: 1px solid #dfe6f0;
+  border-radius: 14px;
+  padding: 14px;
+}
+.affiliate-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.affiliate-head h2 {
+  font-size: 18px;
+  margin: 3px 0;
+}
+.affiliate-head p {
+  margin: 0;
+  color: #748198;
+  font-size: 11px;
+}
+.section-eyebrow {
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.affiliate-head label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.affiliate-head select {
+  border: 1px solid #cbd7e6;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #172139;
+}
+.affiliate-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.affiliate-kpis article {
+  background: #fff;
+  border: 1px solid #dfe6f0;
+  border-radius: 12px;
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 9px;
+  align-items: center;
+}
+.affiliate-kpis svg {
+  grid-row: span 2;
+  color: #0f766e;
+}
+.affiliate-kpis span {
+  font-size: 11px;
+  color: #63728a;
+}
+.affiliate-kpis strong {
+  font-size: 19px;
+  line-height: 1.2;
+}
+.affiliate-kpis small {
+  grid-column: 2;
+  color: #718096;
+  font-size: 10px;
+}
+.affiliate-grid,
+.affiliate-tables {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.affiliate-grid .panel,
+.affiliate-tables .panel {
+  min-width: 0;
+}
+.affiliate-grid h3,
+.affiliate-tables h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.affiliate-chart {
+  height: 250px;
+}
+.affiliate-tables .table-scroll {
+  max-height: 420px;
+}
+.affiliate-tables table {
+  min-width: 760px;
+}
+.affiliate-quality {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #fff8e6;
+  border: 1px solid #f1d28b;
+  border-radius: 9px;
+  padding: 10px;
+  color: #6d4c16;
+  font-size: 11px;
+}
+.affiliate-quality span {
+  background: #fff;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.affiliate-quality small {
+  width: 100%;
+  color: #8a6a2d;
+}
+.affiliate-report .table-scroll td a {
+  max-width: 250px;
+}
+.affiliate-report .panel-head {
+  margin-bottom: 8px;
+}
+@media (max-width: 800px) {
+  .top-table-actions label span {
+    display: none;
+  }
+  .top-table-actions select {
+    max-width: 125px;
+  }
+}
+@media (max-width: 520px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+  .date-filter,
+  .search-box {
+    grid-column: span 1;
+  }
+  .date-filter > div {
+    flex-wrap: wrap;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-card {
+    min-height: 105px;
+  }
+  .status-line {
+    flex-wrap: wrap;
+  }
+  .status-line button {
+    margin-left: 0;
+  }
+  .panel {
+    padding: 11px;
+  }
+  .segmented button {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.top-tab-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: #e9eef7;
+  border: 1px solid #d8e1ed;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  box-shadow: 0 5px 14px #16305b12;
+}
+.top-tab-bar a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: 9px;
+  color: #53627a;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 12px;
+  transition: 0.2s;
+}
+.top-tab-bar a svg {
+  width: 16px;
+  height: 16px;
+}
+.top-tab-bar a:hover,
+.top-tab-bar a.active {
+  background: #fff;
+  color: #0757e8;
+  box-shadow: 0 3px 8px #16305b18;
+}
+.top-tab-bar a:last-child.active {
+  color: #0f766e;
+}
+.top-tab-bar a:last-child:hover {
+  color: #0f766e;
+}
+.map-note {
+  margin: 8px 4px 0;
+  color: #718096;
+  font-size: 10px;
+}

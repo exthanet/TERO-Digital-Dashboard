@@ -1,5 +1,7 @@
 # TERO Digital Dashboard
 
+คู่มือเลือกไฟล์ที่ต้องแก้: [โครงสร้างโปรเจกต์ภาษาไทย](docs/PROJECT_STRUCTURE_TH.md)
+
 Dashboard วิเคราะห์ Performance ของ TV, YouTube, Facebook, Instagram, TikTok และ Affiliate Program สำหรับผู้บริหาร
 
 อ่านคู่มือภาษาไทยได้ที่ [docs/README_TH.md](docs/README_TH.md), [Data Dictionary](docs/DATA_DICTIONARY_TH.md) และ [คู่มือ Deploy](docs/DEPLOYMENT_TH.md)
@@ -12,7 +14,7 @@ npm test
 npm run dev
 ```
 
-โค้ดที่แก้บ่อยอยู่ใน `app/dashboard.tsx`, `components/dashboard/`, `public/` และ `scripts/`
+โค้ดที่แก้บ่อยอยู่ใน `components/dashboard/sections/`, `hooks/useDashboard.ts`, `lib/dashboard/` และ `styles/` ส่วน `app/dashboard.tsx` ใช้จัดลำดับหน้าจอ
 
 ---
 
@@ -64,7 +66,9 @@ import { headers } from "next/headers";
 export default async function Home() {
   const requestHeaders = await headers();
   const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
+  const encodedFullName = requestHeaders.get(
+    "oai-authenticated-user-full-name",
+  );
   const fullName =
     encodedFullName &&
     requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
