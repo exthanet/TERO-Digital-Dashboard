@@ -1,4 +1,5 @@
 "use client";
+import { isStaticHost } from "@/lib/dashboard/hosting";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { num } from "@/lib/dashboard/format";
 import {
@@ -69,10 +70,10 @@ export function DashboardSidebar({
             <small>Metricool delay 2–3 วัน</small>
           </div>
         </div>
-        <button className="sidebar-api" onClick={openIntegrations}>
+        {!isStaticHost && <button className="sidebar-api" onClick={openIntegrations}>
           <Settings />
           ตั้งค่า API Sync
-        </button>
+        </button>}
         <button
           className="sidebar-import"
           onClick={() => {

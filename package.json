@@ -6,6 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "build:pages": "vite build --config vite.pages.config.ts",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",

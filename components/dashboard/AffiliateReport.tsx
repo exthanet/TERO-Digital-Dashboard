@@ -1,4 +1,5 @@
 "use client";
+import { dashboardAsset } from "@/lib/dashboard/hosting";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -80,7 +81,7 @@ export default function AffiliateReport() {
   const [data, setData] = useState<AffiliateData | null>(null),
     [year, setYear] = useState("ALL");
   useEffect(() => {
-    fetch("/affiliate-data.json")
+    fetch(dashboardAsset("affiliate-data.json"))
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData(null));

@@ -1,4 +1,5 @@
 "use client";
+import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
@@ -49,7 +50,7 @@ export function useDashboard() {
     [compareSort, setCompareSort] = useState<CompareSortKey>("date"),
     [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc");
   useEffect(() => {
-    fetch("/master-data.json")
+    fetch(dashboardAsset("master-data.json"))
       .then((r) => r.json())
       .then((data: RawRow[]) => {
         const x = data.map(normalize).filter((r) => r.date);
@@ -708,6 +709,10 @@ export function useDashboard() {
     }
   }
   async function checkIntegrations() {
+    if (isStaticHost) {
+      setMessage("เวอร์ชัน GitHub Pages รองรับรายงานและนำเข้าไฟล์เท่านั้น ไม่รองรับ API Sync");
+      return;
+    }
     setIntegrationLoading(true);
     try {
       const response = await fetch("/api/integrations/status", {
