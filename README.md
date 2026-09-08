@@ -1,4 +1,20 @@
-# vinext-starter
+# TERO Digital Dashboard
+
+Dashboard วิเคราะห์ Performance ของ TV, YouTube, Facebook, Instagram, TikTok และ Affiliate Program สำหรับผู้บริหาร
+
+อ่านคู่มือภาษาไทยได้ที่ [docs/README_TH.md](docs/README_TH.md), [Data Dictionary](docs/DATA_DICTIONARY_TH.md) และ [คู่มือ Deploy](docs/DEPLOYMENT_TH.md)
+
+## Quick Start
+
+```bash
+npm ci
+npm test
+npm run dev
+```
+
+โค้ดที่แก้บ่อยอยู่ใน `app/dashboard.tsx`, `components/dashboard/`, `public/` และ `scripts/`
+
+---
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and

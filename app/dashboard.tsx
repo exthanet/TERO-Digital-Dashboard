@@ -5,8 +5,8 @@ import { BarChart, Bar, CartesianGrid, Cell, Legend, LineChart, Line, PieChart, 
 import { Activity, BadgeDollarSign, BarChart3, ChevronDown, CircleGauge, Database, Download, FileSpreadsheet, LayoutDashboard, Menu, MonitorPlay, RefreshCw, Search, Settings, Sparkles, Trophy, Tv, Upload, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import AffiliateReport from "./affiliate-report";
-import TvRatingChoropleth from "./tv-rating-choropleth";
+import AffiliateReport from "@/components/dashboard/AffiliateReport";
+import TvRatingChoropleth from "@/components/dashboard/TvRatingChoropleth";
 
 type RawRow = Record<string, unknown>;
 type RecordRow = { date:string; program:string; episodeId:string; topic:string; topicType:string; vdoType:string; platform:string; channel:string; province:string; contentId:string; url:string; durationMin:number; views:number; likes:number; comments:number; shares:number; engagement:number; engagementRate:number; ratingTotal:number; ratingBkk:number; ratingUrban:number; ratingBkkUrban:number; ratingRural:number; audienceTotal:number; gmmRating:number; gmmAudience:number; bestOfMonth:string; uploadCount:number; revenue:number };
