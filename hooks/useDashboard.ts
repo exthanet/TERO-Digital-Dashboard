@@ -201,11 +201,14 @@ export function useDashboard() {
         0,
       ),
       tvEpisodes = tvRows.length,
-      days = new Set(performanceFiltered.map((r) => r.date)).size || 1;
+      days = new Set(performanceFiltered.map((r) => r.date)).size || 1,
+      uploadByPlatform = [...sumBy(performanceFiltered, (r) => r.platform, (r) => r.uploadCount)]
+        .sort((a, b) => b.total - a.total);
     return {
       views,
       engagement,
       uploads,
+      uploadByPlatform,
       ratingAvg,
       tvAudience,
       tvEpisodes,
