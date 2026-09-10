@@ -385,6 +385,20 @@ export function useDashboard() {
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-31);
   }, [filtered]);
+  const tvRatingBreakdown = useMemo(() => {
+    const m = new Map<string, { program: string; channel: string; rating: number; audience: number; episodes: number }>();
+    filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0).forEach((r) => {
+      const channel = /gmm/i.test(r.channel) ? "GMM25" : /one/i.test(r.channel) ? "One31" : r.channel || "ไม่ระบุช่อง";
+      const key = \`${'${r.program}'}|${'${channel}'}\`;
+      const x = m.get(key) || { program: r.program, channel, rating: 0, audience: 0, episodes: 0 };
+      x.rating += r.ratingTotal;
+      x.audience += r.audienceTotal + r.gmmAudience;
+      x.episodes += 1;
+      m.set(key, x);
+    });
+    return [...m.values()].map((x) => ({ ...x, rating: x.episodes ? x.rating / x.episodes : 0 })).sort((a, b) => b.audience - a.audience);
+  }, [filtered]);
+
   const compare = useMemo(() => {
     type Cluster = CompareRow & { matchTopic: string; hasTv: boolean };
     const byDate = new Map<string, RecordRow[]>();
@@ -884,6 +898,7 @@ export function useDashboard() {
     best,
     rating,
     tvAudience,
+    tvRatingBreakdown,
     compare,
     compareSorted,
     comparePageCount,
