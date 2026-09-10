@@ -51,16 +51,9 @@ export function KpiSummary({
           icon={<Upload />}
           label="Total Upload"
           value={num(metrics.uploads)}
-          detail={
-            tvMode
-              ? `${num(metrics.tvEpisodes)} TV Episodes`
-              : types
-                  .slice(0, 3)
-                  .map(
-                    (x) =>
-                      `${x.name} ${performanceFiltered.filter((r) => r.vdoType === x.name).length}`,
-                  )
-                  .join(" · ")
+          detail={metrics.uploadByPlatform
+            .map((x) => `${x.name} ${num(x.total)}`)
+            .join(" · ") || "ไม่มีข้อมูล"
           }
         />
         <Kpi
