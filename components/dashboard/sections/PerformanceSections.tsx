@@ -47,6 +47,7 @@ export function PerformanceSections({
   best,
   rating,
   tvAudience,
+  tvRatingBreakdown,
   download,
 }: Pick<
   DashboardModel,
@@ -70,6 +71,7 @@ export function PerformanceSections({
   | "best"
   | "rating"
   | "tvAudience"
+  | "tvRatingBreakdown"
   | "download"
 >) {
   return (
@@ -349,6 +351,20 @@ export function PerformanceSections({
             ) : (
               <Empty text="ไม่มีข้อมูล TV Rating ในช่วงที่เลือก" />
             )}
+          </div>
+        </article>
+        <article className="panel wide tv-rating-breakdown">
+          <div className="panel-head">
+            <div>
+              <h2>TV Rating แยกตามรายการและช่อง</h2>
+              <p>เงินทองของจริง / ถกไม่เถียง · One31 / GMM25</p>
+            </div>
+          </div>
+          <div className="table-scroll">
+            <table>
+              <thead><tr><th>รายการ</th><th>ช่อง</th><th>Rating เฉลี่ย</th><th>TV Audience</th><th>จำนวนตอน</th></tr></thead>
+              <tbody>{tvRatingBreakdown.map((x) => <tr key={x.program + "-" + x.channel}><td>{x.program}</td><td>{x.channel}</td><td>{x.rating.toFixed(3)}</td><td>{compact(x.audience)}</td><td>{num(x.episodes)}</td></tr>)}</tbody>
+            </table>
           </div>
         </article>
         <article className="panel">
