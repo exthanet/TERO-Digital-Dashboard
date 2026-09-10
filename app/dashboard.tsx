@@ -112,6 +112,7 @@ export default function Dashboard() {
           top={model.top}
           best={model.best}
           rating={model.rating}
+          tvRatingBreakdown={model.tvRatingBreakdown}
           tvAudience={model.tvAudience}
           download={model.download}
         />
