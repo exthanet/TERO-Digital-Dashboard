@@ -1,0 +1,7 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /masterData/{row} { allow read: if request.auth != null; allow write: if false; }
+    match /affiliateData/{doc} { allow read: if request.auth != null; allow write: if false; }
+  }
+}

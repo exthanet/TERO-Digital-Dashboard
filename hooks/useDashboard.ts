@@ -1,5 +1,6 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
+import { loadMasterDataFromFirebase } from "@/lib/firebase";
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
@@ -50,8 +51,13 @@ export function useDashboard() {
     [compareSort, setCompareSort] = useState<CompareSortKey>("date"),
     [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc");
   useEffect(() => {
-    fetch(dashboardAsset("master-data.json"))
-      .then((r) => r.json())
+    const load = isStaticHost
+      ? fetch(dashboardAsset("master-data.json")).then((r) => r.json())
+      : loadMasterDataFromFirebase().catch(() =>
+          fetch(dashboardAsset("master-data.json")).then((r) => r.json()),
+        );
+    load
+      .then((r: RawRow[]) => r)
       .then((data: RawRow[]) => {
         const x = data.map(normalize).filter((r) => r.date);
         setRows(x);

@@ -6,7 +6,10 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build:pages": "vite build --config vite.pages.config.ts",
+    "migrate:firebase": "node scripts/migrate-firebase.mjs",
+    "build:firebase": "node ./node_modules/vite/bin/vite.js build --config vite.firebase.config.ts",
+    "deploy:firebase": "npm run build:firebase && firebase deploy --only hosting",
+    "build:pages": "node ./node_modules/vite/bin/vite.js build --config vite.pages.config.ts",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
@@ -25,6 +28,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.19.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.31.0",
     "next": "16.2.6",
