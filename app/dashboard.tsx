@@ -22,10 +22,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
+import { SignUpModal } from "@/components/auth/SignUpModal";
 import "@/styles/auth.css";
 
 export default function Dashboard() {
   const auth = useAuth();
+  const [signUpOpen, setSignUpOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const model = useDashboard();
@@ -47,9 +49,6 @@ export default function Dashboard() {
         setSourceOpen={model.setSourceOpen}
         openIntegrations={model.openIntegrations}
         currentUser={auth.user}
-        onOpenChangePassword={() => setChangePasswordOpen(true)}
-        onOpenUserManagement={() => setUserManagementOpen(true)}
-        onLogout={auth.logout}
       />
       <section className="workspace" id="overview">
         <MobileHeader
@@ -57,7 +56,13 @@ export default function Dashboard() {
           setMenuOpen={model.setMenuOpen}
           setSourceOpen={model.setSourceOpen}
         />
-        <SectionTabs />
+        <SectionTabs
+          currentUser={auth.user}
+          onOpenSignUp={() => setSignUpOpen(true)}
+          onOpenChangePassword={() => setChangePasswordOpen(true)}
+          onOpenUserManagement={() => setUserManagementOpen(true)}
+          onLogout={auth.logout}
+        />
         <DashboardFilters
           setSourceOpen={model.setSourceOpen}
           program={model.program}
@@ -171,6 +176,11 @@ export default function Dashboard() {
         integrationLoading={model.integrationLoading}
         integrationStatus={model.integrationStatus}
         checkIntegrations={model.checkIntegrations}
+      />
+      <SignUpModal
+        isOpen={signUpOpen}
+        onClose={() => setSignUpOpen(false)}
+        auth={auth}
       />
       <ChangePasswordModal
         isOpen={changePasswordOpen}

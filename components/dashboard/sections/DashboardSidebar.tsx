@@ -8,9 +8,7 @@ import {
   BadgeDollarSign,
   BarChart3,
   FileSpreadsheet,
-  KeyRound,
   LayoutDashboard,
-  LogOut,
   MonitorPlay,
   Settings,
   Sparkles,
@@ -18,7 +16,6 @@ import {
   Tv,
   Upload,
   User as UserIcon,
-  Users,
   Zap,
 } from "lucide-react";
 
@@ -28,9 +25,6 @@ interface DashboardSidebarProps
     "rows" | "menuOpen" | "setMenuOpen" | "setSourceOpen" | "openIntegrations"
   > {
   currentUser?: AuthUser | null;
-  onOpenChangePassword?: () => void;
-  onOpenUserManagement?: () => void;
-  onLogout?: () => void;
 }
 
 export function DashboardSidebar({
@@ -40,9 +34,6 @@ export function DashboardSidebar({
   setSourceOpen,
   openIntegrations,
   currentUser,
-  onOpenChangePassword,
-  onOpenUserManagement,
-  onLogout,
 }: DashboardSidebarProps) {
   const nav = [
     ["overview", "ภาพรวม", <LayoutDashboard key="a" />],
@@ -121,40 +112,6 @@ export function DashboardSidebar({
                   @{currentUser.username} • {currentUser.role}
                 </div>
               </div>
-            </div>
-
-            <div className="sidebar-user-actions">
-              <button
-                type="button"
-                className="sidebar-user-btn"
-                onClick={onOpenChangePassword}
-                title="เปลี่ยนรหัสผ่าน"
-              >
-                <KeyRound size={14} />
-                รหัสผ่าน
-              </button>
-
-              {currentUser.role === "admin" && (
-                <button
-                  type="button"
-                  className="sidebar-user-btn"
-                  onClick={onOpenUserManagement}
-                  title="จัดการผู้ใช้งานระบบ"
-                >
-                  <Users size={14} />
-                  ผู้ใช้งาน
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="sidebar-user-btn logout"
-                onClick={onLogout}
-                title="ออกจากระบบ"
-              >
-                <LogOut size={14} />
-                ออกจากระบบ (Sign Out)
-              </button>
             </div>
           </div>
         )}
