@@ -389,7 +389,7 @@ export function useDashboard() {
     const m = new Map<string, { program: string; channel: string; rating: number; audience: number; episodes: number }>();
     filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0).forEach((r) => {
       const channel = /gmm/i.test(r.channel) ? "GMM25" : /one/i.test(r.channel) ? "One31" : r.channel || "ไม่ระบุช่อง";
-      const key = \`${'${r.program}'}|${'${channel}'}\`;
+      const key = `${r.program}|${channel}`;
       const x = m.get(key) || { program: r.program, channel, rating: 0, audience: 0, episodes: 0 };
       x.rating += r.ratingTotal;
       x.audience += r.audienceTotal + r.gmmAudience;
