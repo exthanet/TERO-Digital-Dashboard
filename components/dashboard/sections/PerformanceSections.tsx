@@ -333,7 +333,7 @@ export function PerformanceSections({
                   />
                   <Tooltip
                     formatter={(v) => Number(v).toFixed(3)}
-                    labelFormatter={dateLabel}
+                    labelFormatter={(label) => dateLabel(String(label ?? ""))}
                   />
                   <Legend />
                   <Bar dataKey="Total" stackId="rating" fill="#1d4ed8" />

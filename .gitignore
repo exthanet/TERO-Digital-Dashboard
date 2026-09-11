@@ -45,3 +45,4 @@ next-env.d.ts
 /.football-tools/
 /football-output/
 /.firebase/
+*.tsbuildinfo

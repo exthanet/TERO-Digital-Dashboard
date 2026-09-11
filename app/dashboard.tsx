@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { AffiliateSection } from "@/components/dashboard/sections/AffiliateSection";
 import { CompareTable } from "@/components/dashboard/sections/CompareTable";
 import { DashboardFilters } from "@/components/dashboard/sections/DashboardFilters";
@@ -17,9 +18,26 @@ import { PerformanceSections } from "@/components/dashboard/sections/Performance
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthScreen } from "@/components/auth/AuthScreen";
+import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
+import { UserManagementModal } from "@/components/auth/UserManagementModal";
+import "@/styles/auth.css";
 
 export default function Dashboard() {
+  const auth = useAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [userManagementOpen, setUserManagementOpen] = useState(false);
   const model = useDashboard();
+
+  if (auth.isLoading) {
+    return <LoadingOverlay loading={true} />;
+  }
+
+  if (!auth.isAuthenticated) {
+    return <AuthScreen auth={auth} />;
+  }
+
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
@@ -27,8 +45,11 @@ export default function Dashboard() {
         menuOpen={model.menuOpen}
         setMenuOpen={model.setMenuOpen}
         setSourceOpen={model.setSourceOpen}
-
         openIntegrations={model.openIntegrations}
+        currentUser={auth.user}
+        onOpenChangePassword={() => setChangePasswordOpen(true)}
+        onOpenUserManagement={() => setUserManagementOpen(true)}
+        onLogout={auth.logout}
       />
       <section className="workspace" id="overview">
         <MobileHeader
@@ -150,6 +171,16 @@ export default function Dashboard() {
         integrationLoading={model.integrationLoading}
         integrationStatus={model.integrationStatus}
         checkIntegrations={model.checkIntegrations}
+      />
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        auth={auth}
+      />
+      <UserManagementModal
+        isOpen={userManagementOpen}
+        onClose={() => setUserManagementOpen(false)}
+        auth={auth}
       />
       <LoadingOverlay loading={model.loading} />
     </main>
