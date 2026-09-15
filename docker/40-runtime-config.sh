@@ -1,5 +1,5 @@
 #!/bin/sh
-# Writes /runtime-config.js from ADMIN_USERNAME / ADMIN_PASSWORD at container start.
+# Writes /runtime-config from ADMIN_USERNAME / ADMIN_PASSWORD at container start.
 # Only the salted hash is written; the plaintext password never reaches the browser.
 set -eu
 
@@ -22,7 +22,7 @@ fi
 hash="$(printf '%s%s' "$ADMIN_PASSWORD" "_tero_salt_2026" | sha256sum | cut -d ' ' -f 1)"
 username="$(printf '%s' "$ADMIN_USERNAME" | tr 'A-Z' 'a-z')"
 
-cat > /usr/share/nginx/html/runtime-config.js <<EOF
+cat > /usr/share/nginx/html/runtime-config <<EOF
 window.__TERO_AUTH_CONFIG__ = { adminUsername: "${username}", adminPasswordHash: "${hash}" };
 EOF
 
