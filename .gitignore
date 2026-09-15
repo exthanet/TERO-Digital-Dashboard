@@ -29,6 +29,28 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# secrets and credentials
+.htpasswd
+*.key
+*service-account*.json
+*-firebase-adminsdk-*.json
+
+# local Docker overrides
+docker-compose.override.yml
+compose.override.yml
+
+# raw data exports dropped in the repo root (data/tiktok is committed by CI)
+/*.csv
+/*.xlsx
+/*.xlsm
+
+# logs, editors, agent tooling
+*.log
+.idea/
+.vscode/
+.claude/
 
 # vercel
 .vercel
