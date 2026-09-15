@@ -62,6 +62,46 @@ const worker = {
       return Response.json(status, { headers: { "Cache-Control": "no-store" } });
     }
 
+    if (url.pathname === "/api/integrations/metricool/test" && request.method === "GET") {
+      const missing = ["METRICOOL_USER_ID", "METRICOOL_BLOG_ID", "METRICOOL_API_TOKEN"].filter(
+        (key) => !env[key as keyof Env]
+      );
+      if (missing.length > 0) {
+        return Response.json(
+          { configured: false, success: false, missing, message: `Missing: ${missing.join(", ")}` },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      try {
+        const response = await fetch(
+          `https://app.metricool.com/api/v2/blogs?userId=${encodeURIComponent(env.METRICOOL_USER_ID || "")}&blogId=${encodeURIComponent(env.METRICOOL_BLOG_ID || "")}`,
+          {
+            headers: {
+              "X-Mc-Auth": env.METRICOOL_API_TOKEN || "",
+              Accept: "application/json",
+            },
+          }
+        );
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          return Response.json(
+            { configured: true, success: false, status: response.status, message: text || response.statusText },
+            { status: 502, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        const data = await response.json().catch(() => null);
+        return Response.json(
+          { configured: true, success: true, message: "Connected to Metricool API", data },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      } catch (err: unknown) {
+        return Response.json(
+          { configured: true, success: false, message: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {

@@ -15,6 +15,8 @@
     "build": "node scripts/build.mjs",
     "start": "vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
+    "sync:metricool": "node scripts/sync-metricool.mjs",
+    "test:metricool": "node scripts/sync-metricool.mjs --test",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "sync:tiktok": "node scripts/sync-tiktok.mjs"

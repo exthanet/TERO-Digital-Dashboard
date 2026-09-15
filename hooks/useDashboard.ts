@@ -1,6 +1,6 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
-import { loadMasterDataFromFirebase } from "@/lib/firebase";
+import { loadMasterDataFromFirebase, saveMasterDataToFirebase } from "@/lib/firebase";
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
@@ -18,6 +18,12 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 export function useDashboard() {
   const [rows, setRows] = useState<RecordRow[]>([]),
+    [rawRows, setRawRows] = useState<RawRow[]>([]),
+    [cloudSaving, setCloudSaving] = useState(false),
+    [cloudSaveProgress, setCloudSaveProgress] = useState<{
+      current: number;
+      total: number;
+    } | null>(null),
     [loading, setLoading] = useState(true),
     [menuOpen, setMenuOpen] = useState(false),
     [sourceOpen, setSourceOpen] = useState(false),
@@ -27,10 +33,8 @@ export function useDashboard() {
       null,
     ),
     [sheetUrl, setSheetUrl] = useState(""),
-    [sourceName, setSourceName] = useState(
-      "Master Data Updated 2026-09-07.xlsx",
-    ),
-    [uploadedAt, setUploadedAt] = useState("2026-09-07T10:00:00+07:00"),
+    [sourceName, setSourceName] = useState("Firebase Firestore"),
+    [uploadedAt, setUploadedAt] = useState(new Date().toISOString()),
     [message, setMessage] = useState("");
   const [program, setProgram] = useState("ALL"),
     [platform, setPlatform] = useState("ALL"),
@@ -59,11 +63,14 @@ export function useDashboard() {
     load
       .then((r: RawRow[]) => r)
       .then((data: RawRow[]) => {
+        setRawRows(data);
         const x = data.map(normalize).filter((r) => r.date);
         setRows(x);
         const d = x.map((r) => r.date).sort();
         setStartDate(d[0] || "");
         setEndDate(d.at(-1) || "");
+        setSourceName(isStaticHost ? "master-data.json" : "Firebase Firestore");
+        setUploadedAt(new Date().toISOString());
         setLoading(false);
       })
       .catch(() => {
@@ -676,14 +683,51 @@ export function useDashboard() {
   function applyRows(raw: RawRow[], name: string) {
     const x = raw.map(normalize).filter((r) => r.date);
     if (!x.length) throw new Error("ไม่พบข้อมูลที่มีคอลัมน์ Date");
+    setRawRows(raw);
     const d = x.map((r) => r.date).sort();
     setRows(x);
     setStartDate(d[0]);
     setEndDate(d.at(-1) || d[0]);
     setSourceName(name);
     setUploadedAt(new Date().toISOString());
-    setMessage(`นำเข้า ${num(x.length)} แถวเรียบร้อย`);
+    setMessage(`นำเข้า ${num(x.length)} แถวเรียบร้อย (สามารถกดบันทึกขึ้น Cloud ได้)`);
     setSourceOpen(false);
+  }
+
+  async function saveCurrentDataToCloud(userRole?: string): Promise<{ success: boolean; message: string }> {
+    if (userRole !== "admin") {
+      const msg = "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลขึ้น Cloud ได้";
+      setMessage(msg);
+      return { success: false, message: msg };
+    }
+
+    const dataToSave = rawRows.length > 0 ? rawRows : (rows as unknown as RawRow[]);
+    if (!dataToSave.length) {
+      const msg = "ไม่มีข้อมูลสำหรับบันทึก";
+      setMessage(msg);
+      return { success: false, message: msg };
+    }
+
+    setCloudSaving(true);
+    setCloudSaveProgress(null);
+    setMessage("กำลังบันทึกข้อมูลขึ้น Firebase Firestore...");
+
+    try {
+      const result = await saveMasterDataToFirebase(dataToSave, (current, total) => {
+        setCloudSaveProgress({ current, total });
+      });
+      setSourceName("Firebase Firestore");
+      setUploadedAt(new Date().toISOString());
+      setMessage(result.message);
+      return { success: true, message: result.message };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "บันทึกข้อมูลขึ้น Cloud ไม่สำเร็จ";
+      setMessage(`เกิดข้อผิดพลาด: ${errorMsg}`);
+      return { success: false, message: errorMsg };
+    } finally {
+      setCloudSaving(false);
+      setCloudSaveProgress(null);
+    }
   }
   async function loadSheet() {
     setLoading(true);
@@ -920,6 +964,10 @@ export function useDashboard() {
     onFile,
     checkIntegrations,
     openIntegrations,
+    rawRows,
+    cloudSaving,
+    cloudSaveProgress,
+    saveCurrentDataToCloud,
     applyDatePreset,
     download,
     reset,

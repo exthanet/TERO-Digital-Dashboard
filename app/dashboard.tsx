@@ -91,6 +91,9 @@ export default function Dashboard() {
           message={model.message}
           filtered={model.filtered}
           reset={model.reset}
+          currentUser={auth.user}
+          cloudSaving={model.cloudSaving}
+          onSaveToCloud={() => model.saveCurrentDataToCloud(auth.user?.role)}
         />
         <KpiSummary
           tvMode={model.tvMode}
@@ -169,6 +172,12 @@ export default function Dashboard() {
         fileRef={model.fileRef}
         loadSheet={model.loadSheet}
         onFile={model.onFile}
+        sourceName={model.sourceName}
+        rowsCount={model.rows.length}
+        cloudSaving={model.cloudSaving}
+        cloudSaveProgress={model.cloudSaveProgress}
+        onSaveToCloud={() => model.saveCurrentDataToCloud(auth.user?.role)}
+        currentUser={auth.user}
       />
       <IntegrationsModal
         integrationsOpen={model.integrationsOpen}

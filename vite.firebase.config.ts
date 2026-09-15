@@ -13,7 +13,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { "@": projectRoot } },
   define: {
-    "process.env.NEXT_PUBLIC_STATIC_HOST": JSON.stringify("true"),
+    "process.env.NEXT_PUBLIC_STATIC_HOST": JSON.stringify("false"),
     "process.env.NEXT_PUBLIC_ASSET_BASE": JSON.stringify(base),
   },
   build: { outDir: `${projectRoot}dist/firebase`, emptyOutDir: true },
