@@ -1,10 +1,12 @@
 name: Dashboard CI
 
+# Pull requests only. Pushes to main are tested by deploy.yml before deploying.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -17,3 +19,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t tero-digital-dashboard:ci .
+
+  notify:
+    needs: [test, docker-build]
+    # Fork PRs get no secrets, so the action skips itself there.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          title: CI TERO Dashboard (PR)
+          status: ${{ (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'cancelled') || 'success' }}

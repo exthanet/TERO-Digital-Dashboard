@@ -1,0 +1,94 @@
+name: Deploy dashboard
+
+# Push to main: test on GitHub, then ask Dokploy (dockerlab, 192.168.10.113)
+# to rebuild the app from main and wait for the result.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://digital-dashboard.terodigital.com
+    env:
+      DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+      APP_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+      API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+    steps:
+      - name: Trigger Dokploy deploy and wait
+        run: |
+          set -euo pipefail
+          : "${DOKPLOY_URL:?set repository variable DOKPLOY_URL}"
+          : "${APP_ID:?set repository variable DOKPLOY_APPLICATION_ID}"
+          : "${API_KEY:?set repository secret DOKPLOY_API_KEY}"
+
+          api() {
+            curl -fsS -m 30 -H "x-api-key: $API_KEY" -H "Content-Type: application/json" "$@"
+          }
+          latest() {
+            api "$DOKPLOY_URL/api/deployment.all?applicationId=$APP_ID" \
+              | jq -r 'sort_by(.createdAt) | last | "\(.deploymentId // "") \(.status // "")"'
+          }
+
+          before="$(latest | cut -d ' ' -f 1)"
+          api -X POST "$DOKPLOY_URL/api/application.deploy" -d "{\"applicationId\":\"$APP_ID\"}" >/dev/null
+          echo "Deploy requested (previous deployment: ${before:-none})"
+
+          for _ in $(seq 1 90); do
+            sleep 10
+            read -r id status <<<"$(latest)"
+            [ "$id" = "$before" ] && continue
+            echo "deployment $id: $status"
+            case "$status" in
+              done) exit 0 ;;
+              error|cancelled) echo "::error::Dokploy deployment $id ended with $status"; exit 1 ;;
+            esac
+          done
+          echo "::error::Timed out waiting for Dokploy deployment"
+          exit 1
+
+      - name: Check public URL
+        run: |
+          for _ in $(seq 1 12); do
+            code="$(curl -s -m 10 -o /dev/null -w '%{http_code}' https://digital-dashboard.terodigital.com/healthz || true)"
+            [ "$code" = "200" ] && { echo "healthz 200"; exit 0; }
+            sleep 5
+          done
+          echo "::error::https://digital-dashboard.terodigital.com/healthz returned $code"
+          exit 1
+
+  notify:
+    needs: [test, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          title: Deploy TERO Dashboard
+          status: ${{ (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'cancelled') || needs.deploy.result }}

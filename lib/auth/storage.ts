@@ -10,8 +10,24 @@ import type {
 const USERS_STORAGE_KEY = "tero_dashboard_users_v1";
 const SESSION_STORAGE_KEY = "tero_dashboard_session_v1";
 
+const DEFAULT_ADMIN_ID = "usr_admin_001";
+
+// Injected by /runtime-config.js, generated from the environment at container
+// start. It carries only the password hash, never the plaintext.
+interface RuntimeAuthConfig {
+  adminUsername: string;
+  adminPasswordHash: string;
+}
+
+function getRuntimeAuthConfig(): RuntimeAuthConfig | null {
+  const config = (window as Window & { __TERO_AUTH_CONFIG__?: RuntimeAuthConfig })
+    .__TERO_AUTH_CONFIG__;
+  if (!config?.adminUsername || !config?.adminPasswordHash) return null;
+  return config;
+}
+
 // SHA-256 hash helper with fallback
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   if (typeof window !== "undefined" && window.crypto?.subtle) {
     try {
       const msgUint8 = new TextEncoder().encode(password + "_tero_salt_2026");
@@ -33,29 +49,53 @@ async function hashPassword(password: string): Promise<string> {
   return `fallback_${Math.abs(hash).toString(16)}`;
 }
 
-// Ensure default admin user exists
+// Ensure the default admin from the runtime config exists. When the configured
+// credentials change, the stored admin is reset to them; a password changed in
+// the UI survives reloads until the configuration changes again.
 export async function ensureDefaultAdmin(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
+    const config = getRuntimeAuthConfig();
+    if (!config) {
+      console.warn("runtime-config.js is missing: no default admin account is available");
+      return;
+    }
+    const username = config.adminUsername.trim().toLowerCase();
+
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     const users: UserRecord[] = raw ? JSON.parse(raw) : [];
-    const hasAdmin = users.some(
-      (u) => u.username.toLowerCase() === "admin",
-    );
+    const admin = users.find((u) => u.id === DEFAULT_ADMIN_ID);
 
-    if (!hasAdmin) {
-      const adminHash = await hashPassword("123456");
-      const defaultAdmin: UserRecord = {
-        id: "usr_admin_001",
-        username: "admin",
+    if (!admin) {
+      if (users.some((u) => u.username.toLowerCase() === username)) {
+        console.error(`Default admin username "${username}" is already taken`);
+        return;
+      }
+      users.unshift({
+        id: DEFAULT_ADMIN_ID,
+        username,
         name: "Administrator",
         role: "admin",
-        passwordHash: adminHash,
+        passwordHash: config.adminPasswordHash,
+        seedHash: config.adminPasswordHash,
         createdAt: new Date().toISOString(),
-      };
-      users.unshift(defaultAdmin);
+      });
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      return;
     }
+
+    if (admin.seedHash === config.adminPasswordHash && admin.username === username) {
+      return;
+    }
+    if (users.some((u) => u.id !== DEFAULT_ADMIN_ID && u.username.toLowerCase() === username)) {
+      console.error(`Default admin username "${username}" is already taken`);
+      return;
+    }
+    admin.username = username;
+    admin.role = "admin";
+    admin.passwordHash = config.adminPasswordHash;
+    admin.seedHash = config.adminPasswordHash;
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   } catch (e) {
     console.error("Failed to initialize user storage", e);
   }
@@ -67,7 +107,7 @@ export function getAllUsers(): User[] {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     if (!raw) return [];
     const records: UserRecord[] = JSON.parse(raw);
-    return records.map(({ passwordHash: _, ...user }) => user);
+    return records.map(({ passwordHash: _, seedHash: __, ...user }) => user);
   } catch {
     return [];
   }

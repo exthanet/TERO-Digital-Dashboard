@@ -10,6 +10,7 @@ export interface User {
 
 export interface UserRecord extends User {
   passwordHash: string; // Stored hash or base64/hashed string
+  seedHash?: string; // Default admin only: configured hash the account was last reset to
 }
 
 export interface AuthSession {
