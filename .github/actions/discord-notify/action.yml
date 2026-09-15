@@ -1,0 +1,56 @@
+name: Discord notify
+description: Post a workflow result to a Discord webhook. Does nothing when the webhook is empty.
+
+inputs:
+  webhook-url:
+    description: Discord webhook URL (pass from a secret)
+    required: false
+  status:
+    description: success | failure | cancelled | skipped
+    required: true
+  title:
+    description: Short title, e.g. "Deploy to production"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send message
+      shell: bash
+      env:
+        WEBHOOK_URL: ${{ inputs.webhook-url }}
+        STATUS: ${{ inputs.status }}
+        TITLE: ${{ inputs.title }}
+        REPO: ${{ github.repository }}
+        REF: ${{ github.head_ref || github.ref_name }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        ACTOR: ${{ github.actor }}
+        COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        if [ -z "$WEBHOOK_URL" ]; then
+          echo "DISCORD_WEBHOOK_URL is not set; skipping notification"
+          exit 0
+        fi
+        case "$STATUS" in
+          success)   color=3066993;  icon="✅" ;;
+          failure)   color=15158332; icon="❌" ;;
+          cancelled) color=9807270;  icon="⚪" ;;
+          *)         color=16776960; icon="⚠️" ;;
+        esac
+        payload="$(jq -n \
+          --arg title "$icon $TITLE: $STATUS" \
+          --arg url "$RUN_URL" \
+          --arg repo "$REPO" --arg ref "$REF" --arg sha "${SHA:0:7}" \
+          --arg actor "$ACTOR" --arg msg "$(printf '%s' "$COMMIT_MSG" | head -n 1 | cut -c 1-200)" \
+          --argjson color "$color" \
+          '{username: "GitHub Actions", embeds: [{title: $title, url: $url, color: $color,
+            fields: [
+              {name: "Repository", value: $repo, inline: true},
+              {name: "Branch", value: $ref, inline: true},
+              {name: "Commit", value: $sha, inline: true},
+              {name: "By", value: $actor, inline: true},
+              {name: "Message", value: (if $msg == "" then "-" else $msg end)}
+            ]}]}')"
+        curl -fsS -m 15 -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL" \
+          || echo "::warning::Discord notification failed"

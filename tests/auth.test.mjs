@@ -31,10 +31,32 @@ const {
   registerNewUser,
   updateUserPassword,
   getAllUsers,
+  hashPassword,
 } = await import("../lib/auth/storage.ts");
+
+async function setRuntimeConfig(adminUsername, password) {
+  window.__TERO_AUTH_CONFIG__ = {
+    adminUsername,
+    adminPasswordHash: await hashPassword(password),
+  };
+}
+
+test("Auth Storage - No default admin without runtime config", async () => {
+  store.clear();
+  delete window.__TERO_AUTH_CONFIG__;
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await ensureDefaultAdmin();
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(getAllUsers().length, 0);
+});
 
 test("Auth Storage - Default admin initialization", async () => {
   store.clear();
+  await setRuntimeConfig("admin", "123456");
   await ensureDefaultAdmin();
   const users = getAllUsers();
   assert.equal(users.length, 1);
@@ -108,4 +130,22 @@ test("Auth Storage - Update password", async () => {
   // Verify new password succeeds
   const newLogin = await authenticateUser({ username: "admin", password: "newsecretpassword" });
   assert.ok(newLogin);
+});
+
+test("Auth Storage - Password changed in UI survives reload with same config", async () => {
+  await ensureDefaultAdmin();
+  const res = await authenticateUser({ username: "admin", password: "newsecretpassword" });
+  assert.ok(res, "UI-changed password should still work");
+});
+
+test("Auth Storage - Changed config resets default admin", async () => {
+  await setRuntimeConfig("Boss", "fromenv99");
+  await ensureDefaultAdmin();
+
+  assert.equal(await authenticateUser({ username: "admin", password: "newsecretpassword" }), null);
+  const res = await authenticateUser({ username: "boss", password: "fromenv99" });
+  assert.ok(res, "Admin should use the new configured credentials");
+  assert.equal(res.user.role, "admin");
+  assert.equal(getAllUsers().length, 2, "Other users are kept");
+  assert.ok(getAllUsers().every((u) => !("seedHash" in u)), "seedHash is not exposed");
 });
