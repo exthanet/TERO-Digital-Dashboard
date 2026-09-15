@@ -12,7 +12,7 @@ const SESSION_STORAGE_KEY = "tero_dashboard_session_v1";
 
 const DEFAULT_ADMIN_ID = "usr_admin_001";
 
-// Injected by /runtime-config.js, generated from the environment at container
+// Injected by /runtime-config, generated from the environment at container
 // start. It carries only the password hash, never the plaintext.
 interface RuntimeAuthConfig {
   adminUsername: string;
@@ -57,7 +57,7 @@ export async function ensureDefaultAdmin(): Promise<void> {
   try {
     const config = getRuntimeAuthConfig();
     if (!config) {
-      console.warn("runtime-config.js is missing: no default admin account is available");
+      console.warn("/runtime-config is missing: no default admin account is available");
       return;
     }
     const username = config.adminUsername.trim().toLowerCase();
