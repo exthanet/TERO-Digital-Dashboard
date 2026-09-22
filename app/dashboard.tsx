@@ -93,7 +93,9 @@ export default function Dashboard() {
           reset={model.reset}
           currentUser={auth.user}
           cloudSaving={model.cloudSaving}
-          onSaveToCloud={() => model.saveCurrentDataToCloud(auth.user?.role)}
+          onSaveToCloud={async () => {
+            await model.saveCurrentDataToCloud(auth.user?.role);
+          }}
         />
         <KpiSummary
           tvMode={model.tvMode}
@@ -160,7 +162,7 @@ export default function Dashboard() {
           sortCompare={model.sortCompare}
           download={model.download}
         />
-        <AffiliateSection />
+        <AffiliateSection currentUser={auth.user} />
         <DashboardFooter />
       </section>
       <DataSourceModal
@@ -176,7 +178,9 @@ export default function Dashboard() {
         rowsCount={model.rows.length}
         cloudSaving={model.cloudSaving}
         cloudSaveProgress={model.cloudSaveProgress}
-        onSaveToCloud={() => model.saveCurrentDataToCloud(auth.user?.role)}
+        onSaveToCloud={async () => {
+          await model.saveCurrentDataToCloud(auth.user?.role);
+        }}
         currentUser={auth.user}
       />
       <IntegrationsModal

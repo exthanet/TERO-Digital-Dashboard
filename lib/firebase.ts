@@ -3,6 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import type { RawRow } from "@/lib/dashboard/types";
+import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAryjQuJ7dujmHxoXtiCNFANjt5bkE3PAc",
@@ -40,7 +41,7 @@ export async function loadMasterDataFromFirebase(): Promise<RawRow[]> {
   return rows;
 }
 
-function cleanRowForFirestore(row: RawRow): Record<string, unknown> {
+function cleanRowForFirestore(row: Record<string, unknown>): Record<string, unknown> {
   const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
     cleaned[key] = value === undefined ? null : value;
@@ -74,7 +75,7 @@ export async function saveMasterDataToFirebase(
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, rows.length);
-    const chunkRows = rows.slice(start, end).map(cleanRowForFirestore);
+    const chunkRows = rows.slice(start, end).map((r) => cleanRowForFirestore(r as Record<string, unknown>));
     const docId = `chunk_${String(i).padStart(3, "0")}`;
     existingChunkIds.delete(docId);
 
@@ -108,5 +109,137 @@ export async function saveMasterDataToFirebase(
     success: true,
     message: `บันทึกข้อมูล ${rows.length.toLocaleString()} แถวขึ้น Firebase Firestore เรียบร้อยแล้ว`,
     totalChunks,
+  };
+}
+
+/**
+ * Load Affiliate data from Firestore `affiliateData` collection
+ */
+export async function loadAffiliateDataFromFirebase(): Promise<AffiliateData | null> {
+  const snapshot = await getDocs(collection(db, "affiliateData"));
+  if (snapshot.empty) return null;
+
+  const summaryDoc = snapshot.docs.find((d) => d.id === "summary");
+  const metaDoc = snapshot.docs.find((d) => d.id === "meta");
+
+  const summary = summaryDoc?.data()?.summary || [];
+  const generatedAt = metaDoc?.data()?.generatedAt || new Date().toISOString();
+
+  const contents: AffiliateData["contents"] = [];
+  const products: AffiliateData["products"] = [];
+  const daily: AffiliateData["daily"] = [];
+
+  snapshot.docs.forEach((item) => {
+    const data = item.data();
+    if (item.id.startsWith("content_") && Array.isArray(data.rows)) {
+      contents.push(...data.rows);
+    } else if (item.id.startsWith("product_") && Array.isArray(data.rows)) {
+      products.push(...data.rows);
+    } else if (item.id.startsWith("daily_") && Array.isArray(data.rows)) {
+      daily.push(...data.rows);
+    }
+  });
+
+  if (summary.length === 0 && contents.length === 0 && daily.length === 0) {
+    return null;
+  }
+
+  return {
+    generatedAt,
+    summary,
+    contents,
+    products,
+    daily,
+  };
+}
+
+/**
+ * Save Affiliate data to Firestore `affiliateData` collection
+ */
+export async function saveAffiliateDataToFirebase(
+  data: AffiliateData,
+  onProgress?: (current: number, total: number) => void
+): Promise<{ success: boolean; message: string }> {
+  const CHUNK_SIZE = 400;
+
+  const contentChunks: AffiliateData["contents"][] = [];
+  for (let i = 0; i < data.contents.length; i += CHUNK_SIZE) {
+    contentChunks.push(data.contents.slice(i, i + CHUNK_SIZE));
+  }
+
+  const productChunks: AffiliateData["products"][] = [];
+  for (let i = 0; i < data.products.length; i += CHUNK_SIZE) {
+    productChunks.push(data.products.slice(i, i + CHUNK_SIZE));
+  }
+
+  const dailyChunks: AffiliateData["daily"][] = [];
+  for (let i = 0; i < data.daily.length; i += CHUNK_SIZE) {
+    dailyChunks.push(data.daily.slice(i, i + CHUNK_SIZE));
+  }
+
+  const totalSteps =
+    2 + contentChunks.length + productChunks.length + dailyChunks.length;
+  let currentStep = 0;
+
+  // 1. Save Meta doc
+  await setDoc(doc(db, "affiliateData", "meta"), {
+    adminToken: ADMIN_WRITE_TOKEN,
+    generatedAt: data.generatedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  currentStep++;
+  if (onProgress) onProgress(currentStep, totalSteps);
+
+  // 2. Save Summary doc
+  await setDoc(doc(db, "affiliateData", "summary"), {
+    adminToken: ADMIN_WRITE_TOKEN,
+    summary: data.summary.map((s) => cleanRowForFirestore(s as Record<string, unknown>)),
+    updatedAt: new Date().toISOString(),
+  });
+  currentStep++;
+  if (onProgress) onProgress(currentStep, totalSteps);
+
+  // 3. Save Content chunks
+  for (let i = 0; i < contentChunks.length; i++) {
+    const docId = `content_${String(i).padStart(3, "0")}`;
+    await setDoc(doc(db, "affiliateData", docId), {
+      adminToken: ADMIN_WRITE_TOKEN,
+      index: i,
+      rows: contentChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
+      updatedAt: new Date().toISOString(),
+    });
+    currentStep++;
+    if (onProgress) onProgress(currentStep, totalSteps);
+  }
+
+  // 4. Save Product chunks
+  for (let i = 0; i < productChunks.length; i++) {
+    const docId = `product_${String(i).padStart(3, "0")}`;
+    await setDoc(doc(db, "affiliateData", docId), {
+      adminToken: ADMIN_WRITE_TOKEN,
+      index: i,
+      rows: productChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
+      updatedAt: new Date().toISOString(),
+    });
+    currentStep++;
+    if (onProgress) onProgress(currentStep, totalSteps);
+  }
+
+  // 5. Save Daily chunks
+  for (let i = 0; i < dailyChunks.length; i++) {
+    const docId = `daily_${String(i).padStart(3, "0")}`;
+    await setDoc(doc(db, "affiliateData", docId), {
+      adminToken: ADMIN_WRITE_TOKEN,
+      index: i,
+      rows: dailyChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
+      updatedAt: new Date().toISOString(),
+    });
+    currentStep++;
+    if (onProgress) onProgress(currentStep, totalSteps);
+  }
+
+  return {
+    success: true,
+    message: "บันทึกข้อมูล Affiliate ขึ้น Firebase เรียบร้อยแล้ว",
   };
 }
