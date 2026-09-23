@@ -17,8 +17,11 @@ export const dateLabel = (d: string) =>
       })
     : "-";
 
-export const dateTimeLabel = (value: string) =>
-  new Intl.DateTimeFormat("th-TH", {
+export const dateTimeLabel = (value?: string | null) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("th-TH", {
     timeZone: "Asia/Bangkok",
     day: "2-digit",
     month: "2-digit",
@@ -27,4 +30,5 @@ export const dateTimeLabel = (value: string) =>
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  }).format(new Date(value));
+  }).format(d);
+};

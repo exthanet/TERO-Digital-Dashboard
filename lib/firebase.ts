@@ -25,20 +25,39 @@ export const signOutFirebase = () => signOut(auth);
 
 export const ADMIN_WRITE_TOKEN = "tero-admin-2026-secure";
 
+export interface MasterDataResult {
+  rows: RawRow[];
+  updatedAt?: string;
+}
+
 /** Firestore collection `masterData`: one document per dashboard row or chunked documents. */
-export async function loadMasterDataFromFirebase(): Promise<RawRow[]> {
+export async function loadMasterDataWithMetaFromFirebase(): Promise<MasterDataResult> {
   const snapshot = await getDocs(collection(db, "masterData"));
-  if (snapshot.empty) return [];
+  if (snapshot.empty) return { rows: [] };
   const rows: RawRow[] = [];
+  let latestUpdatedAt: string | undefined;
+
   snapshot.docs.forEach((item) => {
     const data = item.data();
+    if (data.updatedAt && (!latestUpdatedAt || String(data.updatedAt) > latestUpdatedAt)) {
+      latestUpdatedAt = String(data.updatedAt);
+    }
     if (Array.isArray(data.rows)) {
       rows.push(...(data.rows as RawRow[]));
-    } else {
+    } else if (item.id.startsWith("chunk_") || !item.id.startsWith("meta")) {
       rows.push(data as RawRow);
     }
   });
-  return rows;
+
+  return {
+    rows,
+    updatedAt: latestUpdatedAt,
+  };
+}
+
+export async function loadMasterDataFromFirebase(): Promise<RawRow[]> {
+  const result = await loadMasterDataWithMetaFromFirebase();
+  return result.rows;
 }
 
 function cleanRowForFirestore(row: Record<string, unknown>): Record<string, unknown> {
@@ -71,6 +90,8 @@ export async function saveMasterDataToFirebase(
     if (docItem.id.startsWith("chunk_")) existingChunkIds.add(docItem.id);
   });
 
+  const now = new Date().toISOString();
+
   // 2. Upload chunks sequentially or in small batches
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
@@ -84,7 +105,7 @@ export async function saveMasterDataToFirebase(
       adminToken: ADMIN_WRITE_TOKEN,
       chunkIndex: i,
       rowCount: chunkRows.length,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
       rows: chunkRows,
     });
 
@@ -100,7 +121,7 @@ export async function saveMasterDataToFirebase(
       adminToken: ADMIN_WRITE_TOKEN,
       chunkIndex: -1,
       rowCount: 0,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
       rows: [],
     });
   }

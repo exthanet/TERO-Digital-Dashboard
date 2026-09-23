@@ -1,6 +1,10 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
-import { loadMasterDataFromFirebase, saveMasterDataToFirebase } from "@/lib/firebase";
+import {
+  loadMasterDataFromFirebase,
+  loadMasterDataWithMetaFromFirebase,
+  saveMasterDataToFirebase,
+} from "@/lib/firebase";
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
@@ -34,7 +38,7 @@ export function useDashboard() {
     ),
     [sheetUrl, setSheetUrl] = useState(""),
     [sourceName, setSourceName] = useState("Firebase Firestore"),
-    [uploadedAt, setUploadedAt] = useState(new Date().toISOString()),
+    [uploadedAt, setUploadedAt] = useState(""),
     [message, setMessage] = useState("");
   const [program, setProgram] = useState("ALL"),
     [platform, setPlatform] = useState("ALL"),
@@ -55,14 +59,30 @@ export function useDashboard() {
     [compareSort, setCompareSort] = useState<CompareSortKey>("date"),
     [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc");
   useEffect(() => {
-    const load = isStaticHost
-      ? fetch(dashboardAsset("master-data.json")).then((r) => r.json())
-      : loadMasterDataFromFirebase().catch(() =>
-          fetch(dashboardAsset("master-data.json")).then((r) => r.json()),
-        );
-    load
-      .then((r: RawRow[]) => r)
-      .then((data: RawRow[]) => {
+    async function initDashboardData() {
+      try {
+        if (!isStaticHost) {
+          const cloudResult = await loadMasterDataWithMetaFromFirebase().catch(() => null);
+          if (cloudResult && cloudResult.rows.length > 0) {
+            setRawRows(cloudResult.rows);
+            const x = cloudResult.rows.map(normalize).filter((r) => r.date);
+            setRows(x);
+            const d = x.map((r) => r.date).sort();
+            setStartDate(d[0] || "");
+            setEndDate(d.at(-1) || "");
+            setSourceName("Firebase Firestore");
+            if (cloudResult.updatedAt) {
+              setUploadedAt(cloudResult.updatedAt);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Fallback or static host: fetch master-data.json with last-modified header
+        const res = await fetch(dashboardAsset("master-data.json"));
+        const lastModifiedHeader = res.headers.get("last-modified");
+        const data: RawRow[] = await res.json();
         setRawRows(data);
         const x = data.map(normalize).filter((r) => r.date);
         setRows(x);
@@ -70,13 +90,17 @@ export function useDashboard() {
         setStartDate(d[0] || "");
         setEndDate(d.at(-1) || "");
         setSourceName(isStaticHost ? "master-data.json" : "Firebase Firestore");
-        setUploadedAt(new Date().toISOString());
+        if (lastModifiedHeader) {
+          setUploadedAt(new Date(lastModifiedHeader).toISOString());
+        }
         setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         setMessage("โหลดข้อมูลเริ่มต้นไม่สำเร็จ");
         setLoading(false);
-      });
+      }
+    }
+
+    initDashboardData();
   }, []);
   const options = useMemo(
     () => ({
@@ -696,7 +720,7 @@ export function useDashboard() {
           : "ยังไม่มีข้อมูล Engagement เพียงพอ",
     ];
   }, [top, platforms, performanceFiltered, metrics.views, tvMode]);
-  function applyRows(raw: RawRow[], name: string) {
+  function applyRows(raw: RawRow[], name: string, fileTimestamp?: string) {
     const x = raw.map(normalize).filter((r) => r.date);
     if (!x.length) throw new Error("ไม่พบข้อมูลที่มีคอลัมน์ Date");
     setRawRows(raw);
@@ -705,7 +729,7 @@ export function useDashboard() {
     setStartDate(d[0]);
     setEndDate(d.at(-1) || d[0]);
     setSourceName(name);
-    setUploadedAt(new Date().toISOString());
+    setUploadedAt(fileTimestamp || new Date().toISOString());
     setMessage(`นำเข้า ${num(x.length)} แถวเรียบร้อย (สามารถกดบันทึกขึ้น Cloud ได้)`);
     setSourceOpen(false);
   }
@@ -767,8 +791,12 @@ export function useDashboard() {
     if (!file) return;
     setLoading(true);
     try {
+      const fileTimestamp = file.lastModified
+        ? new Date(file.lastModified).toISOString()
+        : new Date().toISOString();
+
       if (file.name.toLowerCase().endsWith(".csv"))
-        applyRows(parseCsv(await file.text()), file.name);
+        applyRows(parseCsv(await file.text()), file.name, fileTimestamp);
       else {
         const XLSX = await import("xlsx");
         const wb = XLSX.read(await file.arrayBuffer(), {
@@ -783,6 +811,7 @@ export function useDashboard() {
         applyRows(
           XLSX.utils.sheet_to_json(sh, { defval: null }) as RawRow[],
           file.name,
+          fileTimestamp
         );
       }
     } catch (e) {

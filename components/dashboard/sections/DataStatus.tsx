@@ -34,7 +34,7 @@ export function DataStatus({
         </span>
         <span>{num(filtered.length)} รายการ</span>
         <span>
-          อัปโหลดล่าสุด: <strong>{dateTimeLabel(uploadedAt)} น.</strong>
+          อัปโหลดล่าสุด: <strong>{uploadedAt ? `${dateTimeLabel(uploadedAt)} น.` : "-"}</strong>
         </span>
         {canSaveCloud && (
           <button
