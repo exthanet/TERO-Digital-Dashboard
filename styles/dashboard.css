@@ -219,6 +219,10 @@ body {
 .kpi-card.sky {
   background: linear-gradient(135deg, #e8f3ff, #f5faff);
 }
+.kpi-card.indigo {
+  background: linear-gradient(135deg, #eef2ff, #f8faff);
+  border-color: #c7d2fe;
+}
 .kpi-icon {
   width: 48px;
   height: 48px;
@@ -241,6 +245,10 @@ body {
 }
 .sky .kpi-icon {
   background: #1261dc;
+}
+.indigo .kpi-icon {
+  background: linear-gradient(135deg, #4f46e5, #3730a3);
+  box-shadow: 0 7px 15px rgba(79, 70, 229, 0.35);
 }
 .kpi-card p {
   font-size: 13px;

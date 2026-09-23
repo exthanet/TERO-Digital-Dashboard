@@ -199,7 +199,8 @@ export function useDashboard() {
   const performanceValue = (r: RecordRow) =>
     tvMode ? r.audienceTotal + r.gmmAudience : r.views;
   const metrics = useMemo(() => {
-    const views = performanceFiltered.reduce(
+    const digitalViews = digitalFiltered.reduce((a, r) => a + r.views, 0),
+      views = performanceFiltered.reduce(
         (a, r) => a + (tvMode ? r.audienceTotal + r.gmmAudience : r.views),
         0,
       ),
@@ -221,12 +222,15 @@ export function useDashboard() {
         (a, r) => a + r.audienceTotal + r.gmmAudience,
         0,
       ),
+      totalCombinedViews = digitalViews + tvAudience,
       tvEpisodes = tvRows.length,
       days = new Set(performanceFiltered.map((r) => r.date)).size || 1,
       uploadByPlatform = [...sumBy(performanceFiltered, (r) => r.platform, (r) => r.uploadCount)]
         .sort((a, b) => b.total - a.total);
     return {
       views,
+      digitalViews,
+      totalCombinedViews,
       engagement,
       uploads,
       uploadByPlatform,
@@ -241,7 +245,7 @@ export function useDashboard() {
       engagementRate: views ? engagement / views : 0,
       avgDaily: views / days,
     };
-  }, [performanceFiltered, filtered, tvMode]);
+  }, [performanceFiltered, filtered, digitalFiltered, tvMode]);
   const chartGrain = useMemo<"day" | "month" | "year">(
     () =>
       tvMode

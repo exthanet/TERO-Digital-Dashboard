@@ -2,7 +2,7 @@
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, num, pct } from "@/lib/dashboard/format";
-import { Activity, BarChart3, Sparkles, Tv, Upload } from "lucide-react";
+import { Activity, BarChart3, Globe2, Sparkles, Tv, Upload } from "lucide-react";
 export function KpiSummary({
   tvMode,
   performanceFiltered,
@@ -14,7 +14,36 @@ export function KpiSummary({
 >) {
   return (
     <>
-      <section className="kpi-grid">
+      {/* แถวที่ 1: Reach & Viewership (ยอดวิวรวมทั้งหมด, Digital Views, TV Audience, TV Rating) */}
+      <section
+        className="kpi-grid"
+        style={{
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          marginBottom: 10,
+        }}
+      >
+        <Kpi
+          tone="indigo"
+          icon={<Globe2 />}
+          label="ยอดวิวรวมทั้งหมด (TV + Digital)"
+          value={compact(metrics.totalCombinedViews)}
+          detail={
+            <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 600, color: "#4338ca" }}>
+                  Digital: {compact(metrics.digitalViews)}
+                </span>
+                <span style={{ color: "#94a3b8" }}>·</span>
+                <span style={{ fontWeight: 600, color: "#0284c7" }}>
+                  TV: {compact(metrics.tvAudience)}
+                </span>
+              </span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                รวมสื่อโทรทัศน์และออนไลน์ทุกแพลตฟอร์ม
+              </span>
+            </span>
+          }
+        />
         <Kpi
           tone="blue"
           icon={<Activity />}
@@ -26,34 +55,6 @@ export function KpiSummary({
             tvMode
               ? `ONE31 + GMM25 · เฉลี่ย ${compact(metrics.avgDaily)} คน/วัน`
               : `ไม่รวม TV Audience · เฉลี่ย ${compact(metrics.avgDaily)} ต่อวัน`
-          }
-        />
-        <Kpi
-          tone="green"
-          icon={<BarChart3 />}
-          label="Engagement รวม"
-          value={compact(metrics.engagement)}
-          detail={`${pct(metrics.engagementRate)} Engagement Rate`}
-        />
-        <Kpi
-          tone="violet"
-          icon={<Sparkles />}
-          label="Engagement Rate"
-          value={pct(metrics.engagementRate)}
-          detail={
-            tvMode
-              ? "TV ไม่มี Social Engagement"
-              : "Likes + Comments + Shares ÷ Digital Views"
-          }
-        />
-        <Kpi
-          tone="orange"
-          icon={<Upload />}
-          label="Total Upload"
-          value={num(metrics.uploads)}
-          detail={metrics.uploadByPlatform
-            .map((x) => `${x.name} ${num(x.total)}`)
-            .join(" · ") || "ไม่มีข้อมูล"
           }
         />
         <Kpi
@@ -83,6 +84,45 @@ export function KpiSummary({
                 คะแนนจริง · รวม {num(metrics.tvEpisodes)} ตอน
               </span>
             </span>
+          }
+        />
+      </section>
+
+      {/* แถวที่ 2: Engagement & Content Production (Engagement รวม, Engagement Rate, Total Upload) */}
+      <section
+        className="kpi-grid"
+        style={{
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          marginBottom: 12,
+        }}
+      >
+        <Kpi
+          tone="green"
+          icon={<BarChart3 />}
+          label="Engagement รวม"
+          value={compact(metrics.engagement)}
+          detail={`${pct(metrics.engagementRate)} Engagement Rate`}
+        />
+        <Kpi
+          tone="violet"
+          icon={<Sparkles />}
+          label="Engagement Rate"
+          value={pct(metrics.engagementRate)}
+          detail={
+            tvMode
+              ? "TV ไม่มี Social Engagement"
+              : "Likes + Comments + Shares ÷ Digital Views"
+          }
+        />
+        <Kpi
+          tone="orange"
+          icon={<Upload />}
+          label="Total Upload"
+          value={num(metrics.uploads)}
+          detail={
+            metrics.uploadByPlatform
+              .map((x) => `${x.name} ${num(x.total)}`)
+              .join(" · ") || "ไม่มีข้อมูล"
           }
         />
       </section>
