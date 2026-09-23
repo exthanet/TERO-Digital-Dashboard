@@ -205,7 +205,15 @@ export function useDashboard() {
       ),
       engagement = performanceFiltered.reduce((a, r) => a + r.engagement, 0),
       uploads = performanceFiltered.reduce((a, r) => a + r.uploadCount, 0),
-      tvRows = filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0),
+      tvRows = filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0 || r.gmmRating > 0),
+      one31Rows = tvRows.filter((r) => r.ratingTotal > 0),
+      gmm25Rows = tvRows.filter((r) => r.gmmRating > 0),
+      ratingAvgOne31 = one31Rows.length
+        ? one31Rows.reduce((a, r) => a + r.ratingTotal, 0) / one31Rows.length
+        : 0,
+      ratingAvgGmm25 = gmm25Rows.length
+        ? gmm25Rows.reduce((a, r) => a + r.gmmRating, 0) / gmm25Rows.length
+        : 0,
       ratingAvg = tvRows.length
         ? tvRows.reduce((a, r) => a + r.ratingTotal, 0) / tvRows.length
         : 0,
@@ -223,6 +231,10 @@ export function useDashboard() {
       uploads,
       uploadByPlatform,
       ratingAvg,
+      ratingAvgOne31,
+      ratingAvgGmm25,
+      one31Episodes: one31Rows.length,
+      gmm25Episodes: gmm25Rows.length,
       tvAudience,
       tvEpisodes,
       tvAudienceAvg: tvEpisodes ? tvAudience / tvEpisodes : 0,

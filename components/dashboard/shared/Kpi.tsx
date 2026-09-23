@@ -9,7 +9,7 @@ export function Kpi({
   icon: React.ReactNode;
   label: string;
   value: string;
-  detail: string;
+  detail: React.ReactNode;
 }) {
   return (
     <article className={`kpi-card ${tone}`}>

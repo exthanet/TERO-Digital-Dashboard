@@ -68,7 +68,22 @@ export function KpiSummary({
           icon={<Tv />}
           label="TV Rating (Average)"
           value={metrics.ratingAvg.toFixed(3)}
-          detail="คะแนนจริง · ไม่คูณ 700,000"
+          detail={
+            <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 600, color: "#1d4ed8" }}>
+                  One31: {metrics.ratingAvgOne31.toFixed(3)}
+                </span>
+                <span style={{ color: "#94a3b8" }}>·</span>
+                <span style={{ fontWeight: 600, color: "#d97706" }}>
+                  GMM25: {metrics.ratingAvgGmm25.toFixed(3)}
+                </span>
+              </span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                คะแนนจริง · รวม {num(metrics.tvEpisodes)} ตอน
+              </span>
+            </span>
+          }
         />
       </section>
     </>
