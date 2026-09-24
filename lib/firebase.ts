@@ -80,7 +80,8 @@ export async function saveMasterDataToFirebase(
     throw new Error("ไม่มีข้อมูลสำหรับบันทึก");
   }
 
-  const CHUNK_SIZE = 500;
+  // Firestore doc limit is 1MB. 250 rows is ~250KB, ensuring zero payload failures.
+  const CHUNK_SIZE = 250;
   const totalChunks = Math.ceil(rows.length / CHUNK_SIZE);
 
   // 1. Fetch existing chunks to track any leftover chunks
@@ -92,7 +93,7 @@ export async function saveMasterDataToFirebase(
 
   const now = new Date().toISOString();
 
-  // 2. Upload chunks sequentially or in small batches
+  // 2. Upload chunks sequentially
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, rows.length);

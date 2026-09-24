@@ -736,16 +736,16 @@ export function useDashboard() {
 
   async function saveCurrentDataToCloud(userRole?: string): Promise<{ success: boolean; message: string }> {
     if (userRole !== "admin") {
-      const msg = "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลขึ้น Cloud ได้";
+      const msg = "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลขึ้น Cloud ได้ (กรุณาเข้าสู่ระบบด้วยสิทธิ์ Admin)";
       setMessage(msg);
-      return { success: false, message: msg };
+      throw new Error(msg);
     }
 
     const dataToSave = rawRows.length > 0 ? rawRows : (rows as unknown as RawRow[]);
     if (!dataToSave.length) {
       const msg = "ไม่มีข้อมูลสำหรับบันทึก";
       setMessage(msg);
-      return { success: false, message: msg };
+      throw new Error(msg);
     }
 
     setCloudSaving(true);
@@ -763,7 +763,7 @@ export function useDashboard() {
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "บันทึกข้อมูลขึ้น Cloud ไม่สำเร็จ";
       setMessage(`เกิดข้อผิดพลาด: ${errorMsg}`);
-      return { success: false, message: errorMsg };
+      throw new Error(errorMsg);
     } finally {
       setCloudSaving(false);
       setCloudSaveProgress(null);

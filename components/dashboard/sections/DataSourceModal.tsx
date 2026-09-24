@@ -63,7 +63,7 @@ export function DataSourceModal({
   const handleCloudSave = async () => {
     setFeedback(null);
     try {
-      await onSaveToCloud();
+      const res = await onSaveToCloud();
       setFeedback({
         type: "success",
         text: `บันทึกข้อมูล ${num(rowsCount)} แถวเข้าสู่ Firebase Firestore สำเร็จ!`,
