@@ -90,20 +90,36 @@ export function KpiSummary({
           tone="sky"
           icon={<Tv />}
           label="TV Rating (Average)"
-          value={metrics.ratingAvg.toFixed(3)}
+          value={
+            <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ color: "#1d4ed8", fontSize: "1.15em", fontWeight: 700 }}>
+                {metrics.ratingAvgOne31 > 0 ? metrics.ratingAvgOne31.toFixed(3) : "-"}
+              </span>
+              <span style={{ fontSize: "0.75em", color: "#64748b", fontWeight: 500 }}>
+                (One31)
+              </span>
+              <span style={{ color: "#cbd5e1" }}>/</span>
+              <span style={{ color: "#d97706", fontSize: "1.15em", fontWeight: 700 }}>
+                {metrics.ratingAvgGmm25 > 0 ? metrics.ratingAvgGmm25.toFixed(3) : "-"}
+              </span>
+              <span style={{ fontSize: "0.75em", color: "#64748b", fontWeight: 500 }}>
+                (GMM25)
+              </span>
+            </span>
+          }
           detail={
             <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                 <span style={{ fontWeight: 600, color: "#1d4ed8" }}>
-                  One31: {metrics.ratingAvgOne31.toFixed(3)}
+                  One31: {num(metrics.one31Episodes)} ตอน
                 </span>
                 <span style={{ color: "#94a3b8" }}>·</span>
                 <span style={{ fontWeight: 600, color: "#d97706" }}>
-                  GMM25: {metrics.ratingAvgGmm25.toFixed(3)}
+                  GMM25: {num(metrics.gmm25Episodes)} ตอน
                 </span>
               </span>
               <span style={{ fontSize: 11, color: "#64748b" }}>
-                คะแนนจริง · รวม {num(metrics.tvEpisodes)} ตอน
+                เรตติ้งเฉลี่ยเฉพาะแต่ละช่องโทรทัศน์
               </span>
             </span>
           }

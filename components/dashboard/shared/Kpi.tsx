@@ -8,7 +8,7 @@ export function Kpi({
   tone: string;
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value: React.ReactNode;
   detail: React.ReactNode;
 }) {
   return (
