@@ -4,6 +4,7 @@ import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import type { RawRow } from "@/lib/dashboard/types";
 import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
+import type { RevenueData } from "@/lib/dashboard/revenueParser";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAryjQuJ7dujmHxoXtiCNFANjt5bkE3PAc",
@@ -265,3 +266,61 @@ export async function saveAffiliateDataToFirebase(
     message: "บันทึกข้อมูล Affiliate ขึ้น Firebase เรียบร้อยแล้ว",
   };
 }
+
+/**
+ * Load YouTube Revenue data from Firestore `revenueData` collection
+ */
+export async function loadRevenueDataFromFirebase(): Promise<RevenueData | null> {
+  const snapshot = await getDocs(collection(db, "revenueData"));
+  if (snapshot.empty) return null;
+
+  const metaDoc = snapshot.docs.find((d) => d.id === "meta");
+  const monthlyDoc = snapshot.docs.find((d) => d.id === "monthly");
+
+  const generatedAt = metaDoc?.data()?.generatedAt || new Date().toISOString();
+  const monthly = (monthlyDoc?.data()?.monthly || []) as RevenueData["monthly"];
+
+  if (monthly.length === 0) {
+    return null;
+  }
+
+  return {
+    generatedAt,
+    monthly,
+  };
+}
+
+/**
+ * Save YouTube Revenue data to Firestore `revenueData` collection
+ */
+export async function saveRevenueDataToFirebase(
+  data: RevenueData,
+  onProgress?: (current: number, total: number) => void
+): Promise<{ success: boolean; message: string }> {
+  const totalSteps = 2;
+  let currentStep = 0;
+
+  // 1. Save Meta doc
+  await setDoc(doc(db, "revenueData", "meta"), {
+    adminToken: ADMIN_WRITE_TOKEN,
+    generatedAt: data.generatedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  currentStep++;
+  if (onProgress) onProgress(currentStep, totalSteps);
+
+  // 2. Save Monthly doc
+  await setDoc(doc(db, "revenueData", "monthly"), {
+    adminToken: ADMIN_WRITE_TOKEN,
+    monthly: data.monthly.map((m) => cleanRowForFirestore(m as Record<string, unknown>)),
+    updatedAt: new Date().toISOString(),
+  });
+  currentStep++;
+  if (onProgress) onProgress(currentStep, totalSteps);
+
+  return {
+    success: true,
+    message: `บันทึกข้อมูล Revenue ${data.monthly.length} เดือน ขึ้น Firebase เรียบร้อยแล้ว`,
+  };
+}
+

@@ -11,5 +11,11 @@ service cloud.firestore {
       allow create, update: if request.resource.data.adminToken == 'tero-admin-2026-secure';
       allow delete: if false;
     }
+    match /revenueData/{doc} {
+      allow read: if true;
+      allow create, update: if request.resource.data.adminToken == 'tero-admin-2026-secure';
+      allow delete: if false;
+    }
   }
 }
+

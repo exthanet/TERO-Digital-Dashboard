@@ -43,6 +43,7 @@ export function DashboardSidebar({
     ["platforms", "แพลตฟอร์ม", <BarChart3 key="d" />],
     ["topics", "ประเภทเนื้อหา", <Sparkles key="e" />],
     ["rating", "TV Rating", <Tv key="f" />],
+    ["revenue", "YouTube Revenue", <BadgeDollarSign key="revenue" />],
     ["affiliate", "Affiliate Program", <BadgeDollarSign key="affiliate" />],
     ["best", "Best of Month", <Trophy key="g" />],
     ["compare", "Compare Table", <FileSpreadsheet key="h" />],

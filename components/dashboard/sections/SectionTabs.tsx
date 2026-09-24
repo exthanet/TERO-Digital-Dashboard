@@ -26,6 +26,10 @@ export function SectionTabs({
           <LayoutDashboard />
           Performance Dashboard
         </a>
+        <a href="#revenue">
+          <BadgeDollarSign />
+          YouTube Revenue Report
+        </a>
         <a href="#affiliate">
           <BadgeDollarSign />
           Affiliate Program Report
