@@ -373,7 +373,9 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                       outerRadius={90}
                       innerRadius={45}
                       paddingAngle={2}
-                      label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                      label={({ percent }: { percent?: number }) =>
+                        typeof percent === "number" ? `${(percent * 100).toFixed(1)}%` : ""
+                      }
                     >
                       {distributionData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
