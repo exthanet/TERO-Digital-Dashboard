@@ -18,6 +18,16 @@ export const pick = (r: RawRow, ...keys: string[]) => {
 
 export const excelDate = (v: unknown) => {
   if (!v) return "";
+  if (typeof v === "object" && v !== null) {
+    if ("toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
+      const d = (v as { toDate: () => Date }).toDate();
+      return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+    }
+    if ("seconds" in v && typeof (v as { seconds: number }).seconds === "number") {
+      const d = new Date((v as { seconds: number }).seconds * 1000);
+      return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+    }
+  }
   if (v instanceof Date) {
     return isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
   }
