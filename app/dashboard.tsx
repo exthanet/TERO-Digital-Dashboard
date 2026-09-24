@@ -25,8 +25,12 @@ import { UserManagementModal } from "@/components/auth/UserManagementModal";
 import { SignUpModal } from "@/components/auth/SignUpModal";
 import "@/styles/auth.css";
 
+import RevenueReport from "@/components/dashboard/RevenueReport";
+import AffiliateReport from "@/components/dashboard/AffiliateReport";
+
 export default function Dashboard() {
   const auth = useAuth();
+  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate">("overview");
   const [signUpOpen, setSignUpOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
@@ -49,6 +53,8 @@ export default function Dashboard() {
         setSourceOpen={model.setSourceOpen}
         openIntegrations={model.openIntegrations}
         currentUser={auth.user}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
       <section className="workspace" id="overview">
         <MobileHeader
@@ -57,112 +63,127 @@ export default function Dashboard() {
           setSourceOpen={model.setSourceOpen}
         />
         <SectionTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           currentUser={auth.user}
           onOpenSignUp={() => setSignUpOpen(true)}
           onOpenChangePassword={() => setChangePasswordOpen(true)}
           onOpenUserManagement={() => setUserManagementOpen(true)}
           onLogout={auth.logout}
         />
-        <DashboardFilters
-          setSourceOpen={model.setSourceOpen}
-          program={model.program}
-          setProgram={model.setProgram}
-          platform={model.platform}
-          setPlatform={model.setPlatform}
-          vdoType={model.vdoType}
-          setVdoType={model.setVdoType}
-          topicType={model.topicType}
-          setTopicType={model.setTopicType}
-          search={model.search}
-          setSearch={model.setSearch}
-          startDate={model.startDate}
-          setStartDate={model.setStartDate}
-          endDate={model.endDate}
-          setEndDate={model.setEndDate}
-          datePreset={model.datePreset}
-          setDatePreset={model.setDatePreset}
-          options={model.options}
 
-          applyDatePreset={model.applyDatePreset}
-        />
-        <DataStatus
-          sourceName={model.sourceName}
-          uploadedAt={model.uploadedAt}
-          message={model.message}
-          filtered={model.filtered}
-          reset={model.reset}
-          currentUser={auth.user}
-          cloudSaving={model.cloudSaving}
-          onSaveToCloud={async () => {
-            await model.saveCurrentDataToCloud(auth.user?.role);
-          }}
-        />
-        <KpiSummary
-          tvMode={model.tvMode}
-          performanceFiltered={model.performanceFiltered}
-          metrics={model.metrics}
-          types={model.types}
-        />
-        <ExecutiveInsights insights={model.insights} />
-        <ExecutiveCharts
-          executiveChartType={model.executiveChartType}
-          setExecutiveChartType={model.setExecutiveChartType}
-          executiveGrain={model.executiveGrain}
-          digitalVsTv={model.digitalVsTv}
-          programPie={model.programPie}
-          platformPie={model.platformPie}
-          vdoTypePie={model.vdoTypePie}
-        />
-        <ExecutiveAnalysis
-          tvMode={model.tvMode}
-          performanceValue={model.performanceValue}
+        {activeTab === "overview" && (
+          <>
+            <DashboardFilters
+              setSourceOpen={model.setSourceOpen}
+              program={model.program}
+              setProgram={model.setProgram}
+              platform={model.platform}
+              setPlatform={model.setPlatform}
+              vdoType={model.vdoType}
+              setVdoType={model.setVdoType}
+              topicType={model.topicType}
+              setTopicType={model.setTopicType}
+              search={model.search}
+              setSearch={model.setSearch}
+              startDate={model.startDate}
+              setStartDate={model.setStartDate}
+              endDate={model.endDate}
+              setEndDate={model.setEndDate}
+              datePreset={model.datePreset}
+              setDatePreset={model.setDatePreset}
+              options={model.options}
+              applyDatePreset={model.applyDatePreset}
+            />
+            <DataStatus
+              sourceName={model.sourceName}
+              uploadedAt={model.uploadedAt}
+              message={model.message}
+              filtered={model.filtered}
+              reset={model.reset}
+              currentUser={auth.user}
+              cloudSaving={model.cloudSaving}
+              onSaveToCloud={async () => {
+                await model.saveCurrentDataToCloud(auth.user?.role);
+              }}
+            />
+            <KpiSummary
+              tvMode={model.tvMode}
+              performanceFiltered={model.performanceFiltered}
+              metrics={model.metrics}
+              types={model.types}
+            />
+            <ExecutiveInsights insights={model.insights} />
+            <ExecutiveCharts
+              executiveChartType={model.executiveChartType}
+              setExecutiveChartType={model.setExecutiveChartType}
+              executiveGrain={model.executiveGrain}
+              digitalVsTv={model.digitalVsTv}
+              programPie={model.programPie}
+              platformPie={model.platformPie}
+              vdoTypePie={model.vdoTypePie}
+            />
+            <ExecutiveAnalysis
+              tvMode={model.tvMode}
+              performanceValue={model.performanceValue}
+              top={model.top}
+              platformAnalysis={model.platformAnalysis}
+              topicTrend={model.topicTrend}
+              q4Plan={model.q4Plan}
+            />
+            <PerformanceSections
+              vdoType={model.vdoType}
+              topVdoType={model.topVdoType}
+              setTopVdoType={model.setTopVdoType}
+              grain={model.grain}
+              setGrain={model.setGrain}
+              options={model.options}
+              digitalFiltered={model.digitalFiltered}
+              tvMode={model.tvMode}
+              performanceValue={model.performanceValue}
+              metrics={model.metrics}
+              chartGrain={model.chartGrain}
+              daily={model.daily}
+              types={model.types}
+              topics={model.topics}
+              platforms={model.platforms}
+              programs={model.programs}
+              top={model.top}
+              best={model.best}
+              rating={model.rating}
+              tvRatingBreakdown={model.tvRatingBreakdown}
+              tvAudience={model.tvAudience}
+              download={model.download}
+            />
+            <TvZoneMap provinceRating={model.provinceRating} />
+            <CompareTable
+              comparePage={model.comparePage}
+              setComparePage={model.setComparePage}
+              comparePageSize={model.comparePageSize}
+              setComparePageSize={model.setComparePageSize}
+              compareSort={model.compareSort}
+              compareDirection={model.compareDirection}
+              compareSorted={model.compareSorted}
+              comparePageCount={model.comparePageCount}
+              compareRows={model.compareRows}
+              sortCompare={model.sortCompare}
+              download={model.download}
+            />
+          </>
+        )}
 
-          top={model.top}
-          platformAnalysis={model.platformAnalysis}
-          topicTrend={model.topicTrend}
-          q4Plan={model.q4Plan}
-        />
-        <PerformanceSections
-          vdoType={model.vdoType}
+        {activeTab === "revenue" && (
+          <div style={{ marginTop: 8 }}>
+            <RevenueReport currentUser={auth.user} />
+          </div>
+        )}
 
-          topVdoType={model.topVdoType}
-          setTopVdoType={model.setTopVdoType}
-          grain={model.grain}
-          setGrain={model.setGrain}
-          options={model.options}
-          digitalFiltered={model.digitalFiltered}
-          tvMode={model.tvMode}
-          performanceValue={model.performanceValue}
-          metrics={model.metrics}
-          chartGrain={model.chartGrain}
-          daily={model.daily}
-          types={model.types}
-          topics={model.topics}
-          platforms={model.platforms}
-          programs={model.programs}
-          top={model.top}
-          best={model.best}
-          rating={model.rating}
-          tvRatingBreakdown={model.tvRatingBreakdown}
-          tvAudience={model.tvAudience}
-          download={model.download}
-        />
-        <TvZoneMap provinceRating={model.provinceRating} />
-        <CompareTable
-          comparePage={model.comparePage}
-          setComparePage={model.setComparePage}
-          comparePageSize={model.comparePageSize}
-          setComparePageSize={model.setComparePageSize}
-          compareSort={model.compareSort}
-          compareDirection={model.compareDirection}
+        {activeTab === "affiliate" && (
+          <div style={{ marginTop: 8 }}>
+            <AffiliateReport currentUser={auth.user} />
+          </div>
+        )}
 
-          compareSorted={model.compareSorted}
-          comparePageCount={model.comparePageCount}
-          compareRows={model.compareRows}
-          sortCompare={model.sortCompare}
-          download={model.download}
-        />
-        <AffiliateSection currentUser={auth.user} />
         <DashboardFooter />
       </section>
       <DataSourceModal

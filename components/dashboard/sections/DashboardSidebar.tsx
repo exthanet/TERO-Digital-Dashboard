@@ -25,6 +25,8 @@ interface DashboardSidebarProps
     "rows" | "menuOpen" | "setMenuOpen" | "setSourceOpen" | "openIntegrations"
   > {
   currentUser?: AuthUser | null;
+  activeTab?: "overview" | "revenue" | "affiliate";
+  onTabChange?: (tab: "overview" | "revenue" | "affiliate") => void;
 }
 
 export function DashboardSidebar({
@@ -34,6 +36,8 @@ export function DashboardSidebar({
   setSourceOpen,
   openIntegrations,
   currentUser,
+  activeTab = "overview",
+  onTabChange,
 }: DashboardSidebarProps) {
   const nav = [
     ["overview", "ภาพรวม", <LayoutDashboard key="a" />],
@@ -48,6 +52,20 @@ export function DashboardSidebar({
     ["best", "Best of Month", <Trophy key="g" />],
     ["compare", "Compare Table", <FileSpreadsheet key="h" />],
   ];
+
+  const handleNavClick = (id: string) => {
+    setMenuOpen(false);
+    if (id === "revenue") {
+      if (onTabChange) onTabChange("revenue");
+    } else if (id === "affiliate") {
+      if (onTabChange) onTabChange("affiliate");
+    } else {
+      if (onTabChange && activeTab !== "overview") {
+        onTabChange("overview");
+      }
+    }
+  };
+
   return (
     <>
       <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
@@ -65,7 +83,7 @@ export function DashboardSidebar({
             <a
               key={String(id)}
               href={`#${id}`}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => handleNavClick(String(id))}
             >
               {icon}
               {label}
