@@ -769,7 +769,7 @@ export function useDashboard() {
       setCloudSaveProgress(null);
     }
   }
-  async function loadSheet() {
+  async function loadSheet(): Promise<{ success: boolean; message: string }> {
     setLoading(true);
     setMessage("");
     try {
@@ -779,43 +779,62 @@ export function useDashboard() {
         ? `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
         : sheetUrl;
       const r = await fetch(url);
-      if (!r.ok) throw new Error("Google Sheet ต้องตั้งค่าให้ผู้มีลิงก์ดูได้");
-      applyRows(parseCsv(await r.text()), "Google Sheets");
+      if (!r.ok) throw new Error("ไม่สามารถเปิด Google Sheet ได้ (โปรดตรวจสอบว่าตั้งค่าแชร์เป็น 'ทุกคนที่มีลิงก์ดูได้' หรือยัง)");
+      const text = await r.text();
+      const parsed = parseCsv(text);
+      if (!parsed || parsed.length === 0) {
+        throw new Error("ไม่พบข้อมูลใน Google Sheet ที่ระบุ");
+      }
+      applyRows(parsed, "Google Sheets");
+      const successMsg = `นำเข้า ${num(parsed.length)} แถวจาก Google Sheets สำเร็จ`;
+      return { success: true, message: successMsg };
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "นำเข้าไม่สำเร็จ");
+      const err = e instanceof Error ? e.message : "นำเข้าไม่สำเร็จ";
+      setMessage(err);
+      return { success: false, message: err };
     } finally {
       setLoading(false);
     }
   }
-  async function onFile(file?: File) {
-    if (!file) return;
+  async function onFile(file?: File): Promise<{ success: boolean; message: string }> {
+    if (!file) return { success: false, message: "ไม่ได้เลือกไฟล์" };
     setLoading(true);
+    setMessage("");
     try {
       const fileTimestamp = file.lastModified
         ? new Date(file.lastModified).toISOString()
         : new Date().toISOString();
 
-      if (file.name.toLowerCase().endsWith(".csv"))
-        applyRows(parseCsv(await file.text()), file.name, fileTimestamp);
-      else {
+      let parsedRows: RawRow[] = [];
+
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        const text = await file.text();
+        parsedRows = parseCsv(text);
+      } else {
         const XLSX = await import("xlsx");
         const wb = XLSX.read(await file.arrayBuffer(), {
           type: "array",
           cellDates: true,
         });
-        const sh =
-          wb.Sheets[
-            wb.SheetNames.find((x) => x.toLowerCase().includes("master")) ||
-              wb.SheetNames[0]
-          ];
-        applyRows(
-          XLSX.utils.sheet_to_json(sh, { defval: null }) as RawRow[],
-          file.name,
-          fileTimestamp
-        );
+        const shName =
+          wb.SheetNames.find((x) => x.toLowerCase().includes("master")) ||
+          wb.SheetNames[0];
+        const sh = wb.Sheets[shName];
+        if (!sh) throw new Error("ไม่พบ Sheet ข้อมูลในไฟล์ Excel");
+        parsedRows = XLSX.utils.sheet_to_json(sh, { defval: null }) as RawRow[];
       }
+
+      if (!parsedRows || parsedRows.length === 0) {
+        throw new Error("ไฟล์ที่เลือกไม่มีข้อมูล หรือรูปแบบแถวว่างเปล่า");
+      }
+
+      applyRows(parsedRows, file.name, fileTimestamp);
+      const successMsg = `นำเข้าไฟล์ ${file.name} จำนวน ${num(parsedRows.length)} รายการสำเร็จ`;
+      return { success: true, message: successMsg };
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "อ่านไฟล์ไม่สำเร็จ");
+      const err = e instanceof Error ? e.message : "อ่านไฟล์ไม่สำเร็จ";
+      setMessage(err);
+      return { success: false, message: err };
     } finally {
       setLoading(false);
     }

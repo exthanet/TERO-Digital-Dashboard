@@ -76,6 +76,52 @@ export function DataSourceModal({
     }
   };
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    setFeedback(null);
+    setIsProcessing(true);
+    try {
+      const res = await onFile(file);
+      if (res && !res.success) {
+        setFeedback({ type: "error", text: res.message });
+      } else if (res && res.success) {
+        setFeedback({ type: "success", text: res.message });
+      }
+    } catch (err: unknown) {
+      setFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "นำเข้าไฟล์ไม่สำเร็จ",
+      });
+    } finally {
+      setIsProcessing(false);
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+    }
+  };
+
+  const handleSheetLoad = async () => {
+    setFeedback(null);
+    setIsProcessing(true);
+    try {
+      const res = await loadSheet();
+      if (res && !res.success) {
+        setFeedback({ type: "error", text: res.message });
+      } else if (res && res.success) {
+        setFeedback({ type: "success", text: res.message });
+      }
+    } catch (err: unknown) {
+      setFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "เชื่อมต่อ Google Sheet ไม่สำเร็จ",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <>
       {sourceOpen && (
@@ -109,8 +155,18 @@ export function DataSourceModal({
                 placeholder="https://docs.google.com/spreadsheets/d/..."
               />
             </label>
-            <Button onClick={loadSheet} disabled={!sheetUrl || loading || cloudSaving}>
-              {loading ? "กำลังโหลด..." : "เชื่อมต่อ Google Sheet"}
+            <Button
+              onClick={handleSheetLoad}
+              disabled={!sheetUrl || loading || isProcessing || cloudSaving}
+            >
+              {loading || isProcessing ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  กำลังโหลดข้อมูล...
+                </>
+              ) : (
+                "เชื่อมต่อ Google Sheet"
+              )}
             </Button>
 
             <div className="divider">
@@ -123,23 +179,49 @@ export function DataSourceModal({
               type="file"
               accept=".xlsx,.xls,.csv"
               hidden
-              onChange={(e) => {
-                setFeedback(null);
-                onFile(e.target.files?.[0]);
-              }}
+              onChange={(e) => handleFile(e.target.files?.[0])}
             />
-            <Button
-              variant="outline"
-              onClick={() => fileRef.current?.click()}
-              disabled={loading || cloudSaving}
+            <div
+              onClick={() => !loading && !isProcessing && !cloudSaving && fileRef.current?.click()}
+              style={{
+                border: "2px dashed #cbd5e1",
+                borderRadius: 12,
+                padding: "20px 16px",
+                textAlign: "center",
+                cursor: loading || isProcessing || cloudSaving ? "not-allowed" : "pointer",
+                background: "#f8fafc",
+                transition: "all 0.2s",
+                display: "grid",
+                placeContent: "center",
+                gap: 8,
+              }}
             >
-              <Upload />
-              อัปโหลดไฟล์ Excel / CSV ใหม่
-            </Button>
-            <small>
-              รองรับไฟล์ Master Data: Date, Program, Topic, Topic_Type, VDO_Type,
-              Platform, Views, Engagement และ TV Rating
-            </small>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "#e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto",
+                  color: "#334155",
+                }}
+              >
+                {isProcessing || loading ? (
+                  <Loader2 size={22} className="animate-spin" />
+                ) : (
+                  <Upload size={22} />
+                )}
+              </div>
+              <strong style={{ fontSize: 14 }}>
+                {isProcessing ? "กำลังอ่านไฟล์..." : "คลิกเพื่อเลือกไฟล์ Master Data (.xlsx, .csv)"}
+              </strong>
+              <small style={{ color: "#64748b" }}>
+                รองรับไฟล์ Master Data ที่มีคอลัมน์ Date, Program, Topic, Platform, Views ฯลฯ
+              </small>
+            </div>
 
             {/* Cloud Sync Section */}
             <div

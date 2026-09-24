@@ -17,14 +17,33 @@ export const pick = (r: RawRow, ...keys: string[]) => {
 };
 
 export const excelDate = (v: unknown) => {
-  if (typeof v === "number")
+  if (!v) return "";
+  if (v instanceof Date) {
+    return isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
+  }
+  if (typeof v === "number") {
+    // Check if it's unix timestamp in seconds or ms
+    if (v > 1000000000000) {
+      return new Date(v).toISOString().slice(0, 10);
+    }
+    if (v > 1000000000) {
+      return new Date(v * 1000).toISOString().slice(0, 10);
+    }
+    // Excel serial date
     return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000)
       .toISOString()
       .slice(0, 10);
+  }
   const t = s(v);
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
-  const m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-  return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : "";
+  const m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if (m) {
+    let year = Number(m[3]);
+    if (year > 2400) year -= 543; // Handle Buddhist Era years (e.g. 2569 -> 2026)
+    return `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  }
+  const parsed = new Date(t);
+  return isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
 };
 
 export const normalizeVdoType = (v: string, p: string) => {
