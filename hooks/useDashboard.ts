@@ -250,6 +250,8 @@ export function useDashboard() {
       tvEpisodes = tvRows.length,
       days = new Set(performanceFiltered.map((r) => r.date)).size || 1,
       uploadByPlatform = [...sumBy(performanceFiltered, (r) => r.platform, (r) => r.uploadCount)]
+        .sort((a, b) => b.total - a.total),
+      digitalContentByPlatform = [...sumBy(digitalFiltered, (r) => r.platform, () => 1)]
         .sort((a, b) => b.total - a.total);
     return {
       views,
@@ -258,6 +260,7 @@ export function useDashboard() {
       engagement,
       uploads,
       uploadByPlatform,
+      digitalContentByPlatform,
       ratingAvg,
       ratingAvgOne31,
       ratingAvgGmm25,

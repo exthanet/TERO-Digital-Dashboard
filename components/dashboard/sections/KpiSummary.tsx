@@ -52,9 +52,31 @@ export function KpiSummary({
           }
           value={compact(metrics.views)}
           detail={
-            tvMode
-              ? `ONE31 + GMM25 · เฉลี่ย ${compact(metrics.avgDaily)} คน/วัน`
-              : `ไม่รวม TV Audience · เฉลี่ย ${compact(metrics.avgDaily)} ต่อวัน`
+            tvMode ? (
+              `ONE31 + GMM25 · เฉลี่ย ${compact(metrics.avgDaily)} คน/วัน`
+            ) : (
+              <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                  {metrics.digitalContentByPlatform && metrics.digitalContentByPlatform.length > 0 ? (
+                    metrics.digitalContentByPlatform.map((x, idx) => (
+                      <span key={x.name} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontWeight: 600, color: "#0369a1" }}>
+                          {x.name}: {num(x.total)}
+                        </span>
+                        {idx < metrics.digitalContentByPlatform.length - 1 && (
+                          <span style={{ color: "#94a3b8" }}>·</span>
+                        )}
+                      </span>
+                    ))
+                  ) : (
+                    <span>ไม่รวม TV Audience</span>
+                  )}
+                </span>
+                <span style={{ fontSize: 11, color: "#64748b" }}>
+                  เฉลี่ย {compact(metrics.avgDaily)} วิว/วัน · รวม {num(performanceFiltered.length)} คอนเทนต์
+                </span>
+              </span>
+            )
           }
         />
         <Kpi
