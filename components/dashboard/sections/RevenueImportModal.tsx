@@ -25,6 +25,13 @@ interface RevenueImportModalProps {
   isAdmin?: boolean;
 }
 
+const moneyUsd = (v: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(v || 0);
+
 export function RevenueImportModal({
   open,
   onClose,
@@ -231,7 +238,7 @@ export function RevenueImportModal({
                 สรุปข้อมูลที่ตรวจพบ ({parsedPreview.monthsCount} เดือน)
               </strong>
               <span style={{ fontSize: 13, color: "#1d4ed8", fontWeight: 700 }}>
-                ฿{parsedPreview.totalRevenue.toLocaleString("th-TH", { maximumFractionDigits: 2 })}
+                {moneyUsd(parsedPreview.totalRevenue)}
               </span>
             </div>
             <div style={{ fontSize: 12, color: "#334155" }}>
