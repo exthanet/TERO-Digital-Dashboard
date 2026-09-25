@@ -48,6 +48,7 @@ export function RevenueImportModal({
     newData: RevenueData;
   } | null>(null);
 
+  const [importMode, setImportMode] = useState<"overwrite" | "merge">("overwrite");
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     text: string;
@@ -69,20 +70,26 @@ export function RevenueImportModal({
         throw new Error("ไม่พบข้อมูลรายได้รายเดือนในไฟล์");
       }
 
-      // Merge with existing data
-      const monthMap = new Map<string, MonthlyRevenueItem>();
-      (currentData?.monthly || []).forEach((m) => monthMap.set(m.month, m));
-      parsedItems.forEach((m) => monthMap.set(m.month, m));
+      let finalMonthly: MonthlyRevenueItem[] = [];
 
-      const mergedMonthly = Array.from(monthMap.values()).sort((a, b) =>
-        a.month.localeCompare(b.month)
-      );
+      if (importMode === "overwrite") {
+        // Replace all existing records completely with the new file
+        finalMonthly = [...parsedItems].sort((a, b) => a.month.localeCompare(b.month));
+      } else {
+        // Merge with existing data
+        const monthMap = new Map<string, MonthlyRevenueItem>();
+        (currentData?.monthly || []).forEach((m) => monthMap.set(m.month, m));
+        parsedItems.forEach((m) => monthMap.set(m.month, m));
+        finalMonthly = Array.from(monthMap.values()).sort((a, b) =>
+          a.month.localeCompare(b.month)
+        );
+      }
 
-      const totalRevenue = parsedItems.reduce((acc, curr) => acc + curr.estRevenue, 0);
+      const totalRevenue = finalMonthly.reduce((acc, curr) => acc + curr.estRevenue, 0);
 
       const newData: RevenueData = {
         generatedAt: new Date().toISOString(),
-        monthly: mergedMonthly,
+        monthly: finalMonthly,
       };
 
       setParsedPreview({
@@ -93,7 +100,7 @@ export function RevenueImportModal({
 
       setFeedback({
         type: "success",
-        text: `อ่านไฟล์ "${file.name}" สำเร็จ! ตรวจพบข้อมูล ${parsedItems.length} เดือน`,
+        text: `อ่านไฟล์ "${file.name}" สำเร็จ! (${importMode === "overwrite" ? "แทนที่ข้อมูลทั้งหมดด้วย" : "ตรวจพบ"} ${parsedItems.length} เดือน)`,
       });
     } catch (err: unknown) {
       setFeedback({
@@ -104,6 +111,7 @@ export function RevenueImportModal({
       setIsProcessing(false);
     }
   };
+
 
   const handleSaveToCloud = async () => {
     if (!parsedPreview) return;
@@ -155,6 +163,46 @@ export function RevenueImportModal({
           เพื่ออัปเดตและบันทึกข้อมูลขึ้นระบบ Cloud (Firebase)
         </p>
 
+        {/* Import Mode Selection */}
+        <div style={{ display: "flex", gap: 10, marginTop: 10, background: "#f1f5f9", padding: 4, borderRadius: 8 }}>
+          <button
+            type="button"
+            onClick={() => setImportMode("overwrite")}
+            style={{
+              flex: 1,
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              background: importMode === "overwrite" ? "#fff" : "transparent",
+              color: importMode === "overwrite" ? "#2563eb" : "#64748b",
+              boxShadow: importMode === "overwrite" ? "0 2px 4px rgba(0,0,0,0.06)" : "none",
+            }}
+          >
+            🔄 ลบข้อมูลเก่าและแทนที่ทั้งหมด (Overwrite)
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportMode("merge")}
+            style={{
+              flex: 1,
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              background: importMode === "merge" ? "#fff" : "transparent",
+              color: importMode === "merge" ? "#2563eb" : "#64748b",
+              boxShadow: importMode === "merge" ? "0 2px 4px rgba(0,0,0,0.06)" : "none",
+            }}
+          >
+            ➕ อัปเดตผสานข้อมูลเดิม (Merge)
+          </button>
+        </div>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -162,6 +210,7 @@ export function RevenueImportModal({
           hidden
           onChange={(e) => handleFileChange(e.target.files?.[0])}
         />
+
 
         <div
           onClick={() => !isProcessing && !cloudSaving && fileInputRef.current?.click()}
