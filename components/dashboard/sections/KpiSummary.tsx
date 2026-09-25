@@ -165,9 +165,38 @@ export function KpiSummary({
           label="Total Upload"
           value={num(metrics.uploads)}
           detail={
-            metrics.uploadByPlatform
-              .map((x) => `${x.name} ${num(x.total)}`)
-              .join(" · ") || "ไม่มีข้อมูล"
+            <span style={{ display: "inline-flex", flexDirection: "column", gap: 3 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                {metrics.uploadByPlatform && metrics.uploadByPlatform.length > 0 ? (
+                  metrics.uploadByPlatform.map((x, idx) => (
+                    <span key={x.name} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontWeight: 600, color: "#c2410c" }}>
+                        {x.name} {num(x.total)}
+                      </span>
+                      {idx < metrics.uploadByPlatform.length - 1 && (
+                        <span style={{ color: "#94a3b8" }}>·</span>
+                      )}
+                    </span>
+                  ))
+                ) : (
+                  "ไม่มีข้อมูล"
+                )}
+              </span>
+
+              {metrics.latestDate && metrics.latestUploadByPlatform && metrics.latestUploadByPlatform.length > 0 && (
+                <span style={{ fontSize: 11, color: "#ea580c", display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700 }}>
+                    ล่าสุด ({metrics.latestDate}):
+                  </span>
+                  <span>
+                    {metrics.latestUploadByPlatform.map((p) => `${p.name} ${num(p.total)}`).join(" · ")}
+                  </span>
+                  <span style={{ color: "#9a3412", fontWeight: 600 }}>
+                    (รวม {num(metrics.latestUploads)} คลิป)
+                  </span>
+                </span>
+              )}
+            </span>
           }
         />
       </section>

@@ -249,6 +249,13 @@ export function useDashboard() {
       totalCombinedViews = digitalViews + tvAudience,
       tvEpisodes = tvRows.length,
       days = new Set(performanceFiltered.map((r) => r.date)).size || 1,
+      sortedDates = [...new Set(performanceFiltered.map((r) => r.date).filter(Boolean))].sort(),
+      latestDate = sortedDates.at(-1) || "",
+      latestDayRows = latestDate ? performanceFiltered.filter((r) => r.date === latestDate) : [],
+      latestUploads = latestDayRows.reduce((a, r) => a + r.uploadCount, 0),
+      latestUploadByPlatform = [...sumBy(latestDayRows, (r) => r.platform, (r) => r.uploadCount)]
+        .filter((x) => x.total > 0)
+        .sort((a, b) => b.total - a.total),
       uploadByPlatform = [...sumBy(performanceFiltered, (r) => r.platform, (r) => r.uploadCount)]
         .sort((a, b) => b.total - a.total),
       digitalViewsByPlatform = [...sumBy(digitalFiltered, (r) => r.platform, (r) => r.views)]
@@ -262,6 +269,9 @@ export function useDashboard() {
       totalCombinedViews,
       engagement,
       uploads,
+      latestDate,
+      latestUploads,
+      latestUploadByPlatform,
       uploadByPlatform,
       digitalViewsByPlatform,
       digitalContentByPlatform,
