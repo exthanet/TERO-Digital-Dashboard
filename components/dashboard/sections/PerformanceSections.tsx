@@ -2,6 +2,7 @@
 import { PerformanceTooltip } from "@/components/dashboard/charts/PerformanceTooltip";
 import { TvAudienceTooltip } from "@/components/dashboard/charts/TvAudienceTooltip";
 import { Empty } from "@/components/dashboard/shared/Empty";
+import TvRatingChoropleth from "@/components/dashboard/TvRatingChoropleth";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { sumBy } from "@/lib/dashboard/analytics";
 import {
@@ -45,6 +46,7 @@ export function PerformanceSections({
   programs,
   top,
   best,
+  provinceRating,
   rating,
   ratingGrain,
   setRatingGrain,
@@ -73,6 +75,7 @@ export function PerformanceSections({
   | "programs"
   | "top"
   | "best"
+  | "provinceRating"
   | "rating"
   | "tvAudience"
   | "tvRatingBreakdown"
@@ -311,6 +314,7 @@ export function PerformanceSections({
             {!platforms.length && <Empty />}
           </div>
         </article>
+        <TvRatingChoropleth data={provinceRating} />
         <article className="panel wide" id="rating">
           <div className="panel-head">
             <div>

@@ -150,6 +150,7 @@ export default function Dashboard() {
               programs={model.programs}
               top={model.top}
               best={model.best}
+              provinceRating={model.provinceRating}
               rating={model.rating}
               ratingGrain={model.ratingGrain}
               setRatingGrain={model.setRatingGrain}
@@ -157,7 +158,6 @@ export default function Dashboard() {
               tvAudience={model.tvAudience}
               download={model.download}
             />
-            <TvZoneMap provinceRating={model.provinceRating} />
             <CompareTable
               comparePage={model.comparePage}
               setComparePage={model.setComparePage}

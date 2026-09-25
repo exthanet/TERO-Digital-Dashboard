@@ -161,25 +161,25 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
   const hasData = parsedData.some((d) => d.rating > 0);
 
   return (
-    <article className="panel tv-map-panel">
+    <article className="panel tv-map-panel" id="rating-zone">
       <div className="panel-head">
         <div>
-          <h2>TV Rating Zone — Treemap Graph</h2>
+          <h2>TV Rating Zone</h2>
           <p>
-            สัดส่วนคะแนน TV Rating เฉลี่ยตามกลุ่มผู้ชมเป้าหมาย (15+BKK, 15+BKK&amp;URBAN, 15+RURAL, 15+URBAN)
+            Treemap สัดส่วนคะแนน Rating เฉลี่ย
           </p>
         </div>
-        <span className="province-count">4 โซนเป้าหมาย</span>
+        <span className="province-count">4 โซน</span>
       </div>
 
       {hasData ? (
         <>
-          <div style={{ width: "100%", height: 290, marginTop: 8 }}>
+          <div style={{ width: "100%", height: 260, marginTop: 4 }}>
             <ResponsiveContainer width="100%" height="100%">
               <Treemap
                 data={treeData}
                 dataKey="value"
-                aspectRatio={4 / 3}
+                aspectRatio={1.2}
                 stroke="#fff"
                 content={<CustomTreemapNode />}
               >
@@ -194,7 +194,7 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
                             background: "#ffffff",
                             border: "1px solid #e2e8f0",
                             borderRadius: 10,
-                            padding: "10px 14px",
+                            padding: "8px 12px",
                             boxShadow: "0 10px 25px -5px rgba(0,0,0,0.12)",
                             fontSize: 12,
                           }}
@@ -208,7 +208,7 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
                           >
                             {cfg?.label || d.name}
                           </div>
-                          <div style={{ color: "#334155", display: "flex", gap: 12 }}>
+                          <div style={{ color: "#334155", display: "flex", gap: 10 }}>
                             <span>Rating เฉลี่ย:</span>
                             <strong>{number(d.rating)}</strong>
                           </div>
@@ -228,9 +228,9 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 10,
-              marginTop: 14,
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              marginTop: 10,
             }}
           >
             {parsedData.map((x) => {
@@ -242,31 +242,31 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
+                    gap: 8,
                     background: "#f8fafc",
                     border: "1px solid #e2e8f0",
-                    borderRadius: 10,
-                    padding: "8px 12px",
+                    borderRadius: 8,
+                    padding: "6px 8px",
                   }}
                 >
                   <span
                     style={{
-                      width: 12,
-                      height: 12,
+                      width: 10,
+                      height: 10,
                       borderRadius: 3,
                       background: cfg?.color,
                       flexShrink: 0,
                     }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#334155" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {x.name}
                     </div>
-                    <div style={{ fontSize: 10, color: "#64748b" }}>
-                      {share.toFixed(1)}% ของกลุ่มโซน
+                    <div style={{ fontSize: 9, color: "#64748b" }}>
+                      {share.toFixed(1)}%
                     </div>
                   </div>
-                  <strong style={{ fontSize: 13, color: "#0f172a" }}>
+                  <strong style={{ fontSize: 11, color: "#0f172a" }}>
                     {number(x.rating)}
                   </strong>
                 </div>
@@ -274,8 +274,8 @@ export default function TvRatingChoropleth({ data }: { data: ZoneRating[] }) {
             })}
           </div>
 
-          <p className="map-note" style={{ marginTop: 12 }}>
-            หมายเหตุ: พื้นที่สี่เหลี่ยม (Treemap) คำนวณขนาดตามสัดส่วนคะแนน Rating เฉลี่ยของแต่ละกลุ่มโซน (15+BKK, 15+BKK&amp;URBAN, 15+RURAL, 15+URBAN)
+          <p className="map-note" style={{ marginTop: 8 }}>
+            หมายเหตุ: พื้นที่สี่เหลี่ยม (Treemap) คำนวณตามสัดส่วน Rating เฉลี่ย 4 กลุ่มโซน
           </p>
         </>
       ) : (
