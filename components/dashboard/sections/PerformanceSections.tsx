@@ -172,9 +172,11 @@ export function PerformanceSections({
                   {x.name[0]}
                 </span>
                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0, justifyContent: "center" }}>
-                  <strong style={{ lineHeight: 1.2 }}>{x.name}</strong>
+                  <strong style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b", lineHeight: 1.2 }}>
+                    {x.name}
+                  </strong>
                   {x.latestDate && (
-                    <span style={{ fontSize: "9px", color: "#64748b", marginTop: 1, whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: "10px", color: "#64748b", marginTop: 2, whiteSpace: "nowrap" }}>
                       อัปเดต: {dateLabel(x.latestDate)}
                     </span>
                   )}

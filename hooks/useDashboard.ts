@@ -345,24 +345,52 @@ export function useDashboard() {
     [performanceFiltered, tvMode],
   );
   const platforms = useMemo(() => {
-    const sums = sumBy(
-      performanceFiltered,
+    // When platform filter is TV, show TV. When ALL or other, show digital platforms sorted by views, then TV at the end.
+    if (platform === "TV") {
+      const tvRows = filtered.filter((r) => r.platform === "TV");
+      const dates = tvRows.map((r) => r.date).filter(Boolean).sort();
+      const total = tvRows.reduce((a, r) => a + r.audienceTotal + r.gmmAudience, 0);
+      return [
+        {
+          name: "TV",
+          total,
+          latestDate: dates.at(-1) || "",
+        },
+      ];
+    }
+
+    const digitalSums = sumBy(
+      digitalFiltered,
       (r) => r.platform,
-      (r) => (tvMode ? r.audienceTotal + r.gmmAudience : r.views),
+      (r) => r.views,
     ).sort((a, b) => b.total - a.total);
 
-    return sums.map((p) => {
-      const dates = performanceFiltered
+    const digitalList = digitalSums.map((p) => {
+      const dates = digitalFiltered
         .filter((r) => r.platform === p.name && r.date)
         .map((r) => r.date)
         .sort();
-      const latestDate = dates.at(-1) || "";
       return {
         ...p,
-        latestDate,
+        latestDate: dates.at(-1) || "",
       };
     });
-  }, [performanceFiltered, tvMode]);
+
+    if (platform === "ALL") {
+      const tvRows = filtered.filter((r) => r.platform === "TV");
+      if (tvRows.length > 0) {
+        const tvDates = tvRows.map((r) => r.date).filter(Boolean).sort();
+        const tvTotal = tvRows.reduce((a, r) => a + r.audienceTotal + r.gmmAudience, 0);
+        digitalList.push({
+          name: "TV",
+          total: tvTotal,
+          latestDate: tvDates.at(-1) || "",
+        });
+      }
+    }
+
+    return digitalList;
+  }, [digitalFiltered, filtered, platform]);
   const programs = useMemo(
     () =>
       sumBy(
