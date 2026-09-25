@@ -1,17 +1,21 @@
 import * as XLSX from "xlsx";
 
 export type MonthlyRevenueItem = {
-  month: string; // e.g. "2025-09"
-  monthLabel: string; // e.g. "Sep 2025"
-  year: number; // e.g. 2025
+  month: string; // e.g. "2026-01"
+  monthLabel: string; // e.g. "Jan 2026"
+  year: number; // e.g. 2026
   estRevenue: number;
   partnerAdRevenue: number;
   youtubePremiumRevenue: number;
   affiliateProgramRevenue: number;
   shortsFeedAdsRevenue: number;
+  membershipsRevenue: number;
   superChatRevenue: number;
+  superThanksRevenue: number;
+  giftedMembershipsRevenue: number;
   superStickersRevenue: number;
   educationPlayerRevenue: number;
+  shoppingStarBonus: number;
   shoppingAffiliateBonus: number;
 };
 
@@ -21,11 +25,21 @@ export type RevenueData = {
 };
 
 const numVal = (row: Record<string, unknown>, ...keys: string[]): number => {
+  // Normalize row keys for flexible lookup (trim whitespace, remove newlines, remove quotes)
+  const normalizedRow: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    const cleanKey = k.replace(/[\r\n"']/g, "").trim().toLowerCase();
+    normalizedRow[cleanKey] = v;
+  }
+
   for (const k of keys) {
-    if (row[k] !== undefined && row[k] !== null && row[k] !== "") {
-      const v = row[k];
+    const cleanK = k.replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const v = normalizedRow[cleanK];
+    if (v !== undefined && v !== null && v !== "") {
       if (typeof v === "number") return isNaN(v) ? 0 : v;
-      const parsed = parseFloat(String(v).replace(/,/g, "").trim());
+      // Strip currency signs like $, ฿, commas, and whitespace
+      const cleaned = String(v).replace(/[\$,฿]/g, "").trim();
+      const parsed = parseFloat(cleaned);
       if (!isNaN(parsed)) return parsed;
     }
   }
@@ -76,7 +90,7 @@ export function parseMonthYear(val: unknown): { month: string; monthLabel: strin
     return { month: `${y}-${m}`, monthLabel: mLabel, year: y };
   }
 
-  const str = String(val).trim();
+  const str = String(val).replace(/[\r\n"']/g, "").trim();
 
   // Pattern: "Sep 2025" or "Sep 2568"
   const m1 = str.match(/^([A-Za-zก-๙.]+)\s+(\d{4})$/);
@@ -117,39 +131,77 @@ export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): Monthl
   const map = new Map<string, MonthlyRevenueItem>();
 
   rows.forEach((row) => {
-    const rawMonth = row["Monthly"] || row["Month"] || row["เดือน"] || row["Date"] || row["date"];
+    // Find key for Month/Monthly
+    let rawMonth: unknown = null;
+    for (const [k, v] of Object.entries(row)) {
+      const cleanK = k.replace(/[\r\n"']/g, "").trim().toLowerCase();
+      if (["monthly", "month", "เดือน", "date"].includes(cleanK)) {
+        rawMonth = v;
+        break;
+      }
+    }
     if (!rawMonth) return;
 
-    const { month, monthLabel, year } = parseMonthYear(rawMonth);
-    const estRevenue = numVal(row, "EST.Revenue", "EST. Revenue", "Estimated revenue", "Estimated revenue (THB)", "Revenue", "รายได้รวม");
+    const rawStr = String(rawMonth).replace(/[\r\n"']/g, "").trim();
+    if (!rawStr) return;
+
+    const { month, monthLabel, year } = parseMonthYear(rawStr);
+    const estRevenue = numVal(row, "EST.Revenue", "EST. Revenue", "Estimated revenue", "Revenue", "รายได้รวม");
     const partnerAdRevenue = numVal(row, "Estimated partner ad revenue", "Partner ad revenue", "Watch Page ads", "รายได้จากโฆษณา");
     const youtubePremiumRevenue = numVal(row, "YouTube Premium", "Youtube Premium", "Premium", "พรีเมียม");
     const affiliateProgramRevenue = numVal(row, "Affiliate program", "Affiliate Program", "Affiliate", "แอฟฟิลิเอต");
     const shortsFeedAdsRevenue = numVal(row, "Shorts Feed ads", "Shorts feed ads", "Shorts Feed Ads", "Shorts ads", "โฆษณาช็อตส์");
+    const membershipsRevenue = numVal(row, "Memberships", "Membership", "สมาชิก");
     const superChatRevenue = numVal(row, "Super Chat", "Super chat", "SuperChat", "ซูเปอร์แชท");
+    const superThanksRevenue = numVal(row, "Super Thanks", "Super thanks", "SuperThanks", "ซูเปอร์แต๊งส์");
+    const giftedMembershipsRevenue = numVal(row, "Gifted memberships", "Gifted Memberships", "Gifted membership");
     const superStickersRevenue = numVal(row, "Super Stickers", "Super stickers", "SuperStickers", "ซูเปอร์สติกเกอร์");
     const educationPlayerRevenue = numVal(row, "YouTube Player for Education", "Player for Education", "Education Player");
+    const shoppingStarBonus = numVal(row, "Shopping Star Bonus", "Shopping Star bonus", "Star bonus", "Star Bonus");
     const shoppingAffiliateBonus = numVal(row, "Shopping Affiliate bonus", "Shopping Affiliate Bonus", "Shopping bonus", "Shopping Affiliate");
 
-    // If already exists, accumulate or replace
+    const calculatedTotal =
+      partnerAdRevenue +
+      youtubePremiumRevenue +
+      affiliateProgramRevenue +
+      shortsFeedAdsRevenue +
+      membershipsRevenue +
+      superChatRevenue +
+      superThanksRevenue +
+      giftedMembershipsRevenue +
+      superStickersRevenue +
+      educationPlayerRevenue +
+      shoppingStarBonus +
+      shoppingAffiliateBonus;
+
+    // If month row is completely empty with 0s and no estRevenue, ignore (e.g. empty template rows Oct-Dec)
+    if (estRevenue === 0 && calculatedTotal === 0) {
+      return;
+    }
+
     map.set(month, {
       month,
       monthLabel,
       year,
-      estRevenue: estRevenue || (partnerAdRevenue + youtubePremiumRevenue + affiliateProgramRevenue + shortsFeedAdsRevenue + superChatRevenue + superStickersRevenue + educationPlayerRevenue + shoppingAffiliateBonus),
+      estRevenue: estRevenue || calculatedTotal,
       partnerAdRevenue,
       youtubePremiumRevenue,
       affiliateProgramRevenue,
       shortsFeedAdsRevenue,
+      membershipsRevenue,
       superChatRevenue,
+      superThanksRevenue,
+      giftedMembershipsRevenue,
       superStickersRevenue,
       educationPlayerRevenue,
+      shoppingStarBonus,
       shoppingAffiliateBonus,
     });
   });
 
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
+
 
 export async function parseYouTubeRevenueFile(file: File): Promise<MonthlyRevenueItem[]> {
   const isCsv = file.name.toLowerCase().endsWith(".csv");

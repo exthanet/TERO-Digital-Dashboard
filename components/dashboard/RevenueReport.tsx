@@ -27,13 +27,18 @@ import {
   Cloud,
   Coins,
   FileSpreadsheet,
+  Gift,
+  HeartHandshake,
+  Layers,
   PlaySquare,
   RefreshCw,
   ShoppingBag,
   Sparkles,
+  Star,
   Target,
   TrendingUp,
   Upload,
+  UserCheck,
   Video,
   Wallet,
 } from "lucide-react";
@@ -63,9 +68,10 @@ const COLORS = [
   "#7c3aed", // YouTube Premium (Purple)
   "#059669", // Affiliate Program (Green)
   "#ea580c", // Shorts Feed Ads (Orange)
-  "#db2777", // Shopping Bonus (Pink)
-  "#0891b2", // Education Player (Cyan)
-  "#eab308", // Super Chat & Stickers (Yellow)
+  "#db2777", // Shopping Star Bonus (Pink)
+  "#0891b2", // Shopping Affiliate Bonus (Cyan)
+  "#eab308", // Memberships & Fan Funding (Yellow)
+  "#6366f1", // Education Player (Indigo)
 ];
 
 const MONTH_ORDER = [
@@ -123,17 +129,12 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     return Array.from(set).sort();
   }, [allMonthly]);
 
-  const latestYear = useMemo(() => {
-    if (years.length === 0) return new Date().getFullYear();
-    return Number(years[years.length - 1]);
-  }, [years]);
-
   const filteredMonthly = useMemo(() => {
     if (selectedYear === "ALL") return allMonthly;
     return allMonthly.filter((m) => String(m.year) === selectedYear);
   }, [allMonthly, selectedYear]);
 
-  // Aggregate totals
+  // Aggregate totals across all 13 fields
   const totals = useMemo(() => {
     return filteredMonthly.reduce(
       (acc, item) => ({
@@ -142,10 +143,14 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         youtubePremiumRevenue: acc.youtubePremiumRevenue + item.youtubePremiumRevenue,
         affiliateProgramRevenue: acc.affiliateProgramRevenue + item.affiliateProgramRevenue,
         shortsFeedAdsRevenue: acc.shortsFeedAdsRevenue + item.shortsFeedAdsRevenue,
-        superChatAndStickers:
-          acc.superChatAndStickers + item.superChatRevenue + item.superStickersRevenue,
-        educationPlayerRevenue: acc.educationPlayerRevenue + item.educationPlayerRevenue,
-        shoppingAffiliateBonus: acc.shoppingAffiliateBonus + item.shoppingAffiliateBonus,
+        membershipsRevenue: acc.membershipsRevenue + (item.membershipsRevenue || 0),
+        superChatRevenue: acc.superChatRevenue + (item.superChatRevenue || 0),
+        superThanksRevenue: acc.superThanksRevenue + (item.superThanksRevenue || 0),
+        giftedMembershipsRevenue: acc.giftedMembershipsRevenue + (item.giftedMembershipsRevenue || 0),
+        superStickersRevenue: acc.superStickersRevenue + (item.superStickersRevenue || 0),
+        educationPlayerRevenue: acc.educationPlayerRevenue + (item.educationPlayerRevenue || 0),
+        shoppingStarBonus: acc.shoppingStarBonus + (item.shoppingStarBonus || 0),
+        shoppingAffiliateBonus: acc.shoppingAffiliateBonus + (item.shoppingAffiliateBonus || 0),
       }),
       {
         estRevenue: 0,
@@ -153,12 +158,33 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         youtubePremiumRevenue: 0,
         affiliateProgramRevenue: 0,
         shortsFeedAdsRevenue: 0,
-        superChatAndStickers: 0,
+        membershipsRevenue: 0,
+        superChatRevenue: 0,
+        superThanksRevenue: 0,
+        giftedMembershipsRevenue: 0,
+        superStickersRevenue: 0,
         educationPlayerRevenue: 0,
+        shoppingStarBonus: 0,
         shoppingAffiliateBonus: 0,
       }
     );
   }, [filteredMonthly]);
+
+  // Fan funding totals (Memberships, Gifted, Super Chat, Thanks, Stickers)
+  const fanFundingTotal = useMemo(() => {
+    return (
+      totals.membershipsRevenue +
+      totals.superChatRevenue +
+      totals.superThanksRevenue +
+      totals.giftedMembershipsRevenue +
+      totals.superStickersRevenue
+    );
+  }, [totals]);
+
+  // Shopping Total (Star Bonus + Affiliate Bonus)
+  const totalShoppingBonus = useMemo(() => {
+    return totals.shoppingStarBonus + totals.shoppingAffiliateBonus;
+  }, [totals]);
 
   // Forecast & Accuracy Calculations
   const forecast = useMemo(() => {
@@ -166,14 +192,14 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
 
     // Latest recorded month data
     const latestItem = allMonthly[allMonthly.length - 1];
-    const latestMonthKey = latestItem.month; // e.g. "2026-08"
+    const latestMonthKey = latestItem.month; // e.g. "2026-09"
     const [currYearStr, currMonthStr] = latestMonthKey.split("-");
     const currYear = parseInt(currYearStr, 10);
     const currMonthNum = parseInt(currMonthStr, 10);
 
     // Filter all recorded months for the latest active year
     const yearRecords = allMonthly.filter((m) => m.year === currYear);
-    const recordedMonthsCount = yearRecords.length; // e.g. 8 months for Jan-Aug
+    const recordedMonthsCount = yearRecords.length;
     const yearActualTotal = yearRecords.reduce((acc, m) => acc + m.estRevenue, 0);
 
     // Recent 3-month trailing average for momentum
@@ -190,16 +216,16 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     // Weighted projection base: 50% 3-month momentum + 30% YTD avg + 20% 6-month baseline
     const projectedPerRemainingMonth = recent3Avg * 0.5 + ytdMonthlyAvg * 0.3 + recent6Avg * 0.2;
 
-    // 1. Current Latest Month Finalized/Paced Revenue
+    // 1. Current Latest Month Finalized Revenue
     const latestMonthRevenue = latestItem.estRevenue;
 
-    // 2. Next Month Forecast (e.g. Sep 2026 if latest is Aug 2026)
+    // 2. Next Month Forecast (e.g. Oct 2026 if latest is Sep 2026)
     const nextMonthNum = currMonthNum === 12 ? 1 : currMonthNum + 1;
     const nextMonthYear = currMonthNum === 12 ? currYear + 1 : currYear;
     const nextMonthLabel = `${MONTH_ORDER[nextMonthNum - 1]} ${nextMonthYear}`;
     const nextMonthForecast = projectedPerRemainingMonth;
 
-    // 3. Full Year Projected Total for the latest active year (Actual YTD + (12 - recordedMonthsCount) * projectedPerMonth)
+    // 3. Full Year Projected Total for the latest active year
     const remainingMonthsThisYear = Math.max(0, 12 - currMonthNum);
     const projectedRemainingRevenue = remainingMonthsThisYear * projectedPerRemainingMonth;
     const fullYearProjectedTotal = yearActualTotal + projectedRemainingRevenue;
@@ -228,15 +254,16 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     const list = [
       { name: "Partner Ad Revenue", value: totals.partnerAdRevenue, color: "#2563eb" },
       { name: "YouTube Premium", value: totals.youtubePremiumRevenue, color: "#7c3aed" },
+      { name: "Shopping Star Bonus", value: totals.shoppingStarBonus, color: "#db2777" },
       { name: "Affiliate Program", value: totals.affiliateProgramRevenue, color: "#059669" },
       { name: "Shorts Feed Ads", value: totals.shortsFeedAdsRevenue, color: "#ea580c" },
-      { name: "Shopping Bonus", value: totals.shoppingAffiliateBonus, color: "#db2777" },
-      { name: "Super Chat & Stickers", value: totals.superChatAndStickers, color: "#eab308" },
-      { name: "Education Player", value: totals.educationPlayerRevenue, color: "#0891b2" },
+      { name: "Shopping Affiliate Bonus", value: totals.shoppingAffiliateBonus, color: "#0891b2" },
+      { name: "Memberships & Super Features", value: fanFundingTotal, color: "#eab308" },
+      { name: "Education Player", value: totals.educationPlayerRevenue, color: "#6366f1" },
     ].filter((x) => x.value > 0);
 
     return list;
-  }, [totals]);
+  }, [totals, fanFundingTotal]);
 
   // Forecast trend chart data combining actuals + next month forecast
   const trendWithForecast = useMemo(() => {
@@ -246,18 +273,19 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
       forecastRevenue: undefined as number | undefined,
       partnerAdRevenue: m.partnerAdRevenue,
       youtubePremiumRevenue: m.youtubePremiumRevenue,
-      shortsFeedAdsRevenue: m.shortsFeedAdsRevenue,
+      shoppingStarBonus: m.shoppingStarBonus || 0,
+      affiliateProgramRevenue: m.affiliateProgramRevenue || 0,
     }));
 
     if (forecast && (selectedYear === "ALL" || selectedYear === String(forecast.currYear))) {
-      // Add forecasted next month
       list.push({
         monthLabel: `${forecast.nextMonthLabel} (Est)`,
         actualRevenue: undefined as unknown as number,
         forecastRevenue: forecast.nextMonthForecast,
-        partnerAdRevenue: forecast.nextMonthForecast * 0.75,
-        youtubePremiumRevenue: forecast.nextMonthForecast * 0.18,
-        shortsFeedAdsRevenue: forecast.nextMonthForecast * 0.05,
+        partnerAdRevenue: forecast.nextMonthForecast * 0.70,
+        youtubePremiumRevenue: forecast.nextMonthForecast * 0.22,
+        shoppingStarBonus: 0,
+        affiliateProgramRevenue: forecast.nextMonthForecast * 0.05,
       });
     }
 
@@ -310,7 +338,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
           </div>
           <h2>YouTube Revenue & Forecast Analysis</h2>
           <p>
-            วิเคราะห์โครงสร้างรายได้ YouTube (USD) พร้อมระบบคำนวณคาดการณ์ (Forecasting): ปิดยอดเดือนล่าสุด, คาดการณ์เดือนถัดไป และประมาณการรายได้รวมทั้งปี
+            วิเคราะห์โครงสร้างรายได้ YouTube ครบทุก 13 ประเภทรายได้ (หน่วย USD) พร้อมระบบคาดการณ์รายได้ (Revenue Forecasting & Accuracy Projection)
           </p>
         </div>
 
@@ -542,7 +570,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#94a3b8", fontSize: 12 }}>
                     <TrendingUp size={14} />
-                    <span>YTD Run-rate (อัตราเติบโตต่อปี)</span>
+                    <span>YTD Run-rate (อัตราเฉลี่ยรายปี)</span>
                   </div>
                   <div style={{ fontSize: 24, fontWeight: 800, color: "#facc15", marginTop: 4 }}>
                     {money(forecast.annualRunRate)}
@@ -576,16 +604,28 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
               <small>{pct(totals.youtubePremiumRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
             </article>
             <article>
+              <Star style={{ color: "#db2777" }} />
+              <span>Shopping Star & Bonus</span>
+              <strong>{money(totalShoppingBonus)}</strong>
+              <small>Star: {money(totals.shoppingStarBonus)} · Aff: {money(totals.shoppingAffiliateBonus)}</small>
+            </article>
+            <article>
               <ShoppingBag style={{ color: "#059669" }} />
-              <span>Affiliate & Bonus</span>
-              <strong>{money(totals.affiliateProgramRevenue + totals.shoppingAffiliateBonus)}</strong>
-              <small>Affiliate: {money(totals.affiliateProgramRevenue)}</small>
+              <span>Affiliate Program</span>
+              <strong>{money(totals.affiliateProgramRevenue)}</strong>
+              <small>{pct(totals.affiliateProgramRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
             </article>
             <article>
               <Sparkles style={{ color: "#ea580c" }} />
               <span>Shorts Feed Ads</span>
               <strong>{money(totals.shortsFeedAdsRevenue)}</strong>
               <small>{pct(totals.shortsFeedAdsRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
+            </article>
+            <article>
+              <HeartHandshake style={{ color: "#eab308" }} />
+              <span>Memberships & Supers</span>
+              <strong>{money(fanFundingTotal)}</strong>
+              <small>Chat, Thanks, Stickers, Members</small>
             </article>
           </div>
 
@@ -656,7 +696,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
               <div className="panel-head">
                 <div>
                   <h3>ตารางสรุปรายได้รายเดือนทั้งหมด (Monthly Revenue Table - USD)</h3>
-                  <p>แสดงทุกคอลัมน์และประเภทรายได้ตามรายงาน YouTube Analytics (หน่วยเป็น USD)</p>
+                  <p>แสดงทุกคอลัมน์และประเภทรายได้ 13 ฟิลด์ตามรายงาน YouTube Analytics (หน่วยเป็น USD)</p>
                 </div>
               </div>
               <div className="table-scroll">
@@ -664,15 +704,19 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                   <thead>
                     <tr>
                       <th>เดือน</th>
-                      <th style={{ textAlign: "right" }}>EST. Revenue (USD)</th>
+                      <th style={{ textAlign: "right" }}>EST. Revenue</th>
                       <th style={{ textAlign: "right" }}>Partner Ad Revenue</th>
                       <th style={{ textAlign: "right" }}>YouTube Premium</th>
-                      <th style={{ textAlign: "right" }}>Affiliate Program</th>
-                      <th style={{ textAlign: "right" }}>Shorts Feed Ads</th>
-                      <th style={{ textAlign: "right" }}>Shopping Bonus</th>
+                      <th style={{ textAlign: "right" }}>Affiliate program</th>
+                      <th style={{ textAlign: "right" }}>Shorts Feed ads</th>
+                      <th style={{ textAlign: "right" }}>Memberships</th>
                       <th style={{ textAlign: "right" }}>Super Chat</th>
+                      <th style={{ textAlign: "right" }}>Super Thanks</th>
+                      <th style={{ textAlign: "right" }}>Gifted memberships</th>
                       <th style={{ textAlign: "right" }}>Super Stickers</th>
                       <th style={{ textAlign: "right" }}>Education Player</th>
+                      <th style={{ textAlign: "right" }}>Shopping Star Bonus</th>
+                      <th style={{ textAlign: "right" }}>Shopping Affiliate bonus</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -688,10 +732,16 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                         <td style={{ textAlign: "right" }}>{money(row.youtubePremiumRevenue)}</td>
                         <td style={{ textAlign: "right" }}>{money(row.affiliateProgramRevenue)}</td>
                         <td style={{ textAlign: "right" }}>{money(row.shortsFeedAdsRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.shoppingAffiliateBonus)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.superChatRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.superStickersRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.educationPlayerRevenue)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.membershipsRevenue || 0)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.superChatRevenue || 0)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.superThanksRevenue || 0)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.giftedMembershipsRevenue || 0)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.superStickersRevenue || 0)}</td>
+                        <td style={{ textAlign: "right" }}>{money(row.educationPlayerRevenue || 0)}</td>
+                        <td style={{ textAlign: "right", color: (row.shoppingStarBonus || 0) > 0 ? "#db2777" : undefined, fontWeight: (row.shoppingStarBonus || 0) > 0 ? 700 : undefined }}>
+                          {money(row.shoppingStarBonus || 0)}
+                        </td>
+                        <td style={{ textAlign: "right" }}>{money(row.shoppingAffiliateBonus || 0)}</td>
                       </tr>
                     ))}
 
@@ -705,17 +755,21 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                           {money(forecast.nextMonthForecast)}
                         </td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>
-                          ~{money(forecast.nextMonthForecast * 0.75)}
+                          ~{money(forecast.nextMonthForecast * 0.70)}
                         </td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>
-                          ~{money(forecast.nextMonthForecast * 0.18)}
-                        </td>
-                        <td style={{ textAlign: "right", color: "#64748b" }}>
-                          ~{money(forecast.nextMonthForecast * 0.03)}
+                          ~{money(forecast.nextMonthForecast * 0.22)}
                         </td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>
                           ~{money(forecast.nextMonthForecast * 0.04)}
                         </td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>
+                          ~{money(forecast.nextMonthForecast * 0.02)}
+                        </td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
                         <td style={{ textAlign: "right", color: "#64748b" }}>-</td>
@@ -733,14 +787,14 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                       <td style={{ textAlign: "right" }}>{money(totals.youtubePremiumRevenue)}</td>
                       <td style={{ textAlign: "right" }}>{money(totals.affiliateProgramRevenue)}</td>
                       <td style={{ textAlign: "right" }}>{money(totals.shortsFeedAdsRevenue)}</td>
-                      <td style={{ textAlign: "right" }}>{money(totals.shoppingAffiliateBonus)}</td>
-                      <td style={{ textAlign: "right" }}>
-                        {money(filteredMonthly.reduce((a, b) => a + b.superChatRevenue, 0))}
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {money(filteredMonthly.reduce((a, b) => a + b.superStickersRevenue, 0))}
-                      </td>
+                      <td style={{ textAlign: "right" }}>{money(totals.membershipsRevenue)}</td>
+                      <td style={{ textAlign: "right" }}>{money(totals.superChatRevenue)}</td>
+                      <td style={{ textAlign: "right" }}>{money(totals.superThanksRevenue)}</td>
+                      <td style={{ textAlign: "right" }}>{money(totals.giftedMembershipsRevenue)}</td>
+                      <td style={{ textAlign: "right" }}>{money(totals.superStickersRevenue)}</td>
                       <td style={{ textAlign: "right" }}>{money(totals.educationPlayerRevenue)}</td>
+                      <td style={{ textAlign: "right", color: "#db2777" }}>{money(totals.shoppingStarBonus)}</td>
+                      <td style={{ textAlign: "right" }}>{money(totals.shoppingAffiliateBonus)}</td>
                     </tr>
                   </tbody>
                 </table>
