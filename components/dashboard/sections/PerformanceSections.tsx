@@ -46,6 +46,8 @@ export function PerformanceSections({
   top,
   best,
   rating,
+  ratingGrain,
+  setRatingGrain,
   tvAudience,
   tvRatingBreakdown,
   download,
@@ -56,6 +58,8 @@ export function PerformanceSections({
   | "setTopVdoType"
   | "grain"
   | "setGrain"
+  | "ratingGrain"
+  | "setRatingGrain"
   | "options"
   | "digitalFiltered"
   | "tvMode"
@@ -312,9 +316,29 @@ export function PerformanceSections({
             <div>
               <h2>TV Rating Score</h2>
               <p>
-                Stacked Column · คะแนน Rating จริง — ยังไม่แปลง Rating × 700,000
+                Stacked Column · คะแนน Rating เฉลี่ย ({ratingGrain === "day" ? "รายวัน" : ratingGrain === "month" ? "รายเดือน" : "รายปี"}) — ยังไม่แปลง Rating × 700,000
                 เป็น Views
               </p>
+            </div>
+            <div className="segmented">
+              <button
+                className={ratingGrain === "day" ? "active" : ""}
+                onClick={() => setRatingGrain("day")}
+              >
+                รายวัน
+              </button>
+              <button
+                className={ratingGrain === "month" ? "active" : ""}
+                onClick={() => setRatingGrain("month")}
+              >
+                รายเดือน
+              </button>
+              <button
+                className={ratingGrain === "year" ? "active" : ""}
+                onClick={() => setRatingGrain("year")}
+              >
+                รายปี
+              </button>
             </div>
           </div>
           <div className="chart-lg">
@@ -324,7 +348,13 @@ export function PerformanceSections({
                   <CartesianGrid vertical={false} stroke="#e8edf5" />
                   <XAxis
                     dataKey="date"
-                    tickFormatter={dateLabel}
+                    tickFormatter={(label) =>
+                      ratingGrain === "year"
+                        ? String(label)
+                        : ratingGrain === "month"
+                          ? String(label)
+                          : dateLabel(String(label))
+                    }
                     tick={{ fontSize: 11 }}
                   />
                   <YAxis
@@ -333,7 +363,13 @@ export function PerformanceSections({
                   />
                   <Tooltip
                     formatter={(v) => Number(v).toFixed(3)}
-                    labelFormatter={(label) => dateLabel(String(label ?? ""))}
+                    labelFormatter={(label) =>
+                      ratingGrain === "year"
+                        ? `ปี ${label}`
+                        : ratingGrain === "month"
+                          ? `เดือน ${label}`
+                          : dateLabel(String(label ?? ""))
+                    }
                   />
                   <Legend />
                   <Bar dataKey="Total" stackId="rating" fill="#1d4ed8" />

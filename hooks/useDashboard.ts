@@ -50,6 +50,7 @@ export function useDashboard() {
     [datePreset, setDatePreset] = useState<DatePreset>("ALL");
   const [topVdoType, setTopVdoType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
+  const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
   const fileRef = useRef<HTMLInputElement>(null);
   const [executiveChartType, setExecutiveChartType] = useState<"line" | "bar">(
     "line",
@@ -403,8 +404,14 @@ export function useDashboard() {
     filtered
       .filter((r) => r.platform === "TV" || r.ratingTotal > 0)
       .forEach((r) => {
-        const x = m.get(r.date) || {
-          date: r.date,
+        const key =
+          ratingGrain === "year"
+            ? r.date.slice(0, 4)
+            : ratingGrain === "month"
+              ? r.date.slice(0, 7)
+              : r.date;
+        const x = m.get(key) || {
+          date: key,
           total: 0,
           bkk: 0,
           urban: 0,
@@ -418,20 +425,20 @@ export function useDashboard() {
         x.bu += r.ratingBkkUrban;
         x.rural += r.ratingRural;
         x.count++;
-        m.set(r.date, x);
+        m.set(key, x);
       });
     return [...m.values()]
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-31)
+      .slice(ratingGrain === "day" ? -31 : -24)
       .map((x) => ({
         date: x.date,
-        Total: x.total / x.count,
-        "15+BKK": x.bkk / x.count,
-        "15+URBAN": x.urban / x.count,
-        "15+BKK&URBAN": x.bu / x.count,
-        "15+RURAL": x.rural / x.count,
+        Total: x.count ? x.total / x.count : 0,
+        "15+BKK": x.count ? x.bkk / x.count : 0,
+        "15+URBAN": x.count ? x.urban / x.count : 0,
+        "15+BKK&URBAN": x.count ? x.bu / x.count : 0,
+        "15+RURAL": x.count ? x.rural / x.count : 0,
       }));
-  }, [filtered]);
+  }, [filtered, ratingGrain]);
   const tvAudience = useMemo(() => {
     const m = new Map<
       string,
@@ -621,26 +628,27 @@ export function useDashboard() {
     [digitalFiltered],
   );
   const provinceRating = useMemo(() => {
-    const tv = filtered.filter((r) => r.platform === "TV");
+    const tv = filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0);
+    const count = tv.length || 1;
     const totals = [
       {
-        zone: "BKK",
-        rating: tv.reduce((a, r) => a + r.ratingBkk, 0),
+        zone: "15+BKK",
+        rating: tv.length ? tv.reduce((a, r) => a + r.ratingBkk, 0) / count : 0,
         source: "15+BKK",
       },
       {
-        zone: "Urban",
-        rating: tv.reduce((a, r) => a + r.ratingUrban, 0),
-        source: "15+URBAN",
-      },
-      {
-        zone: "BKK & Urban",
-        rating: tv.reduce((a, r) => a + r.ratingBkkUrban, 0),
+        zone: "15+BKK&URBAN",
+        rating: tv.length ? tv.reduce((a, r) => a + r.ratingBkkUrban, 0) / count : 0,
         source: "15+BKK&URBAN",
       },
       {
-        zone: "Rural",
-        rating: tv.reduce((a, r) => a + r.ratingRural, 0),
+        zone: "15+URBAN",
+        rating: tv.length ? tv.reduce((a, r) => a + r.ratingUrban, 0) / count : 0,
+        source: "15+URBAN",
+      },
+      {
+        zone: "15+RURAL",
+        rating: tv.length ? tv.reduce((a, r) => a + r.ratingRural, 0) / count : 0,
         source: "15+RURAL",
       },
     ];
@@ -994,6 +1002,8 @@ export function useDashboard() {
     setTopVdoType,
     grain,
     setGrain,
+    ratingGrain,
+    setRatingGrain,
     fileRef,
     executiveChartType,
     setExecutiveChartType,
