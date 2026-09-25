@@ -10,7 +10,7 @@ import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
 import { getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { compact, num, pct } from "@/lib/dashboard/format";
-import { n, normalize } from "@/lib/dashboard/normalize";
+import { n, normalize, normalizeRowsWithDeduplication } from "@/lib/dashboard/normalize";
 import type {
   CompareRow,
   CompareSortKey,
@@ -66,7 +66,7 @@ export function useDashboard() {
           const cloudResult = await loadMasterDataWithMetaFromFirebase().catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
             setRawRows(cloudResult.rows);
-            const x = cloudResult.rows.map(normalize).filter((r) => r.date);
+            const x = normalizeRowsWithDeduplication(cloudResult.rows);
             setRows(x);
             const d = x.map((r) => r.date).sort();
             setStartDate(d[0] || "");
@@ -85,7 +85,7 @@ export function useDashboard() {
         const lastModifiedHeader = res.headers.get("last-modified");
         const data: RawRow[] = await res.json();
         setRawRows(data);
-        const x = data.map(normalize).filter((r) => r.date);
+        const x = normalizeRowsWithDeduplication(data);
         setRows(x);
         const d = x.map((r) => r.date).sort();
         setStartDate(d[0] || "");
@@ -746,7 +746,7 @@ export function useDashboard() {
     ];
   }, [top, platforms, performanceFiltered, metrics.views, tvMode]);
   function applyRows(raw: RawRow[], name: string, fileTimestamp?: string) {
-    const x = raw.map(normalize).filter((r) => r.date);
+    const x = normalizeRowsWithDeduplication(raw);
     if (!x.length) throw new Error("ไม่พบข้อมูลที่มีคอลัมน์ Date");
     setRawRows(raw);
     const d = x.map((r) => r.date).sort();

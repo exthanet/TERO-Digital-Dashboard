@@ -149,3 +149,48 @@ export function normalize(r: RawRow): RecordRow {
     revenue: n(pick(r, "Revenue", "Estimated revenue (THB)")),
   };
 }
+
+/**
+ * Normalizes an array of raw rows and deduplicates TV rows by Date + Program so each broadcast episode is counted exactly once with merged One31 + GMM25 ratings.
+ */
+export function normalizeRowsWithDeduplication(rawRows: RawRow[]): RecordRow[] {
+  const normalized = rawRows.map(normalize).filter((r) => r.date);
+  const digitalRows: RecordRow[] = [];
+  const tvByDateAndProgram = new Map<string, RecordRow[]>();
+
+  for (const row of normalized) {
+    if (row.platform === "TV" || row.ratingTotal > 0 || row.gmmRating > 0) {
+      const key = `${row.date}_${row.program || "ถกไม่เถียง"}`;
+      if (!tvByDateAndProgram.has(key)) {
+        tvByDateAndProgram.set(key, []);
+      }
+      tvByDateAndProgram.get(key)!.push(row);
+    } else {
+      digitalRows.push(row);
+    }
+  }
+
+  const mergedTvRows: RecordRow[] = [];
+  for (const [, list] of tvByDateAndProgram.entries()) {
+    // Prefer row with ONE31 main rating if available, else first row
+    const one31Row = list.find((r) => r.ratingTotal > 0);
+    const gmmRow = list.find((r) => r.gmmRating > 0 || /gmm/i.test(r.channel));
+    const base = one31Row || list[0];
+
+    const gmmRating = gmmRow ? (gmmRow.gmmRating || gmmRow.ratingTotal) : base.gmmRating;
+    const gmmAudience = gmmRow ? (gmmRow.gmmAudience || gmmRow.audienceTotal) : base.gmmAudience;
+
+    mergedTvRows.push({
+      ...base,
+      platform: "TV",
+      channel: base.channel || "ONE31",
+      ratingTotal: base.ratingTotal || 0,
+      audienceTotal: base.audienceTotal || 0,
+      gmmRating: gmmRating || 0,
+      gmmAudience: gmmAudience || 0,
+    });
+  }
+
+  return [...digitalRows, ...mergedTvRows];
+}
+
