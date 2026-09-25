@@ -495,7 +495,7 @@ body {
 }
 .platform-bars > div > div,
 .horizontal-bars > div > div {
-  height: 10px;
+  height: 25px;
   background: #edf1f7;
   border-radius: 3px;
   overflow: hidden;
