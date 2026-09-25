@@ -91,7 +91,7 @@ export function KpiSummary({
           icon={<Tv />}
           label="TV Audience รวม"
           value={compact(metrics.tvAudience)}
-          detail={`${num(metrics.tvEpisodes)} ตอน · เฉลี่ย ${compact(metrics.tvAudienceAvg)} คน/ตอน`}
+          detail={`${num(metrics.tvEpisodes)} ตอน (One31: ${num(metrics.one31Episodes)} + GMM25: ${num(metrics.gmm25Episodes)}) · เฉลี่ย ${compact(metrics.tvAudienceAvg)} คน/ตอน`}
         />
         <Kpi
           tone="sky"
