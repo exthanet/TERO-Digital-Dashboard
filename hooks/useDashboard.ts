@@ -344,15 +344,25 @@ export function useDashboard() {
         .slice(0, 10),
     [performanceFiltered, tvMode],
   );
-  const platforms = useMemo(
-    () =>
-      sumBy(
-        performanceFiltered,
-        (r) => r.platform,
-        (r) => (tvMode ? r.audienceTotal + r.gmmAudience : r.views),
-      ).sort((a, b) => b.total - a.total),
-    [performanceFiltered, tvMode],
-  );
+  const platforms = useMemo(() => {
+    const sums = sumBy(
+      performanceFiltered,
+      (r) => r.platform,
+      (r) => (tvMode ? r.audienceTotal + r.gmmAudience : r.views),
+    ).sort((a, b) => b.total - a.total);
+
+    return sums.map((p) => {
+      const dates = performanceFiltered
+        .filter((r) => r.platform === p.name && r.date)
+        .map((r) => r.date)
+        .sort();
+      const latestDate = dates.at(-1) || "";
+      return {
+        ...p,
+        latestDate,
+      };
+    });
+  }, [performanceFiltered, tvMode]);
   const programs = useMemo(
     () =>
       sumBy(
