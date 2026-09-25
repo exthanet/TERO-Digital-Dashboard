@@ -55,15 +55,15 @@ export function KpiSummary({
             tvMode ? (
               `ONE31 + GMM25 · เฉลี่ย ${compact(metrics.avgDaily)} คน/วัน`
             ) : (
-              <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                  {metrics.digitalContentByPlatform && metrics.digitalContentByPlatform.length > 0 ? (
-                    metrics.digitalContentByPlatform.map((x, idx) => (
+              <span style={{ display: "inline-flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                  {metrics.digitalViewsByPlatform && metrics.digitalViewsByPlatform.length > 0 ? (
+                    metrics.digitalViewsByPlatform.map((x, idx) => (
                       <span key={x.name} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                         <span style={{ fontWeight: 600, color: "#0369a1" }}>
-                          {x.name}: {num(x.total)}
+                          {x.name}: {compact(x.total)}
                         </span>
-                        {idx < metrics.digitalContentByPlatform.length - 1 && (
+                        {idx < metrics.digitalViewsByPlatform.length - 1 && (
                           <span style={{ color: "#94a3b8" }}>·</span>
                         )}
                       </span>
@@ -72,8 +72,15 @@ export function KpiSummary({
                     <span>ไม่รวม TV Audience</span>
                   )}
                 </span>
-                <span style={{ fontSize: 11, color: "#64748b" }}>
-                  เฉลี่ย {compact(metrics.avgDaily)} วิว/วัน · รวม {num(performanceFiltered.length)} คอนเทนต์
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap", fontSize: 11, color: "#64748b" }}>
+                  <span>
+                    เฉลี่ย {compact(metrics.avgDaily)} วิว/วัน · รวม {num(performanceFiltered.length)} คอนเทนต์
+                  </span>
+                  {metrics.digitalContentByPlatform && metrics.digitalContentByPlatform.length > 1 && (
+                    <span style={{ color: "#94a3b8" }}>
+                      ({metrics.digitalContentByPlatform.map((c) => `${c.name} ${num(c.total)}`).join(", ")})
+                    </span>
+                  )}
                 </span>
               </span>
             )
