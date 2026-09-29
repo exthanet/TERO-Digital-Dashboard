@@ -45,9 +45,16 @@ export type CompareRow = {
   tiktok: number;
   engagement: number;
   page: string;
+  /** Aired on TV (a TV row was matched into this group). */
+  hasTv: boolean;
+  tvAudience: number;
+  online: number;
+  /** TV audience + online views. */
+  total: number;
 };
 
 export type CompareSortKey = keyof CompareRow;
+export type CompareFilter = "all" | "tv" | "online";
 
 export type IntegrationStatus = { configured: boolean; missing: string[] };
 

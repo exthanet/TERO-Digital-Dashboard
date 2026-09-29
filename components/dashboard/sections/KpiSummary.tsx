@@ -1,19 +1,50 @@
 "use client";
+import { Growth } from "@/components/dashboard/shared/Growth";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import { Activity, BarChart3, Globe2, Sparkles, Tv, Upload } from "lucide-react";
+const shortDate = (iso: string, withYear = false) =>
+  new Intl.DateTimeFormat("th-TH", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
+  }).format(new Date(`${iso}T00:00:00Z`));
+
 export function KpiSummary({
   tvMode,
   performanceFiltered,
   metrics,
   types,
+  growth,
+  comparePeriod,
 }: Pick<
   DashboardModel,
-  "tvMode" | "performanceFiltered" | "metrics" | "types"
+  "tvMode" | "performanceFiltered" | "metrics" | "types" | "growth" | "comparePeriod"
 >) {
+  const compareText = comparePeriod
+    ? `เทียบกับช่วงก่อนหน้า ${shortDate(comparePeriod.start)} – ${shortDate(comparePeriod.end, true)}`
+    : "";
+  // Only render a badge when there is a previous value to compare with.
+  const badge = (value: number | null | undefined, label?: string) =>
+    growth && value !== null && value !== undefined ? (
+      <Growth value={value} label={label} title={compareText} />
+    ) : undefined;
+  const ratingBadges =
+    badge(growth?.ratingOne31, "One31") || badge(growth?.ratingGmm25, "GMM25") ? (
+      <>
+        {badge(growth?.ratingOne31, "One31")}
+        {badge(growth?.ratingGmm25, "GMM25")}
+      </>
+    ) : undefined;
   return (
     <>
+      {growth && compareText && (
+        <p className="kpi-compare-note">
+          <span className="kpi-growth up">▲</span> <span className="kpi-growth down">▼</span> = % เปลี่ยนแปลง{compareText}
+        </p>
+      )}
       {/* แถวที่ 1: Reach & Viewership (ยอดวิวรวมทั้งหมด, Digital Views, TV Audience, TV Rating) */}
       <section
         className="kpi-grid kpi-reach"
@@ -23,6 +54,7 @@ export function KpiSummary({
         }}
       >
         <Kpi
+          growth={badge(growth?.totalCombinedViews)}
           tone="indigo"
           icon={<Globe2 />}
           label="ยอดวิวรวมทั้งหมด (TV + Digital)"
@@ -45,6 +77,7 @@ export function KpiSummary({
           }
         />
         <Kpi
+          growth={badge(growth?.views)}
           tone="blue"
           icon={<Activity />}
           label={
@@ -87,6 +120,7 @@ export function KpiSummary({
           }
         />
         <Kpi
+          growth={badge(growth?.tvAudience)}
           tone="sky"
           icon={<Tv />}
           label="TV Audience รวม"
@@ -94,6 +128,7 @@ export function KpiSummary({
           detail={`${num(metrics.tvEpisodes)} ตอน (One31: ${num(metrics.one31Episodes)} + GMM25: ${num(metrics.gmm25Episodes)}) · เฉลี่ย ${compact(metrics.tvAudienceAvg)} คน/ตอน`}
         />
         <Kpi
+          growth={ratingBadges}
           tone="sky"
           icon={<Tv />}
           label="TV Rating (Average)"
@@ -142,6 +177,7 @@ export function KpiSummary({
         }}
       >
         <Kpi
+          growth={badge(growth?.engagement)}
           tone="green"
           icon={<BarChart3 />}
           label="Engagement รวม"
@@ -153,6 +189,7 @@ export function KpiSummary({
           }
         />
         <Kpi
+          growth={badge(growth?.engagementRate)}
           tone="violet"
           icon={<Sparkles />}
           label="Engagement Rate"

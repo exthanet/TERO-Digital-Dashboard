@@ -20,6 +20,9 @@ const { sumBy, topicSimilarity } = await vite.ssrLoadModule(
 const { getDatePresetRange } = await vite.ssrLoadModule(
   "/lib/dashboard/dates.ts",
 );
+const { periodFor, shiftPeriod, rankClips, rankEpisodes } = await vite.ssrLoadModule(
+  "/lib/dashboard/ranking.ts",
+);
 test("CSV preserves quoted commas, escaped quotes and multiline topics", () => {
   const rows = parseCsv(
     'Date,Topic,Views\r\n2026-09-01,"ข่าว, ตอนที่ ""1""\nต่อ",1200\r\n',
@@ -115,4 +118,46 @@ test("quarter presets use the selected data year", () => {
     "2024-01-01",
     "2024-03-31",
   ]);
+});
+
+const clip = (date, platform, vdoType, views, topic) => ({
+  date, platform, vdoType, views, topic, url: "", contentId: topic,
+  ratingTotal: 0, gmmRating: 0, audienceTotal: 0, gmmAudience: 0,
+});
+test("ranking periods: day, Monday-Sunday week, and shifting", () => {
+  assert.deepEqual(periodFor("2026-09-24", "day"), { start: "2026-09-24", end: "2026-09-24" });
+  // 2026-09-24 is a Thursday.
+  assert.deepEqual(periodFor("2026-09-24", "week"), { start: "2026-09-21", end: "2026-09-27" });
+  assert.deepEqual(periodFor("2026-09-21", "week"), { start: "2026-09-21", end: "2026-09-27" });
+  assert.deepEqual(periodFor("2026-09-27", "week"), { start: "2026-09-21", end: "2026-09-27" });
+  assert.equal(shiftPeriod("2026-09-24", "week", -1), "2026-09-17");
+  assert.equal(shiftPeriod("2026-09-01", "day", -1), "2026-08-31");
+});
+test("clips are ranked against the median of their own platform and format", () => {
+  const history = [];
+  for (let i = 1; i <= 5; i++) {
+    history.push(clip(`2026-09-0${i}`, "YouTube", "YouTube Full Episode", 1_000_000, `yt-${i}`));
+    history.push(clip(`2026-09-0${i}`, "Facebook", "Facebook Post", 1_000, `fb-${i}`));
+  }
+  const week = [
+    clip("2026-09-21", "YouTube", "YouTube Full Episode", 500_000, "yt-half"), // 0.5x
+    clip("2026-09-22", "Facebook", "Facebook Post", 5_000, "fb-5x"),           // 5x
+    clip("2026-09-23", "Facebook", "Facebook Post", 900, "fb-0.9x"),           // 0.9x
+    clip("2026-09-27", "Facebook", "Facebook Post", 10, "fb-fresh"),           // fresh
+  ];
+  const r = rankClips([...history, ...week], periodFor("2026-09-24", "week"), "2026-09-27", 2);
+  assert.equal(r.total, 4);
+  // The 5,000-view Facebook post beats the 500,000-view YouTube video on its own scale.
+  assert.equal(r.best[0].row.topic, "fb-5x");
+  assert.equal(r.best[0].index, 5);
+  // Worst skips the clip published within 2 days of the latest data and anything already in best.
+  assert.deepEqual(r.worst.map((x) => x.row.topic), ["yt-half"]);
+});
+test("TV episodes sort by One31 rating and compare with the previous 4 weeks", () => {
+  const ep = (date, rating) => ({ ...clip(date, "TV", "TV Episode", 0, date), ratingTotal: rating, program: "ถกไม่เถียง" });
+  const rows = [ep("2026-09-01", 0.3), ep("2026-09-02", 0.3), ep("2026-09-22", 0.33), ep("2026-09-23", 0.27)];
+  const r = rankEpisodes(rows, periodFor("2026-09-24", "week"));
+  assert.deepEqual(r.map((x) => x.row.date), ["2026-09-22", "2026-09-23"]);
+  assert.ok(Math.abs(r[0].vsAverage - 0.1) < 1e-9);
+  assert.ok(Math.abs(r[1].vsAverage + 0.1) < 1e-9);
 });

@@ -12,6 +12,7 @@ import { getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import { n, normalize, normalizeRowsWithDeduplication } from "@/lib/dashboard/normalize";
 import type {
+  CompareFilter,
   CompareRow,
   CompareSortKey,
   DatePreset,
@@ -20,6 +21,36 @@ import type {
   RecordRow,
 } from "@/lib/dashboard/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+/** KPI totals for a set of rows; the same rules as the `metrics` memo. */
+function summarize(source: RecordRow[], tvMode: boolean) {
+  const digital = source.filter((r) => r.platform !== "TV");
+  const perf = tvMode ? source.filter((r) => r.platform === "TV") : digital;
+  const tv = source.filter((r) => r.platform === "TV" || r.ratingTotal > 0 || r.gmmRating > 0);
+  const one31 = tv.filter((r) => r.ratingTotal > 0);
+  const gmm25 = tv.filter((r) => r.gmmRating > 0);
+  const digitalViews = digital.reduce((a, r) => a + r.views, 0);
+  const views = perf.reduce((a, r) => a + (tvMode ? r.audienceTotal + r.gmmAudience : r.views), 0);
+  const engagement = perf.reduce((a, r) => a + r.engagement, 0);
+  const tvAudience = tv.reduce((a, r) => a + r.audienceTotal + r.gmmAudience, 0);
+  return {
+    rows: source.length,
+    totalCombinedViews: digitalViews + tvAudience,
+    views,
+    tvAudience,
+    ratingOne31: one31.length ? one31.reduce((a, r) => a + r.ratingTotal, 0) / one31.length : 0,
+    ratingGmm25: gmm25.length ? gmm25.reduce((a, r) => a + r.gmmRating, 0) / gmm25.length : 0,
+    engagement,
+    engagementRate: views ? engagement / views : 0,
+  };
+}
+
+const shiftIso = (iso: string, days: number) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return isoDate(d);
+};
+
 /** `enabled`: load data only once someone is signed in (Firestore requires it). */
 export function useDashboard(enabled = true) {
   const [rows, setRows] = useState<RecordRow[]>([]),
@@ -59,7 +90,8 @@ export function useDashboard(enabled = true) {
   const [comparePage, setComparePage] = useState(1),
     [comparePageSize, setComparePageSize] = useState(20),
     [compareSort, setCompareSort] = useState<CompareSortKey>("date"),
-    [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc");
+    [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc"),
+    [compareFilter, setCompareFilter] = useState<CompareFilter>("all");
   useEffect(() => {
     if (!enabled) return;
     async function initDashboardData() {
@@ -554,7 +586,9 @@ export function useDashboard(enabled = true) {
   }, [filtered]);
 
   const compare = useMemo(() => {
-    type Cluster = CompareRow & { matchTopic: string; hasTv: boolean };
+    type Cluster = Omit<CompareRow, "tvAudience" | "online" | "total"> & {
+      matchTopic: string;
+    };
     const byDate = new Map<string, RecordRow[]>();
     filtered.forEach((r) =>
       byDate.set(r.date, [...(byDate.get(r.date) || []), r]),
@@ -625,14 +659,20 @@ export function useDashboard(enabled = true) {
         addMetrics(target, r);
       }
       result.push(
-        ...clusters.map(({ matchTopic: _, hasTv: __, ...row }) => row),
+        ...clusters.map(({ matchTopic: _, ...row }) => {
+          const tvAudience = row.oneAudience + row.gmmAudience;
+          const online = row.youtube + row.facebook + row.tiktok;
+          return { ...row, tvAudience, online, total: tvAudience + online };
+        }),
       );
     }
     return result;
   }, [filtered]);
   const compareSorted = useMemo(
     () =>
-      [...compare].sort((a, b) => {
+      compare
+        .filter((r) => compareFilter === "all" || (compareFilter === "tv") === r.hasTv)
+        .sort((a, b) => {
         const av = a[compareSort],
           bv = b[compareSort];
         const result =
@@ -641,8 +681,27 @@ export function useDashboard(enabled = true) {
             : String(av).localeCompare(String(bv), "th");
         return compareDirection === "asc" ? result : -result;
       }),
-    [compare, compareSort, compareDirection],
+    [compare, compareFilter, compareSort, compareDirection],
   );
+  // Footer totals for everything the filters keep, not just the visible page.
+  const compareTotals = useMemo(() => {
+    const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+    const sum = (key: "tvAudience" | "youtube" | "facebook" | "tiktok" | "online" | "total" | "engagement") =>
+      compareSorted.reduce((a, r) => a + r[key], 0);
+    return {
+      count: compareSorted.length,
+      tvCount: compareSorted.filter((r) => r.hasTv).length,
+      one: avg(compareSorted.filter((r) => r.one > 0).map((r) => r.one)),
+      gmm: avg(compareSorted.filter((r) => r.gmm > 0).map((r) => r.gmm)),
+      tvAudience: sum("tvAudience"),
+      youtube: sum("youtube"),
+      facebook: sum("facebook"),
+      tiktok: sum("tiktok"),
+      online: sum("online"),
+      total: sum("total"),
+      engagement: sum("engagement"),
+    };
+  }, [compareSorted]);
   const comparePageCount = Math.max(
     1,
     Math.ceil(compareSorted.length / comparePageSize),
@@ -666,6 +725,7 @@ export function useDashboard(enabled = true) {
       endDate,
       search,
       comparePageSize,
+      compareFilter,
     ],
   );
   useEffect(() => {
@@ -752,6 +812,56 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, platform, vdoType, topicType, endDate, search],
   );
+  // Ranking picks its own day/week, so it gets every filter except dates.
+  const rankingRows = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          r.date &&
+          (program === "ALL" || r.program === program) &&
+          (platform === "ALL" || r.platform === platform) &&
+          (vdoType === "ALL" || r.vdoType === vdoType) &&
+          (topicType === "ALL" || r.topicType === topicType) &&
+          (!search ||
+            `${r.topic} ${r.program} ${r.channel}`
+              .toLowerCase()
+              .includes(search.toLowerCase())),
+      ),
+    [rows, program, platform, vdoType, topicType, search],
+  );
+  const dataLatestDate = useMemo(
+    () => rows.reduce((max, r) => (r.date > max ? r.date : max), ""),
+    [rows],
+  );
+  // % change on the KPI cards: the selected range against the period of the
+  // same length right before it (e.g. 1–26 Sep vs 6–31 Aug).
+  const comparePeriod = useMemo(() => {
+    if (!startDate || !endDate || endDate < startDate) return null;
+    const days =
+      Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
+    const end = shiftIso(startDate, -1);
+    return { start: shiftIso(end, -(days - 1)), end };
+  }, [startDate, endDate]);
+  const growth = useMemo(() => {
+    if (!comparePeriod) return null;
+    const prev = summarize(
+      rankingRows.filter((r) => r.date >= comparePeriod.start && r.date <= comparePeriod.end),
+      tvMode,
+    );
+    if (!prev.rows) return null;
+    const cur = summarize(filtered, tvMode);
+    const pctChange = (now: number, before: number) =>
+      before > 0 ? (now - before) / before : null;
+    return {
+      totalCombinedViews: pctChange(cur.totalCombinedViews, prev.totalCombinedViews),
+      views: pctChange(cur.views, prev.views),
+      tvAudience: pctChange(cur.tvAudience, prev.tvAudience),
+      ratingOne31: pctChange(cur.ratingOne31, prev.ratingOne31),
+      ratingGmm25: pctChange(cur.ratingGmm25, prev.ratingGmm25),
+      engagement: pctChange(cur.engagement, prev.engagement),
+      engagementRate: pctChange(cur.engagementRate, prev.engagementRate),
+    };
+  }, [comparePeriod, rankingRows, filtered, tvMode]);
   const trendEnd = useMemo(
     () =>
       digitalFiltered
@@ -1141,6 +1251,9 @@ export function useDashboard(enabled = true) {
     tvRatingBreakdown,
     compare,
     compareSorted,
+    compareTotals,
+    compareFilter,
+    setCompareFilter,
     comparePageCount,
     compareRows,
     sortCompare,
@@ -1149,6 +1262,10 @@ export function useDashboard(enabled = true) {
     topicTrend,
     q4Plan,
     insights,
+    rankingRows,
+    dataLatestDate,
+    comparePeriod,
+    growth,
     applyRows,
     loadSheet,
     onFile,

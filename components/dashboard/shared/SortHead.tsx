@@ -6,15 +6,17 @@ export function SortHead({
   active,
   direction,
   onSort,
+  className,
 }: {
   label: string;
   column: CompareSortKey;
   active: CompareSortKey;
   direction: "asc" | "desc";
   onSort: (key: CompareSortKey) => void;
+  className?: string;
 }) {
   return (
-    <th>
+    <th className={className}>
       <button className="sort-head" onClick={() => onSort(column)}>
         {label}
         <span>

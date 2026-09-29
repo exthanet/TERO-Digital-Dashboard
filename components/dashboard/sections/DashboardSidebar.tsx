@@ -10,6 +10,7 @@ import {
   BarChart3,
   FileSpreadsheet,
   LayoutDashboard,
+  ListOrdered,
   MonitorPlay,
   Settings,
   Sparkles,
@@ -43,6 +44,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const nav = [
     ["overview", "ภาพรวม", <LayoutDashboard key="a" />],
+    ["ranking", "Ranking ดี/แย่", <ListOrdered key="rk" />],
     ["ai-analysis", "AI Executive Analysis", <Sparkles key="ai" />],
     ["daily", "ประสิทธิภาพรายวัน", <Activity key="b" />],
     ["programs", "รายการ", <MonitorPlay key="c" />],
@@ -52,7 +54,7 @@ export function DashboardSidebar({
     ["revenue", "YouTube Revenue", <BadgeDollarSign key="revenue" />],
     ["affiliate", "Affiliate Program", <BadgeDollarSign key="affiliate" />],
     ["best", "Best of Month", <Trophy key="g" />],
-    ["compare", "Compare Table", <FileSpreadsheet key="h" />],
+    ["compare", "ผลงานรายเทป", <FileSpreadsheet key="h" />],
   ];
 
   // Mobile drawer: Esc closes it and the page behind it stops scrolling.
@@ -100,8 +102,6 @@ export function DashboardSidebar({
           <X />
         </button>
         <div className="brand">
-          <div className="live-mark">LIVE</div>
-          <p>ข่าว /</p>
           <h1>
             ENTERTAINMENT
             <br />

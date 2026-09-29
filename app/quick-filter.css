@@ -20,7 +20,8 @@
   text-align: center;
 }
 
-@media (min-width: 1251px) {
+/* One-row filter bar only where it fits; styles/desktop.css wraps it below. */
+@media (min-width: 1701px) {
   .topbar {
     grid-template-columns: 150px minmax(530px, 2.3fr) 135px 135px 145px minmax(205px, 1fr) auto;
   }

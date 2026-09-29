@@ -15,6 +15,7 @@ import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { LoadingOverlay } from "@/components/dashboard/sections/LoadingOverlay";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
+import { RankingSection } from "@/components/dashboard/sections/RankingSection";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -135,8 +136,15 @@ export default function Dashboard() {
               performanceFiltered={model.performanceFiltered}
               metrics={model.metrics}
               types={model.types}
+              growth={model.growth}
+              comparePeriod={model.comparePeriod}
             />
             <ExecutiveInsights insights={model.insights} />
+            <RankingSection
+              rankingRows={model.rankingRows}
+              dataLatestDate={model.dataLatestDate}
+              endDate={model.endDate}
+            />
             <ExecutiveCharts
               executiveChartType={model.executiveChartType}
               setExecutiveChartType={model.setExecutiveChartType}
@@ -190,6 +198,9 @@ export default function Dashboard() {
               compareSort={model.compareSort}
               compareDirection={model.compareDirection}
               compareSorted={model.compareSorted}
+              compareTotals={model.compareTotals}
+              compareFilter={model.compareFilter}
+              setCompareFilter={model.setCompareFilter}
               comparePageCount={model.comparePageCount}
               compareRows={model.compareRows}
               sortCompare={model.sortCompare}

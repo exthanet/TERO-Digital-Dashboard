@@ -774,3 +774,129 @@ footer {
     padding: 22px;
   }
 }
+
+/* KPI % change vs the previous period of the same length */
+.kpi-growth-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 5px;
+}
+.kpi-growth {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.kpi-growth.up {
+  background: #dcfce7;
+  color: #15803d;
+}
+.kpi-growth.down {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.kpi-growth.flat {
+  background: #f1f5f9;
+  color: #475569;
+}
+.kpi-growth-label {
+  font-weight: 600;
+  opacity: 0.8;
+}
+.kpi-compare-note {
+  margin: 0 2px 6px;
+  color: #64748b;
+  font-size: 11px;
+}
+.kpi-compare-note .kpi-growth {
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+/* ผลงานรายเทป: ทีวี + ออนไลน์ (compare table) */
+.ep-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ep-table th.num,
+.ep-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+.ep-table th.num .sort-head {
+  justify-content: flex-end;
+  width: 100%;
+}
+.ep-table tr.ep-groups th {
+  padding: 5px 8px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: #334155;
+  border-bottom: 2px solid #e2e8f0;
+}
+.ep-table tr.ep-groups th:first-child { text-align: left; }
+.ep-table tr.ep-groups .ep-g-tv { background: #eff6ff; border-bottom-color: #93c5fd; color: #1d4ed8; }
+.ep-table tr.ep-groups .ep-g-online { background: #f0fdfa; border-bottom-color: #5eead4; color: #0f766e; }
+.ep-table tr.ep-groups .ep-g-total { background: #faf5ff; border-bottom-color: #c4b5fd; color: #6d28d9; }
+.ep-table td.ep-tv { background: #f8fbff; }
+.ep-table td.ep-tv b,
+.ep-table tfoot td.ep-tv b { display: block; font-size: 11px; }
+.ep-table td.ep-tv small { display: block; color: #64748b; font-size: 9.5px; }
+.ep-table td.ep-online-total { font-weight: 700; color: #0f766e; }
+.ep-table td.ep-total { background: #faf5ff; }
+.ep-table td.ep-total b { color: #6d28d9; font-size: 11px; }
+.ep-table td.ep-date { white-space: nowrap; color: #475569; }
+.ep-topic-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: #172139;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.ep-topic small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 9.5px;
+}
+.ep-badge {
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.ep-badge.tv { background: #dbeafe; color: #1d4ed8; }
+.ep-badge.online { background: #f1f5f9; color: #475569; }
+.ep-empty { color: #cbd5e1; }
+.ep-table tbody tr:hover td { filter: brightness(0.98); }
+.ep-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #f8fafc;
+  border-top: 2px solid #cbd5e1;
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 8px;
+}
+.ep-table tfoot td small { display: block; color: #64748b; font-weight: 500; font-size: 9.5px; }
+.compare-panel td.ep-none {
+  position: static;
+  width: auto;
+  text-align: center;
+  color: #94a3b8;
+  padding: 24px;
+}

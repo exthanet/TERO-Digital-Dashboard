@@ -1,0 +1,104 @@
+/* Desktop fit (801px and up): nothing may push the page wider than the
+   screen. Wide tables scroll inside their own box instead. Loaded after
+   quick-filter.css and before mobile.css. */
+
+@media (min-width: 801px) {
+  /* Grid/flex children default to min-width:auto, so a 780px table inside a
+     panel stretched the whole grid past the screen edge. */
+  .panel,
+  .main-grid > *,
+  .executive-view-grid > *,
+  .executive-pies > *,
+  .kpi-grid > *,
+  .affiliate-report .panel,
+  .workspace > * {
+    min-width: 0;
+  }
+  .workspace {
+    min-width: 0;
+    overflow-x: clip;
+  }
+}
+
+/* Filter row: one line needs ~1,710px (fields + sidebar). Up to 1700px it
+   wraps into two rows: program / date / platform, then VDO / topic / search. */
+@media (min-width: 801px) and (max-width: 1700px) {
+  .topbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .topbar .date-filter {
+    grid-column: span 2;
+  }
+  .topbar .search-box {
+    grid-column: span 1;
+  }
+  /* Viewers have no import button, so search can take the whole slot. */
+  .topbar .search-box:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* AI Platform table: was min-width 1250px. Titles wrap to two lines, and the
+   host/guest columns drop out below 1600px. */
+@media (min-width: 801px) {
+  .ai-platform-table table {
+    min-width: 0;
+  }
+  .ai-platform-table td a {
+    max-width: none;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    min-width: 180px;
+  }
+}
+@media (min-width: 801px) and (max-width: 1600px) {
+  .ai-platform-table th:nth-child(4),
+  .ai-platform-table th:nth-child(5),
+  .ai-platform-table td:nth-child(4),
+  .ai-platform-table td:nth-child(5) {
+    display: none;
+  }
+}
+
+/* Compare table keeps its columns but pins date + topic while scrolling.
+   The first header row holds the column groups, so only the second row and
+   body/footer cells are pinned column by column. */
+@media (min-width: 801px) {
+  .compare-panel thead tr.ep-groups th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #f4f7fb;
+  }
+  .compare-panel thead tr:last-child th:nth-child(1),
+  .compare-panel tbody td:nth-child(1),
+  .compare-panel tfoot td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 64px;
+    width: 64px;
+    background: #fff;
+  }
+  .compare-panel thead tr:last-child th:nth-child(2),
+  .compare-panel tbody td:nth-child(2) {
+    position: sticky;
+    left: 64px;
+    z-index: 2;
+    min-width: 220px;
+    max-width: 260px;
+    background: #fff;
+    box-shadow: 6px 0 8px -6px #0f172a26;
+  }
+  .compare-panel thead tr:last-child th:nth-child(1),
+  .compare-panel thead tr:last-child th:nth-child(2) {
+    background: #f4f7fb;
+    z-index: 3;
+  }
+  .compare-panel tfoot td:nth-child(1) {
+    width: auto;
+    background: #f8fafc;
+  }
+}
