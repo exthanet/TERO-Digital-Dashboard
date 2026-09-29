@@ -183,6 +183,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
+            className="mobile-hide"
             onClick={() => setImportOpen(true)}
             style={{
               display: "inline-flex",
@@ -260,6 +261,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
             {loading ? "กำลังโหลดข้อมูล Affiliate จาก Firebase..." : "ยังไม่มีข้อมูล Affiliate ในระบบ"}
           </span>
           <button
+            className="mobile-hide"
             onClick={() => setImportOpen(true)}
             style={{
               marginTop: 10,

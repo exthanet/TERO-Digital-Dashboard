@@ -20,7 +20,8 @@ import type {
   RecordRow,
 } from "@/lib/dashboard/types";
 import { useEffect, useMemo, useRef, useState } from "react";
-export function useDashboard() {
+/** `enabled`: load data only once someone is signed in (Firestore requires it). */
+export function useDashboard(enabled = true) {
   const [rows, setRows] = useState<RecordRow[]>([]),
     [rawRows, setRawRows] = useState<RawRow[]>([]),
     [cloudSaving, setCloudSaving] = useState(false),
@@ -60,7 +61,9 @@ export function useDashboard() {
     [compareSort, setCompareSort] = useState<CompareSortKey>("date"),
     [compareDirection, setCompareDirection] = useState<"asc" | "desc">("desc");
   useEffect(() => {
+    if (!enabled) return;
     async function initDashboardData() {
+      setLoading(true);
       try {
         if (!isStaticHost) {
           const cloudResult = await loadMasterDataWithMetaFromFirebase().catch(() => null);
@@ -114,7 +117,7 @@ export function useDashboard() {
     }
 
     initDashboardData();
-  }, []);
+  }, [enabled]);
   const options = useMemo(
     () => ({
       programs: [...new Set([...PROGRAMS, ...rows.map((r) => r.program)])]

@@ -2,130 +2,132 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type {
-  AuthSession,
+  AuthResult,
   ChangePasswordData,
   LoginCredentials,
-  RegisterData,
+  LoginEvent,
+  NewUserData,
   User,
+  UserRole,
 } from "@/lib/auth/types";
 import {
-  authenticateUser,
-  ensureDefaultAdmin,
-  getAllUsers,
-  getStoredSession,
-  registerNewUser,
-  removeSession,
-  saveSession,
-  updateUserPassword,
-} from "@/lib/auth/storage";
+  changeOwnPassword,
+  inviteUser,
+  listLoginEvents,
+  listUsers,
+  sendResetEmail,
+  signIn,
+  signOutUser,
+  updateUser,
+  watchSession,
+} from "@/lib/auth/users";
+import { authErrorMessage } from "@/lib/auth/validation";
 
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  allUsers: User[];
-  login: (creds: LoginCredentials) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: RegisterData) => Promise<{ success: boolean; error?: string }>;
-  changePassword: (
-    data: ChangePasswordData,
-  ) => Promise<{ success: boolean; error?: string }>;
+  /** Why the session ended on its own (deactivated, no profile, ...). */
+  notice: string | null;
+  login: (creds: LoginCredentials) => Promise<AuthResult>;
   logout: () => void;
-  adminCreateUser: (
-    data: RegisterData,
-  ) => Promise<{ success: boolean; error?: string }>;
-  refreshUsers: () => void;
+  requestPasswordReset: (email: string) => Promise<AuthResult>;
+  changePassword: (data: ChangePasswordData) => Promise<AuthResult>;
+  // Admin only (enforced by firestore.rules).
+  allUsers: User[];
+  refreshUsers: () => Promise<void>;
+  inviteUser: (data: NewUserData) => Promise<AuthResult>;
+  setUserRole: (uid: string, role: UserRole) => Promise<AuthResult>;
+  setUserActive: (uid: string, active: boolean) => Promise<AuthResult>;
+  loadLoginEvents: (since: Date) => Promise<LoginEvent[]>;
 }
 
 export function useAuth(): AuthState {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
 
-  const refreshUsers = useCallback(() => {
-    setAllUsers(getAllUsers());
+  useEffect(
+    () =>
+      watchSession((next, reason) => {
+        setUser(next);
+        if (reason) setNotice(reason);
+        if (next) setNotice(null);
+        setIsLoading(false);
+      }),
+    [],
+  );
+
+  const refreshUsers = useCallback(async () => {
+    setAllUsers(await listUsers());
   }, []);
 
-  // Initialize session on mount
-  useEffect(() => {
-    async function init() {
-      await ensureDefaultAdmin();
-      const existing = getStoredSession();
-      if (existing) {
-        setSession(existing);
-      }
-      refreshUsers();
-      setIsLoading(false);
+  const login = useCallback(async (creds: LoginCredentials): Promise<AuthResult> => {
+    try {
+      setNotice(null);
+      await signIn(creds.email, creds.password);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: authErrorMessage(e, "เข้าสู่ระบบไม่สำเร็จ") };
     }
-    init();
-  }, [refreshUsers]);
-
-  const login = useCallback(
-    async (creds: LoginCredentials) => {
-      const result = await authenticateUser(creds);
-      if (!result) {
-        return { success: false, error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" };
-      }
-      const newSession = saveSession(result.user, result.token);
-      setSession(newSession);
-      refreshUsers();
-      return { success: true };
-    },
-    [refreshUsers],
-  );
-
-  const signup = useCallback(
-    async (data: RegisterData) => {
-      const res = await registerNewUser(data);
-      if (!res.success || !res.user) {
-        return { success: false, error: res.error || "สมัครสมาชิกไม่สำเร็จ" };
-      }
-      // Auto-login after sign-up
-      const newSession = saveSession(res.user, `token_${res.user.id}_${Date.now()}`);
-      setSession(newSession);
-      refreshUsers();
-      return { success: true };
-    },
-    [refreshUsers],
-  );
-
-  const adminCreateUser = useCallback(
-    async (data: RegisterData) => {
-      const res = await registerNewUser(data);
-      if (!res.success) {
-        return { success: false, error: res.error || "สร้างผู้ใช้ไม่สำเร็จ" };
-      }
-      refreshUsers();
-      return { success: true };
-    },
-    [refreshUsers],
-  );
-
-  const changePassword = useCallback(
-    async (data: ChangePasswordData) => {
-      if (!session?.user) {
-        return { success: false, error: "กรุณาเข้าสู่ระบบก่อนเปลี่ยนรหัสผ่าน" };
-      }
-      const res = await updateUserPassword(session.user.id, data);
-      return res;
-    },
-    [session?.user],
-  );
+  }, []);
 
   const logout = useCallback(() => {
-    removeSession();
-    setSession(null);
+    setAllUsers([]);
+    void signOutUser();
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
+    try {
+      await sendResetEmail(email);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: authErrorMessage(e, "ส่งอีเมลไม่สำเร็จ") };
+    }
+  }, []);
+
+  const changePassword = useCallback(async (data: ChangePasswordData): Promise<AuthResult> => {
+    try {
+      await changeOwnPassword(data);
+      return { success: true };
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+        return { success: false, error: "รหัสผ่านปัจจุบันไม่ถูกต้อง" };
+      }
+      return { success: false, error: authErrorMessage(e, "เปลี่ยนรหัสผ่านไม่สำเร็จ") };
+    }
+  }, []);
+
+  const adminAction = useCallback(
+    async (action: () => Promise<void>, fallback: string): Promise<AuthResult> => {
+      try {
+        await action();
+        await refreshUsers();
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: authErrorMessage(e, fallback) };
+      }
+    },
+    [refreshUsers],
+  );
+
   return {
-    user: session?.user ?? null,
-    isAuthenticated: !!session?.user,
+    user,
+    isAuthenticated: !!user,
     isLoading,
-    allUsers,
+    notice,
     login,
-    signup,
-    changePassword,
     logout,
-    adminCreateUser,
+    requestPasswordReset,
+    changePassword,
+    allUsers,
     refreshUsers,
+    inviteUser: (data) => adminAction(() => inviteUser(data), "สร้างผู้ใช้ไม่สำเร็จ"),
+    setUserRole: (uid, role) => adminAction(() => updateUser(uid, { role }), "เปลี่ยนสิทธิ์ไม่สำเร็จ"),
+    setUserActive: (uid, active) =>
+      adminAction(() => updateUser(uid, { active }), "เปลี่ยนสถานะบัญชีไม่สำเร็จ"),
+    loadLoginEvents: listLoginEvents,
   };
 }

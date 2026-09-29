@@ -33,16 +33,12 @@ Settings → Secrets and variables → Actions
 
 ## ค่าที่ตั้งใน Dokploy (Environment ของแอป)
 
-```
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=<รหัสจริง อย่างน้อย 6 ตัว>
-```
-
-แก้ค่าแล้วต้องกด Redeploy
+ไม่ต้องตั้งค่าใด ๆ บัญชีผู้ใช้ย้ายไป Firebase Authentication แล้ว ([USERS_TH.md](USERS_TH.md))
+ค่า `ADMIN_USERNAME` / `ADMIN_PASSWORD` เดิมไม่ถูกใช้แล้ว ลบออกได้
 
 ## ⚠️ ความปลอดภัย
 
-- เว็บเปิดสาธารณะโดยไม่ใช้ Cloudflare Access login ในเว็บเป็นแค่ฝั่ง browser
+- เว็บเปิดสาธารณะโดยไม่ใช้ Cloudflare Access ข้อมูลใน Firestore อ่านได้เฉพาะผู้ที่ login แล้ว (`firestore.rules`) แต่ไฟล์ใน `public/` ยังเปิดอยู่
   `https://digital-dashboard.terodigital.com/master-data.json` และ `affiliate-data.json` (มี Revenue) ใครมี URL ก็โหลดได้
 - repo `exthanet/TERO-Digital-Dashboard` เป็น Public ข้อมูลชุดเดียวกันอยู่ใน Git ด้วย
 - หน้า admin ของ Dokploy (`dokploy.terodigital.com`) เปิดสู่ internet ควรใช้รหัสแข็งแรงและเปิด 2FA

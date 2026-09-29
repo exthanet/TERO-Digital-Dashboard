@@ -15,6 +15,7 @@ export default defineConfig({
   define: {
     "process.env.NEXT_PUBLIC_STATIC_HOST": JSON.stringify("true"),
     "process.env.NEXT_PUBLIC_ASSET_BASE": JSON.stringify(base),
+    "process.env.NEXT_PUBLIC_FIREBASE_EMULATOR": JSON.stringify("false"),
   },
   build: { outDir: `${projectRoot}dist/github-pages`, emptyOutDir: true },
 });

@@ -1,14 +1,11 @@
 "use client";
 import type { DashboardModel } from "@/hooks/useDashboard";
-import { Menu, Upload, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+// Importing master data is desktop-only, so the phone header has no upload button.
 export function MobileHeader({
   menuOpen,
   setMenuOpen,
-  setSourceOpen,
-  canImport,
-}: Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> & {
-  canImport?: boolean;
-}) {
+}: Pick<DashboardModel, "menuOpen" | "setMenuOpen">) {
   return (
     <>
       <header className="mobile-header">
@@ -21,17 +18,7 @@ export function MobileHeader({
           {menuOpen ? <X /> : <Menu />}
         </button>
         <strong>Entertainment Dashboard</strong>
-        {canImport ? (
-          <button
-            type="button"
-            onClick={() => setSourceOpen(true)}
-            aria-label="นำเข้าข้อมูล"
-          >
-            <Upload />
-          </button>
-        ) : (
-          <span className="mobile-header-spacer" />
-        )}
+        <span className="mobile-header-spacer" />
       </header>
     </>
   );

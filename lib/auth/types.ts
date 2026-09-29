@@ -1,37 +1,37 @@
-export type UserRole = "admin" | "viewer" | "editor";
+export type UserRole = "admin" | "viewer";
 
+/** Profile stored in Firestore at users/{uid}; the password lives in Firebase Auth. */
 export interface User {
   id: string;
-  username: string;
+  email: string;
   name: string;
   role: UserRole;
+  active: boolean;
   createdAt: string;
 }
 
-export interface UserRecord extends User {
-  passwordHash: string; // Stored hash or base64/hashed string
-  seedHash?: string; // Default admin only: configured hash the account was last reset to
-}
-
-export interface AuthSession {
-  user: User;
-  token: string;
-  loginAt: string;
-}
-
 export interface LoginCredentials {
-  username: string;
+  email: string;
   password: string;
 }
 
-export interface RegisterData {
-  username: string;
+export interface NewUserData {
+  email: string;
   name: string;
-  password: string;
-  role?: UserRole;
+  role: UserRole;
 }
 
 export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
 }
+
+export interface LoginEvent {
+  id: string;
+  uid: string;
+  email: string;
+  name: string;
+  at: string;
+}
+
+export type AuthResult = { success: boolean; error?: string };

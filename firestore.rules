@@ -1,21 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /masterData/{row} {
-      allow read: if true;
-      allow create, update: if request.resource.data.adminToken == 'tero-admin-2026-secure';
+    // Accounts are Firebase Auth users with a profile at users/{uid}:
+    // { email, name, role: 'admin' | 'viewer', active: bool, createdAt }.
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isActive() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().active == true;
+    }
+    function isAdmin() {
+      return isActive() && profile().role == 'admin';
+    }
+    function validProfile() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['email', 'name', 'role', 'active', 'createdAt'])
+        && d.email is string
+        && d.name is string
+        && d.role in ['admin', 'viewer']
+        && d.active is bool;
+    }
+
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow create: if isAdmin() && validProfile();
+      // Admins cannot demote or deactivate themselves, so one admin always remains.
+      allow update: if isAdmin() && validProfile()
+        && (uid != request.auth.uid
+            || (request.resource.data.role == 'admin' && request.resource.data.active == true));
       allow delete: if false;
+    }
+
+    // One document per login, written by the person logging in.
+    match /loginEvents/{id} {
+      allow create: if isActive()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /masterData/{doc} {
+      allow read: if isActive();
+      allow write: if isAdmin();
     }
     match /affiliateData/{doc} {
-      allow read: if true;
-      allow create, update: if request.resource.data.adminToken == 'tero-admin-2026-secure';
-      allow delete: if false;
+      allow read: if isActive();
+      allow write: if isAdmin();
     }
     match /revenueData/{doc} {
-      allow read: if true;
-      allow create, update: if request.resource.data.adminToken == 'tero-admin-2026-secure';
-      allow delete: if false;
+      allow read: if isActive();
+      allow write: if isAdmin();
     }
   }
 }
-

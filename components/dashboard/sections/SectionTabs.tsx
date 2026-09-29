@@ -8,7 +8,6 @@ interface SectionTabsProps {
   activeTab: "overview" | "revenue" | "affiliate";
   onTabChange: (tab: "overview" | "revenue" | "affiliate") => void;
   currentUser?: AuthUser | null;
-  onOpenSignUp?: () => void;
   onOpenChangePassword?: () => void;
   onOpenUserManagement?: () => void;
   onLogout?: () => void;
@@ -18,7 +17,6 @@ export function SectionTabs({
   activeTab,
   onTabChange,
   currentUser,
-  onOpenSignUp,
   onOpenChangePassword,
   onOpenUserManagement,
   onLogout,
@@ -102,7 +100,6 @@ export function SectionTabs({
       {currentUser && (
         <UserDropdownMenu
           currentUser={currentUser}
-          onOpenSignUp={onOpenSignUp || (() => {})}
           onOpenChangePassword={onOpenChangePassword || (() => {})}
           onOpenUserManagement={onOpenUserManagement || (() => {})}
           onLogout={onLogout || (() => {})}

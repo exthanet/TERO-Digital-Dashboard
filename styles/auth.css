@@ -722,3 +722,124 @@
   align-items: center;
 }
 
+/* Firebase auth additions */
+.auth-info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-link-btn {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: #0757e8;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
+.auth-link-btn:hover {
+  text-decoration: underline;
+}
+
+.auth-link-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 0.6rem;
+  padding: 3px;
+}
+
+.auth-tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: #fff;
+  color: #0757e8;
+  box-shadow: 0 1px 4px #0f172a1a;
+}
+
+.auth-users-table select {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.3rem;
+}
+
+.auth-mini-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-mini-btn.danger {
+  color: #b91c1c;
+}
+
+.auth-mini-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.auth-user-cell small {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.auth-status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.auth-status-pill.on {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.auth-status-pill.off {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .auth-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

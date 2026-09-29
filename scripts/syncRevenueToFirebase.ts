@@ -1,4 +1,7 @@
-import { db, ADMIN_WRITE_TOKEN } from "../lib/firebase";
+// NOTE: firestore.rules only lets signed-in admins write revenueData, and this
+// script signs in as nobody, so it is refused until it moves to a service
+// account (planned with the scheduled data sync). Use the in-app import meanwhile.
+import { db } from "../lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import * as fs from "fs";
 import * as path from "path";
@@ -11,13 +14,11 @@ async function syncRevenue() {
   console.log("Syncing", data.monthly.length, "months to Firestore...");
 
   await setDoc(doc(db, "revenueData", "meta"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     generatedAt: data.generatedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
 
   await setDoc(doc(db, "revenueData", "monthly"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     monthly: data.monthly,
     updatedAt: new Date().toISOString(),
   });

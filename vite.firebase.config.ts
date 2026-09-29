@@ -15,6 +15,7 @@ export default defineConfig({
   define: {
     "process.env.NEXT_PUBLIC_STATIC_HOST": JSON.stringify("false"),
     "process.env.NEXT_PUBLIC_ASSET_BASE": JSON.stringify(base),
+    "process.env.NEXT_PUBLIC_FIREBASE_EMULATOR": JSON.stringify(process.env.FIREBASE_EMULATOR === "true" ? "true" : "false"),
   },
   build: { outDir: `${projectRoot}dist/firebase`, emptyOutDir: true },
 });

@@ -22,7 +22,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
-import { SignUpModal } from "@/components/auth/SignUpModal";
 import "@/styles/auth.css";
 
 import RevenueReport from "@/components/dashboard/RevenueReport";
@@ -34,10 +33,10 @@ const MOBILE_QUERY = "(max-width: 800px)";
 export default function Dashboard() {
   const auth = useAuth();
   const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate">("overview");
-  const [signUpOpen, setSignUpOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
-  const model = useDashboard();
+  // Firestore only serves data to signed-in, active accounts.
+  const model = useDashboard(auth.isAuthenticated);
   const { setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen } = model;
 
   // Phones only show the รายการ and วันเดือนปี filters, so the hidden ones
@@ -83,14 +82,11 @@ export default function Dashboard() {
         <MobileHeader
           menuOpen={model.menuOpen}
           setMenuOpen={model.setMenuOpen}
-          setSourceOpen={model.setSourceOpen}
-          canImport={auth.user?.role === "admin"}
         />
         <SectionTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
           currentUser={auth.user}
-          onOpenSignUp={() => setSignUpOpen(true)}
           onOpenChangePassword={() => setChangePasswordOpen(true)}
           onOpenUserManagement={() => setUserManagementOpen(true)}
           onLogout={auth.logout}
@@ -237,11 +233,6 @@ export default function Dashboard() {
         integrationLoading={model.integrationLoading}
         integrationStatus={model.integrationStatus}
         checkIntegrations={model.checkIntegrations}
-      />
-      <SignUpModal
-        isOpen={signUpOpen && auth.user?.role === "admin"}
-        onClose={() => setSignUpOpen(false)}
-        auth={auth}
       />
       <ChangePasswordModal
         isOpen={changePasswordOpen}

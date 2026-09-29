@@ -1,0 +1,189 @@
+// Firebase-backed accounts. Passwords live in Firebase Auth; each account's
+// profile and role live in Firestore at users/{uid}. firestore.rules decides
+// who may read or change what, so the checks here are for the UI only.
+import { deleteApp, initializeApp } from "firebase/app";
+import {
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  getAuth,
+  connectAuthEmulator,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+  type User as FirebaseUser,
+} from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  Timestamp,
+  type DocumentData,
+} from "firebase/firestore";
+import { auth, db, firebaseConfig, useFirebaseEmulator } from "@/lib/firebase";
+import type {
+  ChangePasswordData,
+  LoginEvent,
+  NewUserData,
+  User,
+  UserRole,
+} from "./types";
+import { normalizeEmail, randomPassword } from "./validation";
+
+const usersCol = collection(db, "users");
+const loginEventsCol = collection(db, "loginEvents");
+
+function toIso(value: unknown): string {
+  if (value instanceof Timestamp) return value.toDate().toISOString();
+  return typeof value === "string" ? value : "";
+}
+
+function toUser(id: string, data: DocumentData): User {
+  return {
+    id,
+    email: String(data.email ?? ""),
+    name: String(data.name ?? data.email ?? ""),
+    role: data.role === "admin" ? "admin" : "viewer",
+    active: data.active === true,
+    createdAt: toIso(data.createdAt),
+  };
+}
+
+/**
+ * Follows the signed-in account and its profile. `onChange(null)` means signed
+ * out. A missing or deactivated profile signs the session out, with a reason.
+ */
+export function watchSession(
+  onChange: (user: User | null, reason?: string) => void,
+): () => void {
+  let stopProfile: (() => void) | undefined;
+  const stopAuth = onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
+    stopProfile?.();
+    stopProfile = undefined;
+    if (!fbUser) {
+      onChange(null);
+      return;
+    }
+    stopProfile = onSnapshot(
+      doc(db, "users", fbUser.uid),
+      (snap) => {
+        const profile = snap.exists() ? toUser(snap.id, snap.data()) : null;
+        if (!profile || !profile.active) {
+          void signOut(auth);
+          onChange(
+            null,
+            profile ? "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ" : "ไม่พบสิทธิ์ใช้งานของบัญชีนี้ กรุณาติดต่อผู้ดูแลระบบ",
+          );
+          return;
+        }
+        onChange(profile);
+      },
+      () => {
+        void signOut(auth);
+        onChange(null, "ไม่สามารถตรวจสอบสิทธิ์ของบัญชีนี้ได้");
+      },
+    );
+  });
+  return () => {
+    stopProfile?.();
+    stopAuth();
+  };
+}
+
+export async function signIn(email: string, password: string): Promise<void> {
+  const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
+  // Best effort: a failed log write must not block the login itself.
+  await addDoc(loginEventsCol, {
+    uid: cred.user.uid,
+    email: cred.user.email ?? normalizeEmail(email),
+    name: cred.user.displayName ?? "",
+    at: serverTimestamp(),
+  }).catch(() => undefined);
+}
+
+export function signOutUser(): Promise<void> {
+  return signOut(auth);
+}
+
+export function sendResetEmail(email: string): Promise<void> {
+  return sendPasswordResetEmail(auth, normalizeEmail(email));
+}
+
+export async function changeOwnPassword(data: ChangePasswordData): Promise<void> {
+  const current = auth.currentUser;
+  if (!current?.email) throw Object.assign(new Error("not signed in"), { code: "auth/requires-recent-login" });
+  await reauthenticateWithCredential(
+    current,
+    EmailAuthProvider.credential(current.email, data.currentPassword),
+  );
+  await updatePassword(current, data.newPassword);
+}
+
+/**
+ * Creates the Auth account on a separate Firebase app instance so the admin
+ * stays signed in, writes the profile, then emails the invitee a link to set
+ * their own password.
+ */
+export async function inviteUser(data: NewUserData): Promise<void> {
+  const email = normalizeEmail(data.email);
+  const secondary = initializeApp(firebaseConfig, `invite-${Date.now()}`);
+  try {
+    const secondaryAuth = getAuth(secondary);
+    if (useFirebaseEmulator) {
+      connectAuthEmulator(secondaryAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    }
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, randomPassword());
+    await signOut(secondaryAuth);
+    await setDoc(doc(db, "users", cred.user.uid), {
+      email,
+      name: data.name.trim() || email,
+      role: data.role,
+      active: true,
+      createdAt: serverTimestamp(),
+    });
+  } finally {
+    await deleteApp(secondary);
+  }
+  await sendPasswordResetEmail(auth, email);
+}
+
+export async function listUsers(): Promise<User[]> {
+  const snap = await getDocs(usersCol);
+  return snap.docs
+    .map((d) => toUser(d.id, d.data()))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+export function updateUser(
+  uid: string,
+  changes: Partial<{ role: UserRole; active: boolean; name: string }>,
+): Promise<void> {
+  return updateDoc(doc(db, "users", uid), changes);
+}
+
+/** Login events since `since` (inclusive), newest first. */
+export async function listLoginEvents(since: Date): Promise<LoginEvent[]> {
+  const snap = await getDocs(
+    query(loginEventsCol, where("at", ">=", Timestamp.fromDate(since)), orderBy("at", "desc")),
+  );
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      uid: String(data.uid ?? ""),
+      email: String(data.email ?? ""),
+      name: String(data.name ?? ""),
+      at: toIso(data.at),
+    };
+  });
+}

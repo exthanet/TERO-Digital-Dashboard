@@ -344,6 +344,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
+            className="mobile-hide"
             onClick={() => setImportOpen(true)}
             style={{
               display: "inline-flex",
@@ -421,6 +422,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
             {loading ? "กำลังโหลดข้อมูล Revenue จากระบบ..." : "ยังไม่มีข้อมูล YouTube Revenue ในระบบ"}
           </span>
           <button
+            className="mobile-hide"
             onClick={() => setImportOpen(true)}
             style={{
               marginTop: 12,

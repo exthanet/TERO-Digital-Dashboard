@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AlertCircle, CheckCircle2, KeyRound, Lock, X } from "lucide-react";
 import type { AuthState } from "@/hooks/useAuth";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/auth/validation";
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -33,8 +34,9 @@ export function ChangePasswordModal({
       setError("กรุณากรอกรหัสผ่านปัจจุบัน");
       return;
     }
-    if (!newPassword || newPassword.length < 6) {
-      setError("รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+    const problem = passwordProblem(newPassword);
+    if (problem) {
+      setError(problem);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -147,7 +149,7 @@ export function ChangePasswordModal({
 
             <div className="auth-field">
               <label className="auth-label" htmlFor="new-pw">
-                รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)*
+                รหัสผ่านใหม่ (อย่างน้อย {MIN_PASSWORD_LENGTH} ตัวอักษร)*
               </label>
               <div className="auth-input-wrap">
                 <Lock className="auth-input-icon" />

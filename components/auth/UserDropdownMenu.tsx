@@ -7,14 +7,12 @@ import {
   LogOut,
   Shield,
   User as UserIcon,
-  UserPlus,
   Users,
 } from "lucide-react";
 import type { User as AuthUser } from "@/lib/auth/types";
 
 interface UserDropdownMenuProps {
   currentUser: AuthUser | null;
-  onOpenSignUp: () => void;
   onOpenChangePassword: () => void;
   onOpenUserManagement: () => void;
   onLogout: () => void;
@@ -22,7 +20,6 @@ interface UserDropdownMenuProps {
 
 export function UserDropdownMenu({
   currentUser,
-  onOpenSignUp,
   onOpenChangePassword,
   onOpenUserManagement,
   onLogout,
@@ -66,7 +63,7 @@ export function UserDropdownMenu({
 
   if (!currentUser) return null;
 
-  // Creating accounts is an admin task; viewers could otherwise add admins.
+  // Managing accounts is an admin task (firestore.rules enforces it too).
   const isAdmin = currentUser.role === "admin";
   const initial = currentUser.name
     ? currentUser.name.charAt(0).toUpperCase()
@@ -106,7 +103,7 @@ export function UserDropdownMenu({
                 {currentUser.name}
               </div>
               <div className="user-dropdown-header-username">
-                @{currentUser.username}
+                {currentUser.email}
               </div>
               <span className={`auth-role-pill ${currentUser.role}`}>
                 <Shield size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: "3px" }} />
@@ -119,19 +116,6 @@ export function UserDropdownMenu({
 
           {/* Menu Items */}
           <div className="user-dropdown-list">
-            {isAdmin && (
-              <button
-                type="button"
-                className="user-dropdown-item"
-                onClick={() => {
-                  setIsOpen(false);
-                  onOpenSignUp();
-                }}
-              >
-                <UserPlus size={16} className="user-dropdown-item-icon text-primary" />
-                <span>สมัครสมาชิกใหม่ (Sign Up)</span>
-              </button>
-            )}
 
             <button
               type="button"

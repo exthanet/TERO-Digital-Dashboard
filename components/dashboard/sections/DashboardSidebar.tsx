@@ -132,8 +132,9 @@ export function DashboardSidebar({
           <Settings />
           ตั้งค่า API Sync
         </button>}
+        {/* Desktop only: importing master data is not offered on phones */}
         <button
-          className="sidebar-import"
+          className="sidebar-import mobile-hide"
           onClick={() => {
             setSourceOpen(true);
             setMenuOpen(false);
@@ -158,7 +159,7 @@ export function DashboardSidebar({
                   {currentUser.name}
                 </div>
                 <div className={`sidebar-user-role ${currentUser.role}`}>
-                  @{currentUser.username} • {currentUser.role}
+                  {currentUser.email} • {currentUser.role}
                 </div>
               </div>
             </div>

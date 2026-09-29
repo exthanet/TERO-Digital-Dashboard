@@ -1,12 +1,18 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { collection, getDocs, doc, setDoc } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import {
+  collection,
+  connectFirestoreEmulator,
+  doc,
+  getDocs,
+  getFirestore,
+  setDoc,
+} from "firebase/firestore";
 import type { RawRow } from "@/lib/dashboard/types";
 import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyAryjQuJ7dujmHxoXtiCNFANjt5bkE3PAc",
   authDomain: "entertainment-dashboard-733e5.firebaseapp.com",
   projectId: "entertainment-dashboard-733e5",
@@ -18,13 +24,17 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+auth.languageCode = "th";
 export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
-export const signOutFirebase = () => signOut(auth);
-
-export const ADMIN_WRITE_TOKEN = "tero-admin-2026-secure";
+// Local testing only: `FIREBASE_EMULATOR=true npm run dev` builds with this
+// flag so the page talks to `firebase emulators:start` instead of production.
+export const useFirebaseEmulator =
+  process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true";
+if (useFirebaseEmulator) {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+}
 
 export interface MasterDataResult {
   rows: RawRow[];
@@ -71,7 +81,7 @@ function cleanRowForFirestore(row: Record<string, unknown>): Record<string, unkn
 
 /**
  * Save rows to Firestore `masterData` collection partitioned in chunks.
- * Only succeeds if adminToken matches the security rule.
+ * Firestore rules only allow this for signed-in admins.
  */
 export async function saveMasterDataToFirebase(
   rows: RawRow[],
@@ -104,7 +114,6 @@ export async function saveMasterDataToFirebase(
 
     const docRef = doc(db, "masterData", docId);
     await setDoc(docRef, {
-      adminToken: ADMIN_WRITE_TOKEN,
       chunkIndex: i,
       rowCount: chunkRows.length,
       updatedAt: now,
@@ -120,7 +129,6 @@ export async function saveMasterDataToFirebase(
   for (const obsoleteId of existingChunkIds) {
     const docRef = doc(db, "masterData", obsoleteId);
     await setDoc(docRef, {
-      adminToken: ADMIN_WRITE_TOKEN,
       chunkIndex: -1,
       rowCount: 0,
       updatedAt: now,
@@ -206,7 +214,6 @@ export async function saveAffiliateDataToFirebase(
 
   // 1. Save Meta doc
   await setDoc(doc(db, "affiliateData", "meta"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     generatedAt: data.generatedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -215,7 +222,6 @@ export async function saveAffiliateDataToFirebase(
 
   // 2. Save Summary doc
   await setDoc(doc(db, "affiliateData", "summary"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     summary: data.summary.map((s) => cleanRowForFirestore(s as Record<string, unknown>)),
     updatedAt: new Date().toISOString(),
   });
@@ -226,7 +232,6 @@ export async function saveAffiliateDataToFirebase(
   for (let i = 0; i < contentChunks.length; i++) {
     const docId = `content_${String(i).padStart(3, "0")}`;
     await setDoc(doc(db, "affiliateData", docId), {
-      adminToken: ADMIN_WRITE_TOKEN,
       index: i,
       rows: contentChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
       updatedAt: new Date().toISOString(),
@@ -239,7 +244,6 @@ export async function saveAffiliateDataToFirebase(
   for (let i = 0; i < productChunks.length; i++) {
     const docId = `product_${String(i).padStart(3, "0")}`;
     await setDoc(doc(db, "affiliateData", docId), {
-      adminToken: ADMIN_WRITE_TOKEN,
       index: i,
       rows: productChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
       updatedAt: new Date().toISOString(),
@@ -252,7 +256,6 @@ export async function saveAffiliateDataToFirebase(
   for (let i = 0; i < dailyChunks.length; i++) {
     const docId = `daily_${String(i).padStart(3, "0")}`;
     await setDoc(doc(db, "affiliateData", docId), {
-      adminToken: ADMIN_WRITE_TOKEN,
       index: i,
       rows: dailyChunks[i].map((r) => cleanRowForFirestore(r as Record<string, unknown>)),
       updatedAt: new Date().toISOString(),
@@ -302,7 +305,6 @@ export async function saveRevenueDataToFirebase(
 
   // 1. Save Meta doc
   await setDoc(doc(db, "revenueData", "meta"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     generatedAt: data.generatedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -311,7 +313,6 @@ export async function saveRevenueDataToFirebase(
 
   // 2. Save Monthly doc
   await setDoc(doc(db, "revenueData", "monthly"), {
-    adminToken: ADMIN_WRITE_TOKEN,
     monthly: data.monthly.map((m) => cleanRowForFirestore(m as Record<string, unknown>)),
     updatedAt: new Date().toISOString(),
   });
