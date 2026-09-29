@@ -40,7 +40,7 @@ export function useDashboard() {
     [sourceName, setSourceName] = useState("Firebase Firestore"),
     [uploadedAt, setUploadedAt] = useState(""),
     [message, setMessage] = useState("");
-  const [program, setProgram] = useState("ALL"),
+  const [program, setProgram] = useState("ถกไม่เถียง"),
     [platform, setPlatform] = useState("ALL"),
     [vdoType, setVdoType] = useState("ALL"),
     [topicType, setTopicType] = useState("ALL"),
@@ -68,9 +68,14 @@ export function useDashboard() {
             setRawRows(cloudResult.rows);
             const x = normalizeRowsWithDeduplication(cloudResult.rows);
             setRows(x);
-            const d = x.map((r) => r.date).sort();
-            setStartDate(d[0] || "");
-            setEndDate(d.at(-1) || "");
+            const d = x.map((r) => r.date).filter(Boolean).sort();
+            const latest = d.at(-1) || "";
+            if (latest) {
+              const y = latest.slice(0, 4);
+              const m = latest.slice(5, 7);
+              setStartDate(`${y}-${m}-01`);
+              setEndDate(latest);
+            }
             setSourceName("Firebase Firestore");
             if (cloudResult.updatedAt) {
               setUploadedAt(cloudResult.updatedAt);
@@ -87,9 +92,14 @@ export function useDashboard() {
         setRawRows(data);
         const x = normalizeRowsWithDeduplication(data);
         setRows(x);
-        const d = x.map((r) => r.date).sort();
-        setStartDate(d[0] || "");
-        setEndDate(d.at(-1) || "");
+        const d = x.map((r) => r.date).filter(Boolean).sort();
+        const latest = d.at(-1) || "";
+        if (latest) {
+          const y = latest.slice(0, 4);
+          const m = latest.slice(5, 7);
+          setStartDate(`${y}-${m}-01`);
+          setEndDate(latest);
+        }
         setSourceName(isStaticHost ? "master-data.json" : "Firebase Firestore");
         if (lastModifiedHeader) {
           setUploadedAt(new Date(lastModifiedHeader).toISOString());
