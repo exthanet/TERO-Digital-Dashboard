@@ -66,6 +66,8 @@ export function UserDropdownMenu({
 
   if (!currentUser) return null;
 
+  // Creating accounts is an admin task; viewers could otherwise add admins.
+  const isAdmin = currentUser.role === "admin";
   const initial = currentUser.name
     ? currentUser.name.charAt(0).toUpperCase()
     : "U";
@@ -117,17 +119,19 @@ export function UserDropdownMenu({
 
           {/* Menu Items */}
           <div className="user-dropdown-list">
-            <button
-              type="button"
-              className="user-dropdown-item"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenSignUp();
-              }}
-            >
-              <UserPlus size={16} className="user-dropdown-item-icon text-primary" />
-              <span>สมัครสมาชิกใหม่ (Sign Up)</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="user-dropdown-item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenSignUp();
+                }}
+              >
+                <UserPlus size={16} className="user-dropdown-item-icon text-primary" />
+                <span>สมัครสมาชิกใหม่ (Sign Up)</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -141,17 +145,19 @@ export function UserDropdownMenu({
               <span>เปลี่ยนรหัสผ่าน (Change Password)</span>
             </button>
 
-            <button
-              type="button"
-              className="user-dropdown-item"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenUserManagement();
-              }}
-            >
-              <Users size={16} className="user-dropdown-item-icon" />
-              <span>จัดการผู้ใช้งาน (User Management)</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="user-dropdown-item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenUserManagement();
+                }}
+              >
+                <Users size={16} className="user-dropdown-item-icon" />
+                <span>จัดการผู้ใช้งาน (User Management)</span>
+              </button>
+            )}
 
             <div className="user-dropdown-divider" />
 

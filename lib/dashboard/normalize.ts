@@ -72,7 +72,8 @@ export const normalizeVdoType = (v: string, p: string) => {
 
 export const normalizeTopic = (v: string) => {
   const x = v.toLowerCase();
-  if (!x) return "ไม่ระบุประเภท";
+  // "ไม่ระบุ" and spreadsheet errors such as "#REF!" mean the same as blank.
+  if (!x || x === "ไม่ระบุ" || x.startsWith("#")) return "ไม่ระบุประเภท";
   if (x.includes("กัมพูชา")) return "ข่าวไทย–กัมพูชา";
   if (x.includes("อิหร่าน") || x.includes("สหรัฐ") || x.includes("ต่างประเทศ"))
     return "ข่าวต่างประเทศ / อิหร่าน–สหรัฐ";
@@ -86,7 +87,8 @@ export const normalizeTopic = (v: string) => {
   if (x.includes("พระเครื่อง")) return "พระเครื่อง";
   if (x.includes("ลูกค้า") || x.includes("งานขอ") || x.includes("branded"))
     return "งานลูกค้า / Branded Content";
-  if (x.includes("การเมือง")) return "ข่าวการเมือง";
+  if (x.includes("การเงิน")) return "การเงิน / ธุรกิจ";
+  if (x.includes("การเมือง") || x.includes("การมือง")) return "ข่าวการเมือง";
   return v;
 };
 
@@ -172,22 +174,31 @@ export function normalizeRowsWithDeduplication(rawRows: RawRow[]): RecordRow[] {
 
   const mergedTvRows: RecordRow[] = [];
   for (const [, list] of tvByDateAndProgram.entries()) {
-    // Prefer row with ONE31 main rating if available, else first row
-    const one31Row = list.find((r) => r.ratingTotal > 0);
-    const gmmRow = list.find((r) => r.gmmRating > 0 || /gmm/i.test(r.channel));
-    const base = one31Row || list[0];
-
-    const gmmRating = gmmRow ? (gmmRow.gmmRating || gmmRow.ratingTotal) : base.gmmRating;
-    const gmmAudience = gmmRow ? (gmmRow.gmmAudience || gmmRow.audienceTotal) : base.gmmAudience;
+    // A broadcast can arrive as one row per channel ("One31", "GMM25"), as a
+    // legacy "ONE31" row carrying GMM figures in Notes, or both. Take each
+    // channel's figures from that channel's own row, never from the other's.
+    const isGmm = (r: RecordRow) => /gmm/i.test(r.channel);
+    const one31Rows = list.filter((r) => !isGmm(r));
+    const one31Row =
+      one31Rows.find((r) => r.ratingTotal > 0 && r.topic) ||
+      one31Rows.find((r) => r.ratingTotal > 0);
+    const gmmChannelRow = list.find((r) => isGmm(r) && (r.ratingTotal > 0 || r.audienceTotal > 0));
+    const gmmNotesRow = list.find((r) => r.gmmRating > 0 || r.gmmAudience > 0);
+    const base = one31Row || one31Rows.find((r) => r.topic) || one31Rows[0] || list[0];
 
     mergedTvRows.push({
       ...base,
+      topic: base.topic || list.find((r) => r.topic)?.topic || "",
       platform: "TV",
-      channel: base.channel || "ONE31",
-      ratingTotal: base.ratingTotal || 0,
-      audienceTotal: base.audienceTotal || 0,
-      gmmRating: gmmRating || 0,
-      gmmAudience: gmmAudience || 0,
+      channel: "ONE31",
+      ratingTotal: one31Row?.ratingTotal || 0,
+      ratingBkk: one31Row?.ratingBkk || 0,
+      ratingUrban: one31Row?.ratingUrban || 0,
+      ratingBkkUrban: one31Row?.ratingBkkUrban || 0,
+      ratingRural: one31Row?.ratingRural || 0,
+      audienceTotal: one31Row?.audienceTotal || 0,
+      gmmRating: gmmChannelRow?.ratingTotal || gmmNotesRow?.gmmRating || 0,
+      gmmAudience: gmmChannelRow?.audienceTotal || gmmNotesRow?.gmmAudience || 0,
     });
   }
 

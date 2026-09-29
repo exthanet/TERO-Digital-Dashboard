@@ -25,7 +25,7 @@ export function SectionTabs({
 }: SectionTabsProps) {
   return (
     <nav className="top-tab-bar" aria-label="Dashboard sections">
-      <div className="top-tabs-group">
+      <div className="top-tabs-group scrollbar-hide">
         <button
           type="button"
           className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
@@ -47,7 +47,7 @@ export function SectionTabs({
           }}
         >
           <LayoutDashboard size={16} />
-          Performance Dashboard
+          <span>Performance<span className="tab-label-long"> Dashboard</span></span>
         </button>
 
         <button
@@ -71,7 +71,7 @@ export function SectionTabs({
           }}
         >
           <BadgeDollarSign size={16} />
-          YouTube Revenue Report
+          <span>YouTube Revenue<span className="tab-label-long"> Report</span></span>
         </button>
 
         <button
@@ -95,7 +95,7 @@ export function SectionTabs({
           }}
         >
           <BadgeDollarSign size={16} />
-          Affiliate Program Report
+          <span>Affiliate<span className="tab-label-long"> Program Report</span></span>
         </button>
       </div>
 

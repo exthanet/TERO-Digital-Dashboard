@@ -5,14 +5,16 @@ export function SelectBox({
   value,
   onChange,
   options,
+  className,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
+  className?: string;
 }) {
   return (
-    <label className="filter-box">
+    <label className={className ? `filter-box ${className}` : "filter-box"}>
       <span>{label}</span>
       <div>
         <select value={value} onChange={(e) => onChange(e.target.value)}>

@@ -12,7 +12,8 @@ const vite = await createServer({
 });
 after(() => vite.close());
 const { parseCsv } = await vite.ssrLoadModule("/lib/dashboard/csv.ts");
-const { normalize } = await vite.ssrLoadModule("/lib/dashboard/normalize.ts");
+const { normalize, normalizeRowsWithDeduplication, normalizeTopic } =
+  await vite.ssrLoadModule("/lib/dashboard/normalize.ts");
 const { sumBy, topicSimilarity } = await vite.ssrLoadModule(
   "/lib/dashboard/analytics.ts",
 );
@@ -41,6 +42,34 @@ test("normalization keeps TV rating and audience as separate source metrics", ()
   assert.equal(row.audienceTotal, 9000);
   assert.equal(row.gmmRating, 0.2);
   assert.equal(row.gmmAudience, 3000);
+});
+test("TV rows split per channel merge without mixing One31 and GMM25", () => {
+  const tv = (channel, rating, audience, notes = "") => ({
+    Date: "2026-09-14",
+    Program: "ถกไม่เถียง",
+    Platform: "TV",
+    Channel: channel,
+    Topic: "ประเด็นทดสอบ",
+    TV_Rating_Total: String(rating),
+    TV_Audience_Total: String(audience),
+    Notes: notes,
+  });
+  // GMM25 first: it must not be taken as the One31 figures.
+  const [row] = normalizeRowsWithDeduplication([
+    tv("GMM25", 0.127, 88900),
+    tv("One31", 0.264, 124333),
+    tv("ONE31", 0.264, 124333, "GMM Rating: 0.127; GMM Audience: 88900"),
+  ]);
+  assert.equal(row.ratingTotal, 0.264);
+  assert.equal(row.audienceTotal, 124333);
+  assert.equal(row.gmmRating, 0.127);
+  assert.equal(row.gmmAudience, 88900);
+});
+test("blank-like topic types collapse into one category", () => {
+  assert.equal(normalizeTopic(""), "ไม่ระบุประเภท");
+  assert.equal(normalizeTopic("ไม่ระบุ"), "ไม่ระบุประเภท");
+  assert.equal(normalizeTopic("#REF!"), "ไม่ระบุประเภท");
+  assert.equal(normalizeTopic("การเงิน"), "การเงิน / ธุรกิจ");
 });
 test("digital normalization preserves explicit percentages and inferred engagement", () => {
   const row = normalize({

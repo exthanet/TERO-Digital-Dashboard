@@ -75,6 +75,7 @@ export function useDashboard() {
               const m = latest.slice(5, 7);
               setStartDate(`${y}-${m}-01`);
               setEndDate(latest);
+              setDatePreset("CUSTOM");
             }
             setSourceName("Firebase Firestore");
             if (cloudResult.updatedAt) {
@@ -99,6 +100,7 @@ export function useDashboard() {
           const m = latest.slice(5, 7);
           setStartDate(`${y}-${m}-01`);
           setEndDate(latest);
+          setDatePreset("CUSTOM");
         }
         setSourceName(isStaticHost ? "master-data.json" : "Firebase Firestore");
         if (lastModifiedHeader) {
@@ -240,6 +242,9 @@ export function useDashboard() {
         0,
       ),
       engagement = performanceFiltered.reduce((a, r) => a + r.engagement, 0),
+      likes = performanceFiltered.reduce((a, r) => a + r.likes, 0),
+      comments = performanceFiltered.reduce((a, r) => a + r.comments, 0),
+      shares = performanceFiltered.reduce((a, r) => a + r.shares, 0),
       uploads = performanceFiltered.reduce((a, r) => a + r.uploadCount, 0),
       tvRows = filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0 || r.gmmRating > 0),
       one31Rows = tvRows.filter((r) => r.ratingTotal > 0),
@@ -282,6 +287,9 @@ export function useDashboard() {
       digitalViews,
       totalCombinedViews,
       engagement,
+      likes,
+      comments,
+      shares,
       uploads,
       latestDate,
       latestUploads,
@@ -401,6 +409,12 @@ export function useDashboard() {
 
     return digitalList;
   }, [digitalFiltered, filtered, platform]);
+  // Denominator for platform shares: the list can include TV next to the
+  // digital platforms, so digital views alone would push shares past 100%.
+  const platformTotal = useMemo(
+    () => platforms.reduce((a, p) => a + p.total, 0),
+    [platforms],
+  );
   const programs = useMemo(
     () =>
       sumBy(
@@ -453,8 +467,10 @@ export function useDashboard() {
         count: number;
       }
     >();
+    // Averages only over broadcasts that have a rating; a pending (0) row
+    // would otherwise pull the average down.
     filtered
-      .filter((r) => r.platform === "TV" || r.ratingTotal > 0)
+      .filter((r) => r.ratingTotal > 0)
       .forEach((r) => {
         const key =
           ratingGrain === "year"
@@ -516,14 +532,20 @@ export function useDashboard() {
   }, [filtered]);
   const tvRatingBreakdown = useMemo(() => {
     const m = new Map<string, { program: string; channel: string; rating: number; audience: number; episodes: number }>();
-    filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0).forEach((r) => {
-      const channel = /gmm/i.test(r.channel) ? "GMM25" : /one/i.test(r.channel) ? "One31" : r.channel || "ไม่ระบุช่อง";
-      const key = `${r.program}|${channel}`;
-      const x = m.get(key) || { program: r.program, channel, rating: 0, audience: 0, episodes: 0 };
-      x.rating += r.ratingTotal;
-      x.audience += r.audienceTotal + r.gmmAudience;
+    // Each merged TV row carries both channels; split them back so every line
+    // pairs a channel's rating with that channel's own audience.
+    const add = (program: string, channel: string, rating: number, audience: number) => {
+      if (rating <= 0 && audience <= 0) return;
+      const key = `${program}|${channel}`;
+      const x = m.get(key) || { program, channel, rating: 0, audience: 0, episodes: 0 };
+      x.rating += rating;
+      x.audience += audience;
       x.episodes += 1;
       m.set(key, x);
+    };
+    filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0).forEach((r) => {
+      add(r.program, "One31", r.ratingTotal, r.audienceTotal);
+      add(r.program, "GMM25", r.gmmRating, r.gmmAudience);
     });
     return [...m.values()].map((x) => ({ ...x, rating: x.episodes ? x.rating / x.episodes : 0 })).sort((a, b) => b.audience - a.audience);
   }, [filtered]);
@@ -680,7 +702,7 @@ export function useDashboard() {
     [digitalFiltered],
   );
   const provinceRating = useMemo(() => {
-    const tv = filtered.filter((r) => r.platform === "TV" || r.ratingTotal > 0);
+    const tv = filtered.filter((r) => r.ratingTotal > 0);
     const count = tv.length || 1;
     const totals = [
       {
@@ -706,14 +728,39 @@ export function useDashboard() {
     ];
     return totals;
   }, [filtered]);
-  const topicTrend = useMemo(() => {
-    const dates = digitalFiltered
+  // Trend windows (30 vs previous 30 days, last 90 days) look back past the
+  // selected start date, so they use every filter except the start date.
+  // Otherwise the previous window is always empty and growth reads +100%.
+  const trendRows = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          r.platform !== "TV" &&
+          r.date &&
+          (program === "ALL" || r.program === program) &&
+          (platform === "ALL" || r.platform === platform) &&
+          (vdoType === "ALL" || r.vdoType === vdoType) &&
+          (topicType === "ALL" || r.topicType === topicType) &&
+          (!endDate || r.date <= endDate) &&
+          (!search ||
+            `${r.topic} ${r.program} ${r.channel}`
+              .toLowerCase()
+              .includes(search.toLowerCase())),
+      ),
+    [rows, program, platform, vdoType, topicType, endDate, search],
+  );
+  const trendEnd = useMemo(
+    () =>
+      digitalFiltered
         .map((r) => r.date)
         .filter(Boolean)
-        .sort(),
-      max = dates.at(-1);
-    if (!max) return [];
-    const end = new Date(`${max}T00:00:00Z`),
+        .sort()
+        .at(-1) || "",
+    [digitalFiltered],
+  );
+  const topicTrend = useMemo(() => {
+    if (!trendEnd) return [];
+    const end = new Date(`${trendEnd}T00:00:00Z`),
       recentStart = new Date(end);
     recentStart.setUTCDate(recentStart.getUTCDate() - 29);
     const previousStart = new Date(recentStart);
@@ -722,42 +769,36 @@ export function useDashboard() {
       ps = isoDate(previousStart);
     const grouped = new Map<
       string,
-      { name: string; total: number; recent: number; previous: number }
+      { name: string; recent: number; previous: number }
     >();
-    digitalFiltered.forEach((r) => {
+    trendRows.forEach((r) => {
+      if (r.date > trendEnd || r.date < ps) return;
       const x = grouped.get(r.topicType) || {
         name: r.topicType,
-        total: 0,
         recent: 0,
         previous: 0,
       };
-      x.total += r.views;
       if (r.date >= rs) x.recent += r.views;
-      else if (r.date >= ps) x.previous += r.views;
+      else x.previous += r.views;
       grouped.set(r.topicType, x);
     });
     return [...grouped.values()]
+      .filter((x) => x.recent > 0)
       .map((x) => ({
         ...x,
-        growth: x.previous
-          ? (x.recent - x.previous) / x.previous
-          : x.recent
-            ? 1
-            : 0,
+        // null = no views in the previous 30 days, so no growth rate exists.
+        growth: x.previous ? (x.recent - x.previous) / x.previous : null,
       }))
       .sort((a, b) => b.recent - a.recent)
       .slice(0, 5);
-  }, [digitalFiltered]);
+  }, [trendRows, trendEnd]);
   const q4Plan = useMemo(() => {
-    const dates = digitalFiltered
-        .map((r) => r.date)
-        .filter(Boolean)
-        .sort(),
-      max = dates.at(-1);
-    if (!max) return { topics: [], formats: [] };
-    const start = new Date(`${max}T00:00:00Z`);
+    if (!trendEnd) return { topics: [], formats: [] };
+    const start = new Date(`${trendEnd}T00:00:00Z`);
     start.setUTCDate(start.getUTCDate() - 89);
-    const recent = digitalFiltered.filter((r) => r.date >= isoDate(start));
+    const recent = trendRows.filter(
+      (r) => r.date >= isoDate(start) && r.date <= trendEnd,
+    );
     const topics = sumBy(
       recent,
       (r) => r.topicType,
@@ -774,21 +815,23 @@ export function useDashboard() {
       .sort((a, b) => (b.format?.avgViews || 0) - (a.format?.avgViews || 0))
       .slice(0, 3);
     return { topics, formats };
-  }, [digitalFiltered]);
+  }, [trendRows, trendEnd]);
   const insights = useMemo(() => {
     const t = top[0],
       p = platforms[0],
       e = tvMode
         ? undefined
         : [...performanceFiltered]
-            .filter((r) => r.views >= 1000)
+            // Over 100% means the source counted engagement from a wider
+            // audience than the views (e.g. Facebook posts), so skip those.
+            .filter((r) => r.views >= 1000 && r.engagementRate <= 1)
             .sort((a, b) => b.engagementRate - a.engagementRate)[0];
     return [
       t
         ? `${tvMode ? "รายการ TV" : "คลิป"} ยอดสูงสุด “${t.topic.slice(0, 68)}” ทำ ${compact(tvMode ? t.audienceTotal + t.gmmAudience : t.views)} ${tvMode ? "Audience" : "Views"}`
         : "ยังไม่มี Top Content",
       p
-        ? `${p.name} คิดเป็น ${metrics.views ? ((p.total / metrics.views) * 100).toFixed(1) : 0}% ของข้อมูลที่เลือก`
+        ? `${p.name} คิดเป็น ${platformTotal ? ((p.total / platformTotal) * 100).toFixed(1) : 0}% ของยอดรวมทุกแพลตฟอร์ม`
         : "ยังไม่มีข้อมูลแพลตฟอร์ม",
       e
         ? `Engagement เด่น “${e.topic.slice(0, 58)}” ทำ ${pct(e.engagementRate)} — ควรต่อยอดรูปแบบ ${e.vdoType}`
@@ -796,7 +839,7 @@ export function useDashboard() {
           ? "TV Audience แสดงจาก ONE31 + GMM25 โดยไม่คูณ Rating"
           : "ยังไม่มีข้อมูล Engagement เพียงพอ",
     ];
-  }, [top, platforms, performanceFiltered, metrics.views, tvMode]);
+  }, [top, platforms, platformTotal, performanceFiltered, tvMode]);
   function applyRows(raw: RawRow[], name: string, fileTimestamp?: string) {
     const x = normalizeRowsWithDeduplication(raw);
     if (!x.length) throw new Error("ไม่พบข้อมูลที่มีคอลัมน์ Date");
@@ -1085,6 +1128,7 @@ export function useDashboard() {
     types,
     topics,
     platforms,
+    platformTotal,
     programs,
     topSource,
     top,

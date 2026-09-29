@@ -137,7 +137,8 @@ export function ExecutiveCharts({
             )}
           </div>
         </article>
-        <div className="executive-pies">
+        {/* Phones skip these: each pie repeats a panel further down */}
+        <div className="executive-pies mobile-hide">
           <ViewPie
             title="รายการทั้งหมด"
             subtitle="สัดส่วนยอดวิวตาม Program"

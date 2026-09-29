@@ -43,6 +43,7 @@ export function PerformanceSections({
   types,
   topics,
   platforms,
+  platformTotal,
   programs,
   top,
   best,
@@ -72,6 +73,7 @@ export function PerformanceSections({
   | "types"
   | "topics"
   | "platforms"
+  | "platformTotal"
   | "programs"
   | "top"
   | "best"
@@ -182,8 +184,8 @@ export function PerformanceSections({
                 </div>
                 <b>{compact(x.total)}</b>
                 <small>
-                  {metrics.views
-                    ? ((x.total / metrics.views) * 100).toFixed(1)
+                  {platformTotal
+                    ? ((x.total / platformTotal) * 100).toFixed(1)
                     : 0}
                   %
                 </small>
@@ -276,9 +278,9 @@ export function PerformanceSections({
                 <tr>
                   <th>#</th>
                   <th>ประเด็น</th>
-                  <th>รายการ</th>
-                  <th>VDO Type</th>
-                  <th>Topic Type</th>
+                  <th className="mobile-hide">รายการ</th>
+                  <th className="mobile-hide">VDO Type</th>
+                  <th className="mobile-hide">Topic Type</th>
                   <th>{tvMode ? "TV Audience" : "ยอดวิว"}</th>
                   <th>Engagement</th>
                 </tr>
@@ -292,11 +294,11 @@ export function PerformanceSections({
                         {r.topic || "ไม่ระบุประเด็น"}
                       </a>
                     </td>
-                    <td>{r.program}</td>
-                    <td>
+                    <td className="mobile-hide">{r.program}</td>
+                    <td className="mobile-hide">
                       <span className="tag">{r.vdoType}</span>
                     </td>
-                    <td>{r.topicType}</td>
+                    <td className="mobile-hide">{r.topicType}</td>
                     <td>
                       <div className="metric-bar">
                         <i
@@ -532,7 +534,8 @@ export function PerformanceSections({
               ))}
           </div>
         </article>
-        <article className="panel best-panel">
+        {/* Best of Month repeats the first 5 rows of Top 10, so phones skip it */}
+        <article className="panel best-panel mobile-hide">
           <div className="panel-head">
             <div>
               <h2>🏆 Best of Month</h2>
@@ -549,7 +552,11 @@ export function PerformanceSections({
             ))}
           </ol>
         </article>
-        <article className="panel" id="programs">
+        {/* A single selected program is one bar, which phones skip */}
+        <article
+          className={`panel${programs.length <= 1 ? " mobile-hide" : ""}`}
+          id="programs"
+        >
           <div className="panel-head">
             <div>
               <h2>รายการ (Program) Performance</h2>

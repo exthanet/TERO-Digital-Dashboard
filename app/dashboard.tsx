@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AffiliateSection } from "@/components/dashboard/sections/AffiliateSection";
 import { CompareTable } from "@/components/dashboard/sections/CompareTable";
 import { DashboardFilters } from "@/components/dashboard/sections/DashboardFilters";
@@ -28,6 +28,9 @@ import "@/styles/auth.css";
 import RevenueReport from "@/components/dashboard/RevenueReport";
 import AffiliateReport from "@/components/dashboard/AffiliateReport";
 
+// Same breakpoint as the mobile rules in styles/dashboard.css.
+const MOBILE_QUERY = "(max-width: 800px)";
+
 export default function Dashboard() {
   const auth = useAuth();
   const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate">("overview");
@@ -35,6 +38,26 @@ export default function Dashboard() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const model = useDashboard();
+  const { setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen } = model;
+
+  // Phones only show the รายการ and วันเดือนปี filters, so the hidden ones
+  // are cleared to keep the numbers matching what the screen says.
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const apply = () => {
+      if (mql.matches) {
+        setPlatform("ALL");
+        setVdoType("ALL");
+        setTopicType("ALL");
+        setSearch("");
+      } else {
+        setMenuOpen(false);
+      }
+    };
+    apply();
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, [setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen]);
 
   if (auth.isLoading) {
     return <LoadingOverlay loading={true} />;
@@ -61,6 +84,7 @@ export default function Dashboard() {
           menuOpen={model.menuOpen}
           setMenuOpen={model.setMenuOpen}
           setSourceOpen={model.setSourceOpen}
+          canImport={auth.user?.role === "admin"}
         />
         <SectionTabs
           activeTab={activeTab}
@@ -147,6 +171,7 @@ export default function Dashboard() {
               types={model.types}
               topics={model.topics}
               platforms={model.platforms}
+              platformTotal={model.platformTotal}
               programs={model.programs}
               top={model.top}
               best={model.best}
@@ -214,7 +239,7 @@ export default function Dashboard() {
         checkIntegrations={model.checkIntegrations}
       />
       <SignUpModal
-        isOpen={signUpOpen}
+        isOpen={signUpOpen && auth.user?.role === "admin"}
         onClose={() => setSignUpOpen(false)}
         auth={auth}
       />
@@ -224,7 +249,7 @@ export default function Dashboard() {
         auth={auth}
       />
       <UserManagementModal
-        isOpen={userManagementOpen}
+        isOpen={userManagementOpen && auth.user?.role === "admin"}
         onClose={() => setUserManagementOpen(false)}
         auth={auth}
       />

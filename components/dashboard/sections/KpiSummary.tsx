@@ -16,7 +16,7 @@ export function KpiSummary({
     <>
       {/* แถวที่ 1: Reach & Viewership (ยอดวิวรวมทั้งหมด, Digital Views, TV Audience, TV Rating) */}
       <section
-        className="kpi-grid"
+        className="kpi-grid kpi-reach"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           marginBottom: 10,
@@ -135,7 +135,7 @@ export function KpiSummary({
 
       {/* แถวที่ 2: Engagement & Content Production (Engagement รวม, Engagement Rate, Total Upload) */}
       <section
-        className="kpi-grid"
+        className="kpi-grid kpi-engage"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           marginBottom: 12,
@@ -146,7 +146,11 @@ export function KpiSummary({
           icon={<BarChart3 />}
           label="Engagement รวม"
           value={compact(metrics.engagement)}
-          detail={`${pct(metrics.engagementRate)} Engagement Rate`}
+          detail={
+            tvMode
+              ? "TV ไม่มี Social Engagement"
+              : `Likes ${compact(metrics.likes)} · Comments ${compact(metrics.comments)} · Shares ${compact(metrics.shares)}`
+          }
         />
         <Kpi
           tone="violet"

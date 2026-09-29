@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { isStaticHost } from "@/lib/dashboard/hosting";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User as AuthUser } from "@/lib/auth/types";
@@ -16,6 +17,7 @@ import {
   Tv,
   Upload,
   User as UserIcon,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -53,6 +55,21 @@ export function DashboardSidebar({
     ["compare", "Compare Table", <FileSpreadsheet key="h" />],
   ];
 
+  // Mobile drawer: Esc closes it and the page behind it stops scrolling.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen, setMenuOpen]);
+
   const handleNavClick = (id: string) => {
     setMenuOpen(false);
     if (id === "revenue") {
@@ -68,7 +85,20 @@ export function DashboardSidebar({
 
   return (
     <>
+      <div
+        className={`sidebar-backdrop ${menuOpen ? "open" : ""}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
       <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+        <button
+          type="button"
+          className="sidebar-close"
+          onClick={() => setMenuOpen(false)}
+          aria-label="ปิดเมนู"
+        >
+          <X />
+        </button>
         <div className="brand">
           <div className="live-mark">LIVE</div>
           <p>ข่าว /</p>

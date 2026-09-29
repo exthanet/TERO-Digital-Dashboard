@@ -49,6 +49,7 @@ export function DashboardFilters({
 >) {
   return (
     <>
+      {/* Phones keep only รายการ and วันเดือนปี; app/dashboard.tsx resets the rest */}
       <div className="topbar">
         <SelectBox
           label="รายการทั้งหมด"
@@ -99,24 +100,27 @@ export function DashboardFilters({
           </div>
         </label>
         <SelectBox
+          className="mobile-hide"
           label="Cross Platform"
           value={platform}
           onChange={setPlatform}
           options={options.platforms}
         />
         <SelectBox
+          className="mobile-hide"
           label="VDO Type"
           value={vdoType}
           onChange={setVdoType}
           options={options.vdoTypes}
         />
         <SelectBox
+          className="mobile-hide"
           label="Topic Type"
           value={topicType}
           onChange={setTopicType}
           options={options.topicTypes}
         />
-        <label className="search-box">
+        <label className="search-box mobile-hide">
           <Search />
           <Input
             value={search}
@@ -124,7 +128,11 @@ export function DashboardFilters({
             placeholder="Search: ชื่อประเด็น"
           />
         </label>
-        <Button variant="outline" onClick={() => setSourceOpen(true)}>
+        <Button
+          variant="outline"
+          className="mobile-hide"
+          onClick={() => setSourceOpen(true)}
+        >
           <Upload />
           นำเข้าข้อมูล
         </Button>

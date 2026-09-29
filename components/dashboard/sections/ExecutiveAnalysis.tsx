@@ -2,6 +2,11 @@
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { explicitGuest, presenter } from "@/lib/dashboard/analytics";
 import { compact, dateLabel, pct } from "@/lib/dashboard/format";
+
+function growthText(growth: number | null) {
+  if (growth === null) return "ไม่มียอดใน 30 วันก่อนหน้า";
+  return `แนวโน้ม${growth >= 0 ? "เพิ่ม" : "ลด"} ${Math.abs(growth * 100).toFixed(1)}%`;
+}
 export function ExecutiveAnalysis({
   tvMode,
   performanceValue,
@@ -28,7 +33,7 @@ export function ExecutiveAnalysis({
           </div>
           <span className="ai-badge">DATA-DRIVEN</span>
         </div>
-        <div className="ai-summary-grid">
+        <div className="ai-summary-grid mobile-hide">
           <article>
             <span>เนื้อหายอดสูงสุด</span>
             <strong>{top[0]?.topic || "ไม่มีข้อมูล"}</strong>
@@ -53,9 +58,7 @@ export function ExecutiveAnalysis({
             <strong>{topicTrend[0]?.name || "ข้อมูลยังไม่พอ"}</strong>
             {topicTrend[0] && (
               <small>
-                {compact(topicTrend[0].recent)} Views · แนวโน้ม{" "}
-                {topicTrend[0].growth >= 0 ? "เพิ่ม" : "ลด"}{" "}
-                {Math.abs(topicTrend[0].growth * 100).toFixed(1)}%
+                {compact(topicTrend[0].recent)} Views · {growthText(topicTrend[0].growth)}
               </small>
             )}
           </article>
@@ -67,7 +70,7 @@ export function ExecutiveAnalysis({
             <small>คัดจาก Topic Type ที่มียอดวิวสูงใน 90 วันล่าสุด</small>
           </article>
         </div>
-        <div className="ai-platform-table table-scroll">
+        <div className="ai-platform-table table-scroll mobile-cards">
           <table>
             <thead>
               <tr>
@@ -85,21 +88,21 @@ export function ExecutiveAnalysis({
             <tbody>
               {platformAnalysis.map((x) => (
                 <tr key={x.name}>
-                  <td>
+                  <td data-label="Platform">
                     <b>{x.name}</b>
                   </td>
-                  <td>
+                  <td data-label="Top Content">
                     <a href={x.top?.url || undefined} target="_blank">
                       {x.top?.topic || "-"}
                     </a>
                   </td>
-                  <td>{x.top ? dateLabel(x.top.date) : "-"}</td>
-                  <td>{(x.top && presenter(x.top.program)) || "-"}</td>
-                  <td>{(x.top && explicitGuest(x.top.topic)) || "-"}</td>
-                  <td>{compact(x.top?.views || 0)}</td>
-                  <td>{pct(x.top?.engagementRate || 0)}</td>
-                  <td>{x.topic}</td>
-                  <td>
+                  <td data-label="วันที่ลง">{x.top ? dateLabel(x.top.date) : "-"}</td>
+                  <td data-label="พิธีกร">{(x.top && presenter(x.top.program)) || "-"}</td>
+                  <td data-label="แขกรับเชิญ">{(x.top && explicitGuest(x.top.topic)) || "-"}</td>
+                  <td data-label="Views">{compact(x.top?.views || 0)}</td>
+                  <td data-label="Engagement">{pct(x.top?.engagementRate || 0)}</td>
+                  <td data-label="ข่าวที่เด่น">{x.topic}</td>
+                  <td data-label="ควรทำต่อ">
                     <b>{x.format?.name || "-"}</b>
                     {x.format && (
                       <small>
@@ -116,14 +119,19 @@ export function ExecutiveAnalysis({
         <div className="ai-bottom-grid">
           <article>
             <h3>แนวโน้ม Topic Type</h3>
+            <p className="ai-note">ยอดวิว 30 วันล่าสุด เทียบกับ 30 วันก่อนหน้า</p>
             {topicTrend.map((x, i) => (
               <div className="trend-row" key={x.name}>
                 <b>{i + 1}</b>
                 <span>{x.name}</span>
                 <strong>{compact(x.recent)}</strong>
-                <em className={x.growth >= 0 ? "up" : "down"}>
-                  {x.growth >= 0 ? "▲" : "▼"}{" "}
-                  {Math.abs(x.growth * 100).toFixed(1)}%
+                <em
+                  className={x.growth === null ? "new" : x.growth >= 0 ? "up" : "down"}
+                  title="เทียบยอดวิว 30 วันล่าสุดกับ 30 วันก่อนหน้า"
+                >
+                  {x.growth === null
+                    ? "ใหม่"
+                    : `${x.growth >= 0 ? "▲" : "▼"} ${Math.abs(x.growth * 100).toFixed(1)}%`}
                 </em>
               </div>
             ))}

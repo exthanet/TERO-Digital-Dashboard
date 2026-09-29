@@ -1,0 +1,305 @@
+/* Phone layout. Loaded last so it wins over dashboard.css and quick-filter.css.
+   Everything that changes the layout sits inside the 800px query (the same
+   breakpoint dashboard.css already uses), so the desktop view is untouched. */
+
+/* Desktop defaults for elements that only exist for the mobile drawer. */
+.sidebar-backdrop,
+.sidebar-close {
+  display: none;
+}
+
+.trend-row .new { color: #0757e8; }
+.ai-bottom-grid article > .ai-note { margin: -4px 0 6px; line-height: 1.4; }
+
+@media (max-width: 800px) {
+  .mobile-hide {
+    display: none !important;
+  }
+
+  /* ---------- Header + drawer ---------- */
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    min-height: 52px;
+    padding: 8px 10px;
+  }
+  .mobile-header strong {
+    font-size: 15px;
+    letter-spacing: 0.2px;
+  }
+  .mobile-header button {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .mobile-header button:active {
+    background: #ffffff1a;
+  }
+  .mobile-header-spacer {
+    width: 40px;
+  }
+
+  .sidebar {
+    width: min(280px, 84vw);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 50;
+    box-shadow: none;
+  }
+  .sidebar.open {
+    box-shadow: 12px 0 40px #00000055;
+  }
+  .sidebar nav a:first-child:not(:hover) {
+    background: transparent;
+    box-shadow: none;
+    color: #d4e2f8;
+  }
+  .sidebar-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 9px;
+    background: #ffffff14;
+    color: #fff;
+    cursor: pointer;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: #020c1a88;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .sidebar-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ---------- Section tabs + user menu ---------- */
+  .top-tab-bar {
+    top: 60px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .top-tabs-group {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .top-tabs-group .tab-btn {
+    flex: none;
+    padding: 8px 11px !important;
+    white-space: nowrap;
+  }
+  .tab-label-long {
+    display: none;
+  }
+  .user-dropdown-container {
+    flex: none;
+  }
+  .user-dropdown-name,
+  .user-dropdown-chevron {
+    display: none;
+  }
+  .user-dropdown-menu {
+    max-width: calc(100vw - 28px);
+  }
+
+  /* ---------- Filters: รายการ + วันเดือนปี ---------- */
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .date-filter,
+  .search-box {
+    grid-column: auto;
+  }
+  .date-filter > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .date-filter .quick-range {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .date-filter b {
+    display: block;
+  }
+  .date-filter > div input {
+    min-width: 0;
+  }
+  .filter-box select,
+  .date-filter .date-input,
+  .date-filter .quick-range {
+    min-height: 34px;
+    font-size: 14px; /* 16px-ish prevents iOS zoom; 14px keeps the row compact */
+  }
+
+  .status-line {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  /* ---------- KPI grid ---------- */
+  .kpi-grid.kpi-reach,
+  .kpi-grid.kpi-engage {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    margin-bottom: 8px !important;
+  }
+  .kpi-grid.kpi-reach > .kpi-card:first-child,
+  .kpi-grid.kpi-reach > .kpi-card:last-child,
+  .kpi-grid.kpi-engage > .kpi-card:last-child {
+    grid-column: 1 / -1;
+  }
+  .kpi-card {
+    min-height: 0;
+    padding: 11px;
+    gap: 9px;
+    align-items: flex-start;
+    min-width: 0;
+  }
+  .kpi-card > div:last-child {
+    min-width: 0;
+  }
+  .kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    flex: none;
+  }
+  .kpi-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .kpi-card p {
+    font-size: 11.5px;
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+  .kpi-card strong {
+    font-size: 21px;
+    overflow-wrap: anywhere;
+  }
+  .kpi-card small {
+    font-size: 10.5px;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Panels ---------- */
+  .panel {
+    padding: 12px;
+    min-width: 0;
+  }
+  .panel-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .insight-strip {
+    padding: 12px;
+  }
+  .insight-strip p {
+    line-height: 1.5;
+  }
+
+  /* AI platform table becomes one card per platform. */
+  .mobile-cards table {
+    min-width: 0 !important;
+  }
+  .mobile-cards thead {
+    display: none;
+  }
+  .mobile-cards table,
+  .mobile-cards tbody,
+  .mobile-cards tr,
+  .mobile-cards td {
+    display: block;
+    width: 100%;
+  }
+  .mobile-cards tr {
+    border: 1px solid #e2e8f4;
+    border-radius: 11px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    background: #fff;
+  }
+  .mobile-cards td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px dashed #edf0f5;
+    font-size: 12px;
+  }
+  .mobile-cards td:last-child {
+    border-bottom: 0;
+  }
+  .mobile-cards td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .mobile-cards td a {
+    max-width: none;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+  .mobile-cards td[data-label="พิธีกร"],
+  .mobile-cards td[data-label="แขกรับเชิญ"] {
+    display: none;
+  }
+  .ai-platform-table {
+    overflow: visible;
+  }
+
+  .trend-row {
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  }
+  .trend-row em {
+    white-space: nowrap;
+  }
+
+  /* Top 10 keeps #, ประเด็น, ยอดวิว, Engagement. */
+  #best .table-scroll table {
+    min-width: 0;
+  }
+  #best .table-scroll td a {
+    max-width: none;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .top-table-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tv-rating-breakdown .table-scroll table {
+    min-width: 0;
+  }
+
+  .compare-panel .table-scroll {
+    max-height: 70vh;
+  }
+  .compare-panel td:nth-child(2) {
+    min-width: 170px;
+  }
+}
