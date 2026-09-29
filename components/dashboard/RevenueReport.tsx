@@ -343,28 +343,30 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button
-            className="mobile-hide"
-            onClick={() => setImportOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
-              transition: "opacity 0.2s",
-            }}
-          >
-            <Upload size={15} />
-            Import Revenue (USD)
-          </button>
+          {isAdmin && (
+            <button
+              className="mobile-hide"
+              onClick={() => setImportOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+                transition: "opacity 0.2s",
+              }}
+            >
+              <Upload size={15} />
+              Import Revenue (USD)
+            </button>
+          )}
 
           <button
             onClick={loadData}
@@ -421,23 +423,25 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
           <span style={{ color: "#64748b", fontWeight: 600, display: "block", marginTop: 8 }}>
             {loading ? "กำลังโหลดข้อมูล Revenue จากระบบ..." : "ยังไม่มีข้อมูล YouTube Revenue ในระบบ"}
           </span>
-          <button
-            className="mobile-hide"
-            onClick={() => setImportOpen(true)}
-            style={{
-              marginTop: 12,
-              padding: "8px 16px",
-              borderRadius: 8,
-              background: "#2563eb",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            นำเข้าไฟล์รายงาน YouTube Revenue (USD) ตอนนี้
-          </button>
+          {isAdmin && (
+            <button
+              className="mobile-hide"
+              onClick={() => setImportOpen(true)}
+              style={{
+                marginTop: 12,
+                padding: "8px 16px",
+                borderRadius: 8,
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              นำเข้าไฟล์รายงาน YouTube Revenue (USD) ตอนนี้
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -807,7 +811,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
       )}
 
       <RevenueImportModal
-        open={importOpen}
+        open={importOpen && isAdmin}
         onClose={() => setImportOpen(false)}
         currentData={data}
         onDataUpdated={(newData) => {

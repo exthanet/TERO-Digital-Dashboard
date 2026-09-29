@@ -102,8 +102,10 @@ export function watchSession(
 
 export async function signIn(email: string, password: string): Promise<void> {
   const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
-  // Best effort: a failed log write must not block the login itself.
-  await addDoc(loginEventsCol, {
+  // Fire and forget: if watchSession signs the account out (deactivated or no
+  // profile) the pending write can stay unresolved, which left the login
+  // button spinning when this was awaited.
+  void addDoc(loginEventsCol, {
     uid: cred.user.uid,
     email: cred.user.email ?? normalizeEmail(email),
     name: cred.user.displayName ?? "",

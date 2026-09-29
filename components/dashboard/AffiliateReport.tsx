@@ -182,28 +182,30 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button
-            className="mobile-hide"
-            onClick={() => setImportOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
-              transition: "opacity 0.2s",
-            }}
-          >
-            <Upload size={15} />
-            Import Affiliate Report
-          </button>
+          {isAdmin && (
+            <button
+              className="mobile-hide"
+              onClick={() => setImportOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
+                transition: "opacity 0.2s",
+              }}
+            >
+              <Upload size={15} />
+              Import Affiliate Report
+            </button>
+          )}
 
           <button
             onClick={loadData}
@@ -260,23 +262,25 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
           <span style={{ color: "#64748b", fontWeight: 600 }}>
             {loading ? "กำลังโหลดข้อมูล Affiliate จาก Firebase..." : "ยังไม่มีข้อมูล Affiliate ในระบบ"}
           </span>
-          <button
-            className="mobile-hide"
-            onClick={() => setImportOpen(true)}
-            style={{
-              marginTop: 10,
-              padding: "8px 16px",
-              borderRadius: 8,
-              background: "#059669",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            นำเข้าไฟล์รายงาน Affiliate ตอนนี้
-          </button>
+          {isAdmin && (
+            <button
+              className="mobile-hide"
+              onClick={() => setImportOpen(true)}
+              style={{
+                marginTop: 10,
+                padding: "8px 16px",
+                borderRadius: 8,
+                background: "#059669",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              นำเข้าไฟล์รายงาน Affiliate ตอนนี้
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -470,7 +474,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
       )}
 
       <AffiliateImportModal
-        open={importOpen}
+        open={importOpen && isAdmin}
         onClose={() => setImportOpen(false)}
         currentData={data}
         onDataUpdated={(newData) => {

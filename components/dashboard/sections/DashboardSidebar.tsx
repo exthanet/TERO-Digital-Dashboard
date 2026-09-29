@@ -128,21 +128,25 @@ export function DashboardSidebar({
             <small>Metricool delay 2–3 วัน</small>
           </div>
         </div>
-        {!isStaticHost && <button className="sidebar-api" onClick={openIntegrations}>
-          <Settings />
-          ตั้งค่า API Sync
-        </button>}
-        {/* Desktop only: importing master data is not offered on phones */}
-        <button
-          className="sidebar-import mobile-hide"
-          onClick={() => {
-            setSourceOpen(true);
-            setMenuOpen(false);
-          }}
-        >
-          <Upload />
-          Import Excel / CSV
-        </button>
+        {!isStaticHost && currentUser?.role === "admin" && (
+          <button className="sidebar-api" onClick={openIntegrations}>
+            <Settings />
+            ตั้งค่า API Sync
+          </button>
+        )}
+        {/* Admins only, and desktop only (not offered on phones) */}
+        {currentUser?.role === "admin" && (
+          <button
+            className="sidebar-import mobile-hide"
+            onClick={() => {
+              setSourceOpen(true);
+              setMenuOpen(false);
+            }}
+          >
+            <Upload />
+            Import Excel / CSV
+          </button>
+        )}
 
         {currentUser && (
           <div className="sidebar-user-widget">

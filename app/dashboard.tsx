@@ -58,6 +58,8 @@ export default function Dashboard() {
     return () => mql.removeEventListener("change", apply);
   }, [setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen]);
 
+  const isAdmin = auth.user?.role === "admin";
+
   if (auth.isLoading) {
     return <LoadingOverlay loading={true} />;
   }
@@ -114,6 +116,7 @@ export default function Dashboard() {
               setDatePreset={model.setDatePreset}
               options={model.options}
               applyDatePreset={model.applyDatePreset}
+              canImport={isAdmin}
             />
             <DataStatus
               sourceName={model.sourceName}
@@ -211,7 +214,7 @@ export default function Dashboard() {
       </section>
       <DataSourceModal
         loading={model.loading}
-        sourceOpen={model.sourceOpen}
+        sourceOpen={model.sourceOpen && isAdmin}
         setSourceOpen={model.setSourceOpen}
         sheetUrl={model.sheetUrl}
         setSheetUrl={model.setSheetUrl}
@@ -228,7 +231,7 @@ export default function Dashboard() {
         currentUser={auth.user}
       />
       <IntegrationsModal
-        integrationsOpen={model.integrationsOpen}
+        integrationsOpen={model.integrationsOpen && isAdmin}
         setIntegrationsOpen={model.setIntegrationsOpen}
         integrationLoading={model.integrationLoading}
         integrationStatus={model.integrationStatus}
