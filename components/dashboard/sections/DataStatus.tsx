@@ -1,14 +1,14 @@
 "use client";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User } from "@/lib/auth/types";
-import { dateTimeLabel, num } from "@/lib/dashboard/format";
+import { num } from "@/lib/dashboard/format";
 import { isStale, type SyncStatus } from "@/lib/sync/status";
 import { AlertTriangle, CloudUpload, Loader2 } from "lucide-react";
 
 interface DataStatusProps
   extends Pick<
     DashboardModel,
-    "sourceName" | "uploadedAt" | "message" | "filtered" | "reset" | "cloudSaving"
+    "sourceName" | "message" | "filtered" | "reset" | "cloudSaving"
   > {
   currentUser?: User | null;
   onSaveToCloud?: () => Promise<void>;
@@ -19,7 +19,6 @@ interface DataStatusProps
 
 export function DataStatus({
   sourceName,
-  uploadedAt,
   message,
   filtered,
   reset,
@@ -48,13 +47,8 @@ export function DataStatus({
   return (
     <>
       <div className="status-line">
-        <span>
-          แหล่งข้อมูล: <strong>{sourceName}</strong>
-        </span>
-        <span>{num(filtered.length)} รายการ</span>
-        <span>
-          ข้อมูลอัปเดตล่าสุด: <strong>{uploadedAt ? `${dateTimeLabel(uploadedAt)} น.` : "-"}</strong>
-        </span>
+        {/* Data source and last update are in the footer. */}
+        <span>ตามตัวกรอง {num(filtered.length)} รายการ</span>
         {canSaveCloud && (
           <button
             onClick={onSaveToCloud}

@@ -1,12 +1,10 @@
 "use client";
 import { SelectBox } from "@/components/dashboard/shared/SelectBox";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import type { DatePreset } from "@/lib/dashboard/types";
-import { Search, Upload } from "lucide-react";
+import { Search } from "lucide-react";
 export function DashboardFilters({
-  setSourceOpen,
   program,
   setProgram,
   platform,
@@ -25,10 +23,8 @@ export function DashboardFilters({
   setDatePreset,
   options,
   applyDatePreset,
-  canImport = false,
 }: Pick<
   DashboardModel,
-  | "setSourceOpen"
   | "program"
   | "setProgram"
   | "platform"
@@ -47,7 +43,7 @@ export function DashboardFilters({
   | "setDatePreset"
   | "options"
   | "applyDatePreset"
-> & { canImport?: boolean }) {
+>) {
   return (
     <>
       {/* Phones keep only รายการ and วันเดือนปี; app/dashboard.tsx resets the rest */}
@@ -129,16 +125,6 @@ export function DashboardFilters({
             placeholder="Search: ชื่อประเด็น"
           />
         </label>
-        {canImport && (
-          <Button
-            variant="outline"
-            className="mobile-hide"
-            onClick={() => setSourceOpen(true)}
-          >
-            <Upload />
-            นำเข้าข้อมูล
-          </Button>
-        )}
       </div>
     </>
   );

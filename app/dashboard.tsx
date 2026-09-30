@@ -115,7 +115,6 @@ export default function Dashboard() {
         {activeTab === "overview" && (
           <>
             <DashboardFilters
-              setSourceOpen={model.setSourceOpen}
               program={model.program}
               setProgram={model.setProgram}
               platform={model.platform}
@@ -134,11 +133,9 @@ export default function Dashboard() {
               setDatePreset={model.setDatePreset}
               options={model.options}
               applyDatePreset={model.applyDatePreset}
-              canImport={isAdmin}
             />
             <DataStatus
               sourceName={model.sourceName}
-              uploadedAt={model.uploadedAt}
               message={model.message}
               filtered={model.filtered}
               reset={model.reset}
@@ -240,7 +237,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <DashboardFooter />
+        <DashboardFooter sourceName={model.sourceName} uploadedAt={model.uploadedAt} totalRows={model.rows.length} />
       </section>
       <DataSourceModal
         loading={model.loading}

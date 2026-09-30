@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   KeyRound,
   LayoutDashboard,
+  Lightbulb,
   ListOrdered,
   LogOut,
   MonitorPlay,
@@ -50,7 +51,7 @@ const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     items: [
       { id: "overview", label: "ภาพรวม", icon: <LayoutDashboard /> },
       { id: "ranking", label: "Ranking ดี/แย่", icon: <ListOrdered /> },
-      { id: "ai-analysis", label: "AI Executive Analysis", icon: <Sparkles /> },
+      { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
       { id: "daily", label: "ประสิทธิภาพรายวัน", icon: <Activity /> },
       { id: "programs", label: "รายการ", icon: <MonitorPlay /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },

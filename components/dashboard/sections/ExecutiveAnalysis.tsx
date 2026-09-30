@@ -28,8 +28,8 @@ export function ExecutiveAnalysis({
       <section className="panel ai-analysis" id="ai-analysis">
         <div className="panel-head">
           <div>
-            <h2>✨ AI Executive Analysis</h2>
-            <p>วิเคราะห์ใหม่อัตโนมัติจาก Master Data ตามตัวกรองที่เลือก</p>
+            <h2>Executive Analysis</h2>
+            <p>สรุปจากตัวเลขใน Master Data ตามตัวกรองที่เลือก (คำนวณจากข้อมูล ไม่ใช่คำแนะนำจาก AI)</p>
           </div>
           <span className="ai-badge">DATA-DRIVEN</span>
         </div>

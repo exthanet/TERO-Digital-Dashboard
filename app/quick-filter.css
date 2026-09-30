@@ -23,7 +23,7 @@
 /* One-row filter bar only where it fits; styles/desktop.css wraps it below. */
 @media (min-width: 1701px) {
   .topbar {
-    grid-template-columns: 150px minmax(530px, 2.3fr) 135px 135px 145px minmax(205px, 1fr) auto;
+    grid-template-columns: 150px minmax(530px, 2.3fr) 135px 135px 145px minmax(205px, 1fr);
   }
 }
 
@@ -40,48 +40,6 @@
 .kpi-grid {
   grid-template-columns: repeat(6, 1fr);
 }
-
-.sidebar-import {
-  width: 100%;
-  margin-top: 8px;
-  border: 1px solid #2f6fbe;
-  border-radius: 10px;
-  background: linear-gradient(100deg, #0870ff, #0344bc);
-  color: #fff;
-  padding: 11px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 7px 20px #0068ff35;
-}
-
-.sidebar-import svg {
-  width: 17px;
-}
-
-.sidebar-api {
-  width: 100%;
-  margin-top: 8px;
-  border: 1px solid #294a6b;
-  border-radius: 10px;
-  background: #0a213b;
-  color: #dcecff;
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.sidebar-api:hover { background: #103055; }
-.sidebar-api svg { width: 17px; }
 
 .integration-modal {
   position: relative;

@@ -32,7 +32,7 @@
   .topbar .search-box {
     grid-column: span 1;
   }
-  /* Viewers have no import button, so search can take the whole slot. */
+  /* Search is the last field, so it takes the rest of the second row. */
   .topbar .search-box:last-child {
     grid-column: span 2;
   }

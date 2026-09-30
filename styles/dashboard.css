@@ -58,10 +58,7 @@ body {
 }
 .topbar {
   display: grid;
-  grid-template-columns: 156px minmax(300px, 1.7fr) 140px 135px 150px minmax(
-      220px,
-      1fr
-    ) auto;
+  grid-template-columns: 156px minmax(300px, 1.7fr) 140px 135px 150px minmax(220px, 1fr);
   gap: 9px;
   align-items: stretch;
 }
@@ -120,10 +117,6 @@ body {
   border: 0;
   box-shadow: none;
   height: 34px;
-}
-.topbar > .inline-flex {
-  height: auto;
-  border-radius: 10px;
 }
 .status-line {
   display: flex;
@@ -625,6 +618,8 @@ body {
 }
 footer {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   justify-content: space-between;
   color: #758298;
   font-size: 11px;
