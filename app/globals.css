@@ -3,6 +3,7 @@
 @import "../vendor/shadcn-tailwind-4.13.0.css";
 @import "../styles/theme.css";
 @import "../styles/dashboard.css";
+@import "../styles/sidebar.css";
 @import "../styles/reports.css";
 @import "../styles/sync.css";
 @import "../styles/ranking.css";

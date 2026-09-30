@@ -31,10 +31,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node 24 runs the .ts sources directly; the script has no npm dependencies.
+      # Node 24 runs the .ts sources directly; npm packages are needed only
+      # for reading the TV rating workbook (xlsx).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Sync
         env:
@@ -42,6 +46,9 @@ jobs:
           METRICOOL_API_TOKEN: ${{ secrets.METRICOOL_API_TOKEN }}
           METRICOOL_USER_ID: ${{ secrets.METRICOOL_USER_ID }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           MODE: ${{ inputs.mode || 'write' }}
           SINCE: ${{ inputs.since }}
         run: |

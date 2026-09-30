@@ -17,6 +17,7 @@ import { PerformanceSections } from "@/components/dashboard/sections/Performance
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
+import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
   // undefined = not loaded; null = no sync has run yet.
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null | undefined>(undefined);
   // Firestore only serves data to signed-in, active accounts.
@@ -84,7 +86,6 @@ export default function Dashboard() {
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
-        rows={model.rows}
         menuOpen={model.menuOpen}
         setMenuOpen={model.setMenuOpen}
         setSourceOpen={model.setSourceOpen}
@@ -95,6 +96,11 @@ export default function Dashboard() {
         currentUser={auth.user}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        syncStatus={syncStatus}
+        openTvSources={() => setTvSourcesOpen(true)}
+        onOpenUserManagement={() => setUserManagementOpen(true)}
+        onOpenChangePassword={() => setChangePasswordOpen(true)}
+        onLogout={auth.logout}
       />
       <section className="workspace" id="overview">
         <MobileHeader
@@ -104,10 +110,6 @@ export default function Dashboard() {
         <SectionTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          currentUser={auth.user}
-          onOpenChangePassword={() => setChangePasswordOpen(true)}
-          onOpenUserManagement={() => setUserManagementOpen(true)}
-          onLogout={auth.logout}
         />
 
         {activeTab === "overview" && (
@@ -259,6 +261,12 @@ export default function Dashboard() {
         currentUser={auth.user}
       />
       <SyncStatusModal open={syncOpen && isAdmin} onClose={() => setSyncOpen(false)} status={syncStatus ?? null} />
+      <TvSourcesModal
+        open={tvSourcesOpen && isAdmin}
+        onClose={() => setTvSourcesOpen(false)}
+        status={syncStatus ?? null}
+        userEmail={auth.user?.email || ""}
+      />
       <ChangePasswordModal
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}

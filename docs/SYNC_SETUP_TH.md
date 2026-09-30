@@ -60,6 +60,41 @@ YouTube Data API ให้ยอดสะสมล่าสุดของทุ
 16. เพิ่ม repository secret `YOUTUBE_API_KEY` = key ที่ได้
 17. ทดสอบในเครื่อง: เปิด `.env.local` แล้วใส่ `YOUTUBE_API_KEY=...` ในบรรทัดใหม่
 
+## ส่วนที่ 6: อ่านไฟล์ rating TV จาก SharePoint (Microsoft Graph)
+
+ทำโดย**ผู้ดูแล Microsoft 365 (Global Admin)** ครั้งเดียว ระบบจะอ่านได้เฉพาะ site ที่อนุญาต ไม่ใช่ทุกไฟล์ในองค์กร
+
+> แนะนำ: ย้ายไฟล์ rating ไปไว้ใน SharePoint site / Teams ของทีมก่อน (ไม่ใช่ OneDrive ส่วนตัว) ถ้าบัญชีเจ้าของไฟล์ถูกปิด sync จะหยุด
+
+18. เปิด https://entra.microsoft.com → **Applications** → **App registrations** → **New registration**
+    - Name: `TERO Dashboard Sync` · Supported account types: **Single tenant** · Redirect URI: เว้นว่าง → **Register**
+19. หน้า Overview จด **Application (client) ID** และ **Directory (tenant) ID**
+20. **Certificates & secrets** → **New client secret** (อายุ 24 เดือน) → จด **Value** ทันที (แสดงครั้งเดียว)
+21. **API permissions** → **Add a permission** → **Microsoft Graph** → **Application permissions** → เลือก `Sites.Selected` → **Add** → **Grant admin consent**
+22. ให้สิทธิ์ "อ่าน" แก่แอปบน site ที่เก็บไฟล์ (ตัวอย่างด้วย PnP PowerShell):
+
+    ```powershell
+    Grant-PnPAzureADAppSitePermission -AppId <client-id> -DisplayName "TERO Dashboard Sync" -Site https://teroentertainment.sharepoint.com/sites/<site> -Permissions Read
+    ```
+
+    (OneDrive ส่วนตัวคือ site `https://teroentertainment-my.sharepoint.com/personal/<ชื่อ>`)
+23. เพิ่ม GitHub secrets 3 ตัว: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+24. ใน dashboard: **เครื่องมือ admin** → **แหล่งข้อมูล TV** → เพิ่มแถวละ 1 แท็บ (ชื่อ, รายการ, ช่อง, ลิงก์ไฟล์, ชื่อแท็บ) → **บันทึก**
+
+การทำงานของ TV sync (ตกลงกันไว้):
+- ไฟล์เป็นเจ้าของเฉพาะ `TV_Rating_*` และ `TV_Audience_*` · Topic, Episode_ID และคอลัมน์อื่นที่ทีมกรอกไม่ถูกแก้ · เทปใหม่ใช้ประเด็นจากไฟล์
+- Audience = rating × 700,000 ทุกเขต · Audience รวมของ One31 ใช้คอลัมน์ "Viewership (15+)" ถ้ามีค่า
+- "งด" = ไม่ได้ออกอากาศ ข้าม · ช่องที่ยังไม่มีเรตติ้ง ข้ามไว้ก่อน เติมเองเมื่อไฟล์มีตัวเลข · แถว "เฉลี่ยเดือน" ไม่นำเข้า
+- เทปเดียวกันหลายแถว (เช่น "ONE31" กับ "One31") รวมเป็นแถวเดียวเมื่อ rating ตรงกัน ถ้าไม่ตรงปล่อยไว้และแจ้งให้คนตรวจ
+- ข้อมูลคู่แข่งเก็บแยกใน `tvCompetitors` (ไม่ปนกับ masterData)
+- ตรวจเพิ่ม 5 ข้อ (12–16) ไม่ผ่านข้อใดข้อหนึ่ง = ไม่เขียนอะไรเลย · แท็บที่อ่านไม่ได้จะถูกข้ามและแจ้งในหน้า "แหล่งข้อมูล TV"
+
+ทดสอบในเครื่องด้วยไฟล์ที่ดาวน์โหลดมา (ไม่ต้องใช้ Microsoft Graph):
+
+```bash
+node scripts/metricool-sync.mjs --since=2026-09-01 --baseline=firestore --tv-file="ไฟล์.xlsx"
+```
+
 ## ทดสอบในเครื่อง (test-run)
 
 ```bash
@@ -76,7 +111,7 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 - รันเองทุกวัน **06:00 น.** ดึงข้อมูลย้อนหลัง 90 วัน แล้วเขียนเข้า Firestore
 - สั่งรันเอง: dashboard → **สถานะการ Sync** → **รันตอนนี้** (หรือ GitHub → Actions → Data sync → **Run workflow**)
   เลือก `test-run` = ตรวจอย่างเดียว ไม่เขียน · ใส่ `since` ได้ถ้าต้องการดึงย้อนหลังไกลกว่า 90 วัน
-- Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`
+- Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`, (TV) `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
   และ `DISCORD_WEBHOOK_URL` (ไม่บังคับ: แจ้งเตือนเมื่อ sync ไม่สำเร็จ)
 
 ทุกรอบที่เขียนข้อมูล ระบบจะ:
@@ -98,6 +133,7 @@ node scripts/metricool-sync.mjs --restore-backup=2026-09-30T08-14-25Z
 
 - **ข้อ 7 สร้าง key ไม่ได้** ("Service account key creation is disabled"): องค์กรห้ามสร้าง key
   ให้เปลี่ยนไปใช้ Workload Identity Federation (เชื่อม GitHub กับ Google แบบไม่ใช้ key)
+- **TV: "SharePoint 403/404"**: แอปยังไม่ได้รับสิทธิ์บน site นั้น (ข้อ 22) หรือลิงก์ผิด · ถ้าลิงก์แชร์ใช้กับ Graph ไม่ได้ ให้ใช้ลิงก์จากปุ่ม Copy link ของไฟล์ใน site ทีม
 - **กุญแจหลุด**: กลับไปที่ `dashboard-sync` → KEYS → ลบ key นั้นทันที แล้วสร้างใหม่ตามข้อ 7–8
 
 ## การเก็บข้อมูล (ที่ตกลงกันไว้)

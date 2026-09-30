@@ -113,6 +113,17 @@ export interface PlatformStatus {
   error?: string;
 }
 
+export interface TvSourceStatus {
+  id: string;
+  name: string;
+  ok: boolean;
+  episodes?: number;
+  pending?: number;
+  cancelled?: number;
+  competitors?: number;
+  error?: string;
+}
+
 export interface RunReport {
   runId: string;
   status: "success" | "blocked" | "failed";
@@ -123,6 +134,7 @@ export interface RunReport {
   message: string;
   platforms: Record<string, PlatformStatus>;
   sources: Record<string, unknown>[];
+  tvSources?: TvSourceStatus[];
   totals: Record<string, number>;
   checks: { name: string; pass: boolean; detail: string; warnings?: string[] }[];
   backupId?: string;
@@ -139,6 +151,7 @@ export async function writeRunReport(db: Firestore, report: RunReport): Promise<
     finishedAt: report.finishedAt,
     message: report.message,
     platforms: report.platforms,
+    tvSources: report.tvSources || [],
   };
   // Keep the last good time so "ข้อมูลอัปเดตล่าสุด" does not jump backwards on a failed run.
   const previous = await db.get("syncStatus/latest");

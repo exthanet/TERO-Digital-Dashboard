@@ -3,6 +3,7 @@
 import { excelDate, isPlainDay, normalizeRowsWithDeduplication } from "../dashboard/normalize.ts";
 import { parseNumber } from "./metricool.ts";
 import { METRIC_COLUMNS, rowKey, type MergeResult } from "./metricoolSync.ts";
+import { RATING_COLUMNS, TV_OWNED, isTvRow, tvChannel, tvKey, type TvEpisode, type TvMergeResult } from "./tvSheet.ts";
 
 export interface Check {
   name: string;
@@ -234,4 +235,104 @@ export function validateMerge(
       monthlyDigitalViews: table,
     },
   };
+}
+
+/**
+ * Checks for the TV step (rating workbook → masterData), run on top of the
+ * digital merge. Numbering continues after the digital checks.
+ */
+export function validateTv(before: Row[], tv: TvMergeResult, episodes: TvEpisode[]): Check[] {
+  const checks: Check[] = [];
+  const add = (name: string, pass: boolean, detail: string, warnings?: string[]) =>
+    checks.push({ name, pass, detail, ...(warnings?.length ? { warnings } : {}) });
+  const after = tv.rows;
+  const blankish = (v: unknown) => v === undefined || v === null || v === "" || v === "-";
+
+  // 12. Digital rows are exactly as they were, in the same order.
+  const digitalBefore = before.filter((r) => !isTvRow(r));
+  const digitalAfter = after.filter((r) => !isTvRow(r));
+  const digitalSame =
+    digitalBefore.length === digitalAfter.length && digitalBefore.every((r, i) => JSON.stringify(r) === JSON.stringify(digitalAfter[i]));
+  add("12. TV: แถว digital ไม่ถูกแตะ", digitalSame, `${digitalAfter.length} แถว digital เหมือนเดิมทุกแถว${digitalSame ? "" : " — ไม่ตรง"}`);
+
+  // 13. No episode lost; the only changes on existing episodes are the rating
+  // and audience numbers, the channel spelling, and blanks filled from a copy.
+  const group = (rows: Row[]) => {
+    const m = new Map<string, Row[]>();
+    for (const r of rows) if (isTvRow(r)) m.set(tvKey(r.Date, r.Program, r.Channel), [...(m.get(tvKey(r.Date, r.Program, r.Channel)) || []), r]);
+    return m;
+  };
+  const gb = group(before);
+  const ga = group(after);
+  const lost = [...gb.keys()].filter((k) => !ga.has(k));
+  const edits: string[] = [];
+  const untouched = new Set(before);
+  for (const [k, list] of gb) {
+    const now = ga.get(k);
+    if (!now) continue;
+    for (const r of now) {
+      if (untouched.has(r)) continue; // the very same row object: not modified
+      const orig = list.find((b) => b.Channel === r.Channel) || list.find((b) => tvChannel(b.Channel) === tvChannel(r.Channel)) || list[0];
+      for (const c of new Set([...Object.keys(orig), ...Object.keys(r)])) {
+        if (TV_OWNED.has(c) || c === "Channel") continue;
+        if (JSON.stringify(orig[c]) === JSON.stringify(r[c])) continue;
+        const fromCopy = blankish(orig[c]) && list.some((b) => JSON.stringify(b[c]) === JSON.stringify(r[c]));
+        if (!fromCopy && edits.length < 10) edits.push(`${k} คอลัมน์ ${c}`);
+      }
+    }
+  }
+  add(
+    "13. TV: ไม่มีเทปหาย และแก้เฉพาะตัวเลข rating/audience",
+    lost.length === 0 && edits.length === 0,
+    `เทปเดิม ${gb.size} → ${ga.size} (ใหม่ ${tv.inserted.length}) · อัปเดตตัวเลข ${tv.updated.length} เทป${lost.length ? ` · หาย ${lost.length}` : ""}`,
+    [...lost.slice(0, 5).map((k) => `หาย: ${k}`), ...edits],
+  );
+
+  // 14. One row per episode; copies removed only when their ratings were identical.
+  const dupes = [...ga].filter(([k, l]) => l.length > 1 && !tv.conflicts.some((c) => c.startsWith(k)));
+  const badRemovals = tv.removed.filter((d) => {
+    const kept = (gb.get(d.key) || []).find((r) => r !== d.row);
+    return !kept || RATING_COLUMNS.some((c) => Math.abs((Number(d.row[c]) || 0) - (Number(kept[c]) || 0)) > 1e-9);
+  });
+  add(
+    "14. TV: ไม่มีเทปซ้ำ",
+    dupes.length === 0 && badRemovals.length === 0,
+    `รวมแถวซ้ำที่ rating ตรงกัน ${tv.removed.length} แถว · rating ไม่ตรงกัน (ปล่อยไว้ให้คนตรวจ) ${tv.conflicts.length}`,
+    [...dupes.slice(0, 5).map(([k]) => `ซ้ำ: ${k}`), ...badRemovals.slice(0, 5).map((d) => `ลบผิด: ${d.key}`), ...tv.conflicts.slice(0, 5), ...tv.audienceFixed.slice(0, 5)],
+  );
+
+  // 15. Numbers make sense and follow the audience rule.
+  const bad: string[] = [];
+  for (const e of episodes) {
+    for (const v of [e.rating, e.bkk, e.urban, e.bkkUrban, e.rural]) if (!(v >= 0 && v < 30)) bad.push(`${e.date} ${e.channel} rating ${v}`);
+    if (e.viewers < 0) bad.push(`${e.date} viewership ${e.viewers}`);
+  }
+  for (const r of after.filter(isTvRow)) {
+    if ([...TV_OWNED].some((c) => Number(r[c]) < 0)) bad.push(`${tvKey(r.Date, r.Program, r.Channel)} ติดลบ`);
+  }
+  const revised = tv.updated.filter((u) => "TV_Rating_Total" in u.before && !blankish(u.before.TV_Rating_Total));
+  add(
+    "15. TV: ตัวเลขถูกต้อง",
+    bad.length === 0,
+    `rating อยู่ในช่วง 0–30 · Audience = rating × 700,000 · rating เดิมถูกปรับตามไฟล์ ${revised.length} เทป (ให้คนตรวจ)`,
+    [...bad.slice(0, 10), ...revised.slice(0, 10).map((u) => `${u.key}: ${u.before.TV_Rating_Total} → ${u.after.TV_Rating_Total}`)],
+  );
+
+  // 16. The dashboard still reads every episode once, and dates stay plain days.
+  let episodesBefore = 0;
+  let episodesAfter = 0;
+  try {
+    episodesBefore = normalizeRowsWithDeduplication(before as never).filter((r) => r.platform === "TV").length;
+    episodesAfter = normalizeRowsWithDeduplication(after as never).filter((r) => r.platform === "TV").length;
+  } catch {
+    episodesAfter = -1;
+  }
+  const newDays = new Set(tv.inserted.map((r) => `${r.Date}|${r.Program}`).filter((k) => ![...gb.keys()].some((g) => g.startsWith(`${k}|`)))).size;
+  const nonPlain = after.filter((r) => r.Date !== undefined && r.Date !== null && !isPlainDay(r.Date));
+  add(
+    "16. TV: dashboard อ่านเทปได้ครบ",
+    episodesAfter === episodesBefore + newDays && nonPlain.length === 0,
+    `เทปใน dashboard ${episodesBefore} → ${episodesAfter} (วันใหม่ ${newDays}) · วันที่ไม่ใช่ YYYY-MM-DD ${nonPlain.length}`,
+  );
+  return checks;
 }

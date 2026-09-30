@@ -1,25 +1,15 @@
 "use client";
 
 import { BadgeDollarSign, LayoutDashboard } from "lucide-react";
-import type { User as AuthUser } from "@/lib/auth/types";
-import { UserDropdownMenu } from "@/components/auth/UserDropdownMenu";
 
 interface SectionTabsProps {
   activeTab: "overview" | "revenue" | "affiliate";
   onTabChange: (tab: "overview" | "revenue" | "affiliate") => void;
-  currentUser?: AuthUser | null;
-  onOpenChangePassword?: () => void;
-  onOpenUserManagement?: () => void;
-  onLogout?: () => void;
 }
 
 export function SectionTabs({
   activeTab,
   onTabChange,
-  currentUser,
-  onOpenChangePassword,
-  onOpenUserManagement,
-  onLogout,
 }: SectionTabsProps) {
   return (
     <nav className="top-tab-bar" aria-label="Dashboard sections">
@@ -97,14 +87,6 @@ export function SectionTabs({
         </button>
       </div>
 
-      {currentUser && (
-        <UserDropdownMenu
-          currentUser={currentUser}
-          onOpenChangePassword={onOpenChangePassword || (() => {})}
-          onOpenUserManagement={onOpenUserManagement || (() => {})}
-          onLogout={onLogout || (() => {})}
-        />
-      )}
     </nav>
   );
 }

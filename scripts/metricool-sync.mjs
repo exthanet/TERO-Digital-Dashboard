@@ -16,6 +16,12 @@
  *   node scripts/metricool-sync.mjs --since=2026-07-02 --write
  *   node scripts/metricool-sync.mjs --restore-backup=<runId>
  *
+ * TV ratings: the workbook tabs listed in Firestore syncConfig/tvSources (set
+ * by admins in the dashboard) are downloaded from SharePoint with Microsoft
+ * Graph (AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET) and merged
+ * in the same run. For testing: --tv-file=<local .xlsx> reads that file
+ * instead, --tv-config=<json with { sources: [...] }> replaces the Firestore list.
+ *
  * Credentials: METRICOOL_API_TOKEN, METRICOOL_USER_ID (env or .env.local).
  * Brands: config/metricool-brands.json (only "enabled": true are fetched).
  */
@@ -32,7 +38,7 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
-import { Firestore, decodeFields, docId, getAccessToken } from "../lib/integrations/firestoreRest.ts";
+import { Firestore, decodeFields, docId, encodeFields, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 import {
   backupMasterData,
   cleanupOld,
@@ -43,7 +49,9 @@ import {
   writeRunReport,
   writeSnapshot,
 } from "../lib/integrations/syncWriter.ts";
-import { validateMerge } from "../lib/integrations/syncValidation.ts";
+import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts";
+import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
+import { downloadSharedFile, graphCredentials, graphToken } from "../lib/integrations/sharepoint.ts";
 import { excelDate } from "../lib/dashboard/normalize.ts";
 
 function loadEnvFile(file) {
@@ -100,6 +108,7 @@ if (args["restore-backup"]) {
 
 const fetchStats = [];
 const incoming = [];
+const tvStatus = [];
 
 async function main() {
 const api = new MetricoolApi({
@@ -291,16 +300,29 @@ for (const c of validation.checks) {
   for (const w of c.warnings || []) console.log(`      · ${w}`);
 }
 console.log(`  dashboard load: ${validation.stats.dashboardLoadMB.before} → ${validation.stats.dashboardLoadMB.after} MB · reads per open: ${validation.stats.readsPerDashboardOpen.before} → ${validation.stats.readsPerDashboardOpen.after}`);
-if (!validation.ok) process.exitCode = 1;
+
+// ---------- TV rating workbook ----------
+const tvRun = await tvStep(result.merged);
+const finalRows = tvRun.result ? tvRun.result.rows : result.merged;
+const tvChecks = tvRun.result ? validateTv(result.merged, tvRun.result, tvRun.episodes) : [];
+for (const c of tvChecks) {
+  console.log(`  ${c.pass ? "✔" : "✖"} ${c.name} — ${c.detail}`);
+  for (const w of c.warnings || []) console.log(`      · ${w}`);
+}
+const allChecks = [...validation.checks, ...tvChecks];
+const allOk = allChecks.every((c) => c.pass);
+fs.writeFileSync(path.join(outDir, "validation.json"), JSON.stringify({ ...validation, ok: allOk, checks: allChecks }, null, 2));
+if (!allOk) process.exitCode = 1;
 
 if (!write) return;
 
 // ---------- write mode ----------
-const report = baseReport(validation.ok ? "success" : "blocked");
-report.totals = { ...summary.totals, duplicatesRemoved: dedupe.removed.length, rowsAfter: result.merged.length };
-report.checks = validation.checks;
-if (!validation.ok) {
-  const failed = validation.checks.filter((c) => !c.pass).map((c) => c.name).join(", ");
+const report = baseReport(allOk ? "success" : "blocked");
+const tvTotals = tvRun.result ? { tvUpdated: tvRun.result.updated.length, tvInserted: tvRun.result.inserted.length, tvMerged: tvRun.result.removed.length } : {};
+report.totals = { ...summary.totals, duplicatesRemoved: dedupe.removed.length, ...tvTotals, rowsAfter: finalRows.length };
+report.checks = allChecks;
+if (!allOk) {
+  const failed = allChecks.filter((c) => !c.pass).map((c) => c.name).join(", ");
   report.message = `ไม่ได้เขียนข้อมูล เพราะไม่ผ่านการตรวจ: ${failed} (ข้อมูลเดิมไม่ถูกแตะ)`;
   await writeRunReport(await firestore(), finish(report));
   console.log(report.message);
@@ -312,11 +334,13 @@ const backed = await backupMasterData(fsdb, rawDocs, runId);
 report.backupId = runId;
 console.log(`backup: masterDataBackups/${runId} (${backed} documents)`);
 try {
-  const chunks = await writeMasterData(fsdb, result.merged, rawDocs);
-  const problem = await verifyMasterData(fsdb, result.merged);
+  const chunks = await writeMasterData(fsdb, finalRows, rawDocs);
+  const problem = await verifyMasterData(fsdb, finalRows);
   if (problem) throw new Error(problem);
   report.snapshotDocs = await writeSnapshot(fsdb, today, runId, snapshot);
-  report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}`;
+  report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}` +
+    (tvRun.result ? ` · TV อัปเดต ${tvRun.result.updated.length} เทป ใหม่ ${tvRun.result.inserted.length}` : "");
+  await writeCompetitors(fsdb, tvRun.competitors);
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
 } catch (e) {
   console.error(`write failed, restoring backup ${runId}: ${e.message}`);
@@ -328,6 +352,83 @@ try {
 await writeRunReport(fsdb, finish(report));
 const removed = await cleanupOld(fsdb);
 console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
+}
+
+// TV: read each enabled workbook tab, parse episodes and competitors, merge.
+// A source that cannot be read is reported and skipped; the rest still sync.
+async function tvStep(rows) {
+  let sources = [];
+  try {
+    if (args["tv-config"]) sources = JSON.parse(fs.readFileSync(args["tv-config"], "utf8")).sources || [];
+    else if (baselineFile === "firestore") {
+      const doc = await (await firestore()).get("syncConfig/tvSources");
+      sources = doc ? decodeFields(doc.fields || {}).sources || [] : [];
+    }
+  } catch (e) {
+    tvStatus.push({ id: "-", name: "รายการแหล่งข้อมูล TV", ok: false, error: String(e.message).slice(0, 200) });
+  }
+  sources = sources.filter((s) => s.enabled);
+  if (!sources.length) return { result: null, episodes: [], competitors: [] };
+  const { default: XLSX } = await import("xlsx");
+  const creds = graphCredentials();
+  let token = "";
+  const books = new Map();
+  const episodes = [];
+  const competitors = [];
+  console.log(`\nTV: ${sources.length} source(s)`);
+  for (const s of sources) {
+    const status = { id: s.id, name: s.name, ok: false, episodes: 0, pending: 0, cancelled: 0, competitors: 0, error: "" };
+    try {
+      let book = books.get(s.url);
+      if (!book) {
+        let buf;
+        if (args["tv-file"]) buf = fs.readFileSync(args["tv-file"]);
+        else {
+          if (!creds) throw new Error("ยังไม่ได้ตั้งค่า Microsoft Graph (AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET)");
+          token ||= await graphToken(creds);
+          buf = await downloadSharedFile(s.url, token);
+        }
+        book = XLSX.read(buf, { type: "buffer" });
+        books.set(s.url, book);
+      }
+      const sheet = book.Sheets[s.sheet];
+      if (!sheet) throw new Error(`ไม่พบแท็บ "${s.sheet}"`);
+      const parsed = parseTvSheet(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), s);
+      if (parsed.missingColumns.length) throw new Error(`ไม่พบคอลัมน์: ${parsed.missingColumns.join(", ")}`);
+      episodes.push(...parsed.episodes);
+      competitors.push({ source: s, rows: parsed.competitors });
+      Object.assign(status, { ok: true, episodes: parsed.episodes.length, pending: parsed.pending.length, cancelled: parsed.cancelled.length, competitors: parsed.competitors.length });
+    } catch (e) {
+      status.error = String(e.message || e).slice(0, 200);
+    }
+    tvStatus.push(status);
+    console.log(`  ${s.name}: ${status.ok ? `${status.episodes} เทป · รอ rating ${status.pending} · งด ${status.cancelled} · คู่แข่ง ${status.competitors}` : `ERROR ${status.error}`}`);
+  }
+  if (!episodes.length) return { result: null, episodes, competitors };
+  const merged = mergeTvEpisodes(rows, episodes);
+  const lines = merged.updated.map((u) => ({ key: u.key, before: JSON.stringify(u.before), after: JSON.stringify(u.after) }));
+  fs.writeFileSync(path.join(outDir, "tv-updated.csv"), csvText(lines, ["key", "before", "after"]));
+  fs.writeFileSync(path.join(outDir, "tv-summary.json"), JSON.stringify({ sources: tvStatus, updated: merged.updated.length, inserted: merged.inserted.map((r) => `${r.Date} ${r.Channel}`), mergedCopies: merged.removed.length, conflicts: merged.conflicts, audienceFixed: merged.audienceFixed }, null, 2));
+  console.log(`  TV merge: อัปเดต ${merged.updated.length} เทป · ใหม่ ${merged.inserted.length} · รวมแถวซ้ำ ${merged.removed.length} · rating ไม่ตรงกัน ${merged.conflicts.length}`);
+  return { result: merged, episodes, competitors };
+}
+
+function csvText(rows, cols) {
+  return "\uFEFF" + [cols.join(","), ...rows.map((r) => cols.map((c) => `"${String(r[c] ?? "").replaceAll('"', '""')}"`).join(","))].join("\n");
+}
+
+// Competitor ratings, one document per source (read by the dashboard later).
+async function writeCompetitors(fsdb, list) {
+  for (const { source, rows } of list) {
+    try {
+      await fsdb.set(`tvCompetitors/${source.id}`, encodeFields({
+        sourceId: source.id, name: source.name, program: source.program, channel: source.channel,
+        updatedAt: new Date().toISOString(), rowCount: rows.length, rows,
+      }));
+    } catch (e) {
+      console.error(`competitors ${source.name}: ${e.message}`);
+    }
+  }
 }
 
 // Per-platform health for the status line: fetched without error, newest post day.
@@ -355,7 +456,7 @@ function platformStatus() {
 function baseReport(status) {
   return {
     runId, status, trigger, startedAt, finishedAt: "",
-    window: { since, until }, message: "", platforms: {}, sources: fetchStats,
+    window: { since, until }, message: "", platforms: {}, sources: fetchStats, tvSources: tvStatus,
     totals: {}, checks: [], ...(githubRunUrl ? { githubRunUrl } : {}),
   };
 }

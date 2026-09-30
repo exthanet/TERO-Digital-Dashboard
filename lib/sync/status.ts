@@ -1,6 +1,6 @@
 // Reading what the daily sync wrote (see lib/integrations/syncWriter.ts).
 // syncStatus/latest: every signed-in user. syncRuns: admins (firestore.rules).
-import { collection, doc, getDoc, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type SyncState = "success" | "blocked" | "failed";
@@ -11,6 +11,17 @@ export interface PlatformStatus {
   error?: string;
 }
 
+export interface TvSourceStatus {
+  id: string;
+  name: string;
+  ok: boolean;
+  episodes?: number;
+  pending?: number;
+  cancelled?: number;
+  competitors?: number;
+  error?: string;
+}
+
 export interface SyncStatus {
   runId: string;
   status: SyncState;
@@ -18,6 +29,7 @@ export interface SyncStatus {
   lastSuccessAt: string;
   message: string;
   platforms: Record<string, PlatformStatus>;
+  tvSources?: TvSourceStatus[];
 }
 
 export interface SyncCheck {
@@ -64,4 +76,25 @@ export async function loadSyncStatus(): Promise<SyncStatus | null> {
 export async function loadSyncRuns(count = 30): Promise<SyncRun[]> {
   const snap = await getDocs(query(collection(db, "syncRuns"), orderBy("startedAt", "desc"), limit(count)));
   return snap.docs.map((d) => d.data() as SyncRun);
+}
+
+// ---------- TV workbook sources (admins edit, the sync reads) ----------
+
+export interface TvSourceConfig {
+  id: string;
+  name: string;
+  url: string;
+  sheet: string;
+  channel: "One31" | "GMM25";
+  program: string;
+  enabled: boolean;
+}
+
+export async function loadTvSources(): Promise<TvSourceConfig[]> {
+  const snap = await getDoc(doc(db, "syncConfig", "tvSources"));
+  return snap.exists() ? ((snap.data().sources || []) as TvSourceConfig[]) : [];
+}
+
+export async function saveTvSources(sources: TvSourceConfig[], updatedBy: string): Promise<void> {
+  await setDoc(doc(db, "syncConfig", "tvSources"), { sources, updatedAt: new Date().toISOString(), updatedBy });
 }
