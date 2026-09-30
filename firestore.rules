@@ -45,6 +45,26 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Written only by the daily sync (service account, IAM, not these rules).
+    // Everyone signed in sees the short status; admins see the full run log.
+    match /syncStatus/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
+    match /syncRuns/{doc} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /snapshots/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
+    // Backups of masterData taken before each sync write: never read or
+    // written from the browser; restore with the sync script.
+    match /masterDataBackups/{doc} {
+      allow read, write: if false;
+    }
+
     match /masterData/{doc} {
       allow read: if isActive();
       allow write: if isAdmin();

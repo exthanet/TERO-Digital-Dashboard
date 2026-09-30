@@ -313,7 +313,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
   const topic = firstLine(network === "youtube" ? String(post.title ?? "") : text, `${platform} ${t.iso} ${t.time}`);
 
   return {
-    Date: t.date,
+    Date: t.iso, // masterData stores plain "YYYY-MM-DD" days
     Program: program,
     Episode_ID: "",
     Topic: topic.slice(0, 300),

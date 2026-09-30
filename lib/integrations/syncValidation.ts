@@ -1,6 +1,6 @@
 // Checks a merged data set before it may replace production data.
 // Any failed check blocks the write; warnings are listed for a person to read.
-import { excelDate, normalizeRowsWithDeduplication } from "../dashboard/normalize.ts";
+import { excelDate, isPlainDay, normalizeRowsWithDeduplication } from "../dashboard/normalize.ts";
 import { parseNumber } from "./metricool.ts";
 import { METRIC_COLUMNS, rowKey, type MergeResult } from "./metricoolSync.ts";
 
@@ -212,6 +212,16 @@ export function validateMerge(
       bad.slice(0, 10).map((d) => d.key),
     );
   }
+
+  // 11. Raw data keeps one date format: every row a plain "YYYY-MM-DD" day,
+  // so what is stored always equals what the dashboard shows.
+  const nonPlain = (merged as Row[]).filter((r) => r.Date !== undefined && r.Date !== null && !isPlainDay(r.Date));
+  add(
+    "11. วันที่ทุกแถวเป็นรูปแบบ YYYY-MM-DD",
+    nonPlain.length === 0,
+    nonPlain.length ? `${nonPlain.length} แถวไม่ใช่ YYYY-MM-DD` : `${merged.length} แถวถูกรูปแบบทั้งหมด`,
+    nonPlain.slice(0, 5).map((r) => `${rowKey(r) || r.Platform}: ${String(r.Date)}`),
+  );
 
   return {
     ok: checks.every((c) => c.pass),

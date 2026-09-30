@@ -1,6 +1,5 @@
 "use client";
 import { useEffect } from "react";
-import { isStaticHost } from "@/lib/dashboard/hosting";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User as AuthUser } from "@/lib/auth/types";
 import { num } from "@/lib/dashboard/format";
@@ -12,7 +11,7 @@ import {
   LayoutDashboard,
   ListOrdered,
   MonitorPlay,
-  Settings,
+  RefreshCw,
   Sparkles,
   Trophy,
   Tv,
@@ -25,11 +24,12 @@ import {
 interface DashboardSidebarProps
   extends Pick<
     DashboardModel,
-    "rows" | "menuOpen" | "setMenuOpen" | "setSourceOpen" | "openIntegrations"
+    "rows" | "menuOpen" | "setMenuOpen" | "setSourceOpen"
   > {
   currentUser?: AuthUser | null;
   activeTab?: "overview" | "revenue" | "affiliate";
   onTabChange?: (tab: "overview" | "revenue" | "affiliate") => void;
+  openSyncStatus?: () => void;
 }
 
 export function DashboardSidebar({
@@ -37,7 +37,7 @@ export function DashboardSidebar({
   menuOpen,
   setMenuOpen,
   setSourceOpen,
-  openIntegrations,
+  openSyncStatus,
   currentUser,
   activeTab = "overview",
   onTabChange,
@@ -128,10 +128,10 @@ export function DashboardSidebar({
             <small>Metricool delay 2–3 วัน</small>
           </div>
         </div>
-        {!isStaticHost && currentUser?.role === "admin" && (
-          <button className="sidebar-api" onClick={openIntegrations}>
-            <Settings />
-            ตั้งค่า API Sync
+        {currentUser?.role === "admin" && (
+          <button className="sidebar-api mobile-hide" onClick={openSyncStatus}>
+            <RefreshCw />
+            สถานะการ Sync
           </button>
         )}
         {/* Admins only, and desktop only (not offered on phones) */}

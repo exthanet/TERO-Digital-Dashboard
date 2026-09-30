@@ -65,6 +65,8 @@ next-env.d.ts
 /.wrangler/
 /.sites-runtime/
 /outputs/
+# Sync test-run reports (real post data, never commit)
+/output/
 /work/
 /.npm-cache/
 /.youtube-auth/

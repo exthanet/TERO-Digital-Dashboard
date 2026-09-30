@@ -7,6 +7,14 @@
  *
  *   node scripts/metricool-sync.mjs --since=2026-08-01
  *   node scripts/metricool-sync.mjs --since=2026-08-01 --until=2026-09-29 --baseline=public/master-data.json
+ *   node scripts/metricool-sync.mjs --since=2026-08-01 --baseline=firestore
+ *
+ * Write (production): backup masterData, write only if every safety check
+ * passes, read back, restore automatically on any failure, save the daily
+ * snapshot and the run report admins see in the dashboard.
+ *
+ *   node scripts/metricool-sync.mjs --since=2026-07-02 --write
+ *   node scripts/metricool-sync.mjs --restore-backup=<runId>
  *
  * Credentials: METRICOOL_API_TOKEN, METRICOOL_USER_ID (env or .env.local).
  * Brands: config/metricool-brands.json (only "enabled": true are fetched).
@@ -24,7 +32,17 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
-import { getAccessToken, loadMasterRows } from "../lib/integrations/firestoreRest.ts";
+import { Firestore, decodeFields, docId, getAccessToken } from "../lib/integrations/firestoreRest.ts";
+import {
+  backupMasterData,
+  cleanupOld,
+  restoreMasterData,
+  runIdFor,
+  verifyMasterData,
+  writeMasterData,
+  writeRunReport,
+  writeSnapshot,
+} from "../lib/integrations/syncWriter.ts";
 import { validateMerge } from "../lib/integrations/syncValidation.ts";
 import { excelDate } from "../lib/dashboard/normalize.ts";
 
@@ -47,12 +65,43 @@ const args = Object.fromEntries(
 const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
 const since = args.since || "2026-08-01";
 const until = args.until || today;
-const baselineFile = args.baseline || "public/master-data.json";
+const write = args.write === "true";
+const baselineFile = write ? "firestore" : args.baseline || "public/master-data.json";
 const outDir = args.out || path.join("output", "metricool-test-run");
 
 // Same date rules as the dashboard: plain days, read as written.
 const toIso = (d) => excelDate(d);
 
+const startedAt = new Date().toISOString();
+const runId = runIdFor(new Date(startedAt));
+const trigger = process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" : process.env.GITHUB_EVENT_NAME ? "manual" : "local";
+const githubRunUrl = process.env.GITHUB_RUN_ID
+  ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+  : undefined;
+
+let db = null;
+async function firestore() {
+  if (db) return db;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT || (fs.existsSync(".secrets/firebase-sync.json") && fs.readFileSync(".secrets/firebase-sync.json", "utf8"));
+  if (!raw && !process.env.FIRESTORE_EMULATOR_HOST) throw new Error("No service account: set FIREBASE_SERVICE_ACCOUNT or add .secrets/firebase-sync.json");
+  const sa = raw ? JSON.parse(raw) : null;
+  // The dashboard's project, not the key's: a service account from another
+  // project works once it is granted access here.
+  const projectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(fs.readFileSync(".firebaserc", "utf8")).projects.default;
+  db = new Firestore(projectId, await getAccessToken(sa));
+  return db;
+}
+
+if (args["restore-backup"]) {
+  const n = await restoreMasterData(await firestore(), args["restore-backup"]);
+  console.log(`restored masterData from backup ${args["restore-backup"]} (${n} documents)`);
+  process.exit(0);
+}
+
+const fetchStats = [];
+const incoming = [];
+
+async function main() {
 const api = new MetricoolApi({
   userId: process.env.METRICOOL_USER_ID,
   apiToken: process.env.METRICOOL_API_TOKEN,
@@ -60,9 +109,7 @@ const api = new MetricoolApi({
 const youtube = process.env.YOUTUBE_API_KEY ? new YouTubeDataApi(process.env.YOUTUBE_API_KEY) : null;
 const brands = JSON.parse(fs.readFileSync("config/metricool-brands.json", "utf8")).filter((b) => b.enabled);
 
-console.log(`Metricool test run ${since} → ${until} · brands: ${brands.map((b) => b.label).join(", ")}`);
-const incoming = [];
-const fetchStats = [];
+console.log(`Metricool ${write ? "WRITE" : "test"} run ${since} → ${until} · brands: ${brands.map((b) => b.label).join(", ")}`);
 for (const brand of brands) {
   const brandYouTube = [];
   for (const network of NETWORKS) {
@@ -116,18 +163,20 @@ for (const brand of brands) {
   }
 }
 
-// --baseline=firestore reads live production data (read only) with the
-// service account in FIREBASE_SERVICE_ACCOUNT or .secrets/firebase-sync.json.
+// --baseline=firestore (and --write) reads live production data with the
+// service account; rawDocs keep the exact stored documents for the backup and
+// for the "nobody changed it meanwhile" check.
+let rawDocs = [];
 async function loadBaseline() {
   if (baselineFile !== "firestore") return JSON.parse(fs.readFileSync(baselineFile, "utf8"));
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT || (fs.existsSync(".secrets/firebase-sync.json") && fs.readFileSync(".secrets/firebase-sync.json", "utf8"));
-  if (!raw) throw new Error("No service account: set FIREBASE_SERVICE_ACCOUNT or add .secrets/firebase-sync.json");
-  const sa = JSON.parse(raw);
-  // The dashboard's project, not the key's: a service account from another
-  // project works once it is granted access here.
-  const projectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(fs.readFileSync(".firebaserc", "utf8")).projects.default;
-  const { rows, docs, updatedAt } = await loadMasterRows(projectId, await getAccessToken(sa));
-  console.log(`baseline: Firestore masterData ${rows.length} rows in ${docs} documents (updated ${updatedAt || "?"})`);
+  rawDocs = await (await firestore()).listRaw("masterData");
+  const rows = [];
+  for (const d of rawDocs) {
+    const data = decodeFields(d.fields || {});
+    if (Array.isArray(data.rows)) rows.push(...data.rows);
+    else if (docId(d.name).startsWith("chunk_") || !docId(d.name).startsWith("meta")) rows.push(data);
+  }
+  console.log(`baseline: Firestore masterData ${rows.length} rows in ${rawDocs.length} documents`);
   return rows;
 }
 const original = await loadBaseline();
@@ -243,3 +292,93 @@ for (const c of validation.checks) {
 }
 console.log(`  dashboard load: ${validation.stats.dashboardLoadMB.before} → ${validation.stats.dashboardLoadMB.after} MB · reads per open: ${validation.stats.readsPerDashboardOpen.before} → ${validation.stats.readsPerDashboardOpen.after}`);
 if (!validation.ok) process.exitCode = 1;
+
+if (!write) return;
+
+// ---------- write mode ----------
+const report = baseReport(validation.ok ? "success" : "blocked");
+report.totals = { ...summary.totals, duplicatesRemoved: dedupe.removed.length, rowsAfter: result.merged.length };
+report.checks = validation.checks;
+if (!validation.ok) {
+  const failed = validation.checks.filter((c) => !c.pass).map((c) => c.name).join(", ");
+  report.message = `ไม่ได้เขียนข้อมูล เพราะไม่ผ่านการตรวจ: ${failed} (ข้อมูลเดิมไม่ถูกแตะ)`;
+  await writeRunReport(await firestore(), finish(report));
+  console.log(report.message);
+  process.exitCode = 1;
+  return;
+}
+const fsdb = await firestore();
+const backed = await backupMasterData(fsdb, rawDocs, runId);
+report.backupId = runId;
+console.log(`backup: masterDataBackups/${runId} (${backed} documents)`);
+try {
+  const chunks = await writeMasterData(fsdb, result.merged, rawDocs);
+  const problem = await verifyMasterData(fsdb, result.merged);
+  if (problem) throw new Error(problem);
+  report.snapshotDocs = await writeSnapshot(fsdb, today, runId, snapshot);
+  report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}`;
+  console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
+} catch (e) {
+  console.error(`write failed, restoring backup ${runId}: ${e.message}`);
+  await restoreMasterData(fsdb, runId);
+  report.status = "failed";
+  report.message = `เขียนไม่สำเร็จ กู้คืนข้อมูลเดิมจากสำรองแล้ว: ${e.message}`;
+  process.exitCode = 1;
+}
+await writeRunReport(fsdb, finish(report));
+const removed = await cleanupOld(fsdb);
+console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
+}
+
+// Per-platform health for the status line: fetched without error, newest post day.
+function platformStatus() {
+  const map = { facebook: "Facebook", fbreels: "Facebook", instagram: "Instagram", reels: "Instagram", tiktok: "TikTok", youtube: "YouTube", "youtube-data-api": "YouTube" };
+  const out = {};
+  for (const st of fetchStats) {
+    const p = map[st.network];
+    if (!p) continue;
+    out[p] ||= { ok: true, latestPost: "" };
+    // A brand without that network connected is not a failure.
+    if (st.error && !/no \w+ connection for blog/i.test(st.error)) {
+      out[p].ok = false;
+      out[p].error = String(st.error).slice(0, 200);
+    }
+  }
+  for (const r of incoming) {
+    const p = String(r.Platform);
+    const d = excelDate(r.Date);
+    if (out[p] && d > out[p].latestPost) out[p].latestPost = d;
+  }
+  return out;
+}
+
+function baseReport(status) {
+  return {
+    runId, status, trigger, startedAt, finishedAt: "",
+    window: { since, until }, message: "", platforms: {}, sources: fetchStats,
+    totals: {}, checks: [], ...(githubRunUrl ? { githubRunUrl } : {}),
+  };
+}
+
+function finish(report) {
+  report.finishedAt = new Date().toISOString();
+  report.platforms = platformStatus();
+  return report;
+}
+
+try {
+  await main();
+} catch (e) {
+  console.error(e);
+  process.exitCode = 1;
+  // In write mode every failure is recorded so admins see it in the dashboard.
+  if (write) {
+    try {
+      const report = finish(baseReport("failed"));
+      report.message = `sync ล้มเหลวก่อนเขียนข้อมูล: ${String(e.message || e).slice(0, 300)} (ข้อมูลเดิมไม่ถูกแตะ)`;
+      await writeRunReport(await firestore(), report);
+    } catch (reportError) {
+      console.error("could not record the failed run:", reportError);
+    }
+  }
+}

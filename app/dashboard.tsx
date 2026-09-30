@@ -10,19 +10,20 @@ import { DataStatus } from "@/components/dashboard/sections/DataStatus";
 import { ExecutiveAnalysis } from "@/components/dashboard/sections/ExecutiveAnalysis";
 import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts";
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
-import { IntegrationsModal } from "@/components/dashboard/sections/IntegrationsModal";
 import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { LoadingOverlay } from "@/components/dashboard/sections/LoadingOverlay";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
+import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
+import { loadSyncStatus, type SyncStatus } from "@/lib/sync/status";
 import "@/styles/auth.css";
 
 import RevenueReport from "@/components/dashboard/RevenueReport";
@@ -36,6 +37,9 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  // undefined = not loaded; null = no sync has run yet.
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null | undefined>(undefined);
   // Firestore only serves data to signed-in, active accounts.
   const model = useDashboard(auth.isAuthenticated);
   const { setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen } = model;
@@ -61,6 +65,14 @@ export default function Dashboard() {
 
   const isAdmin = auth.user?.role === "admin";
 
+  // Admins get the latest sync result (one read) for the warning banner.
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadSyncStatus()
+      .then(setSyncStatus)
+      .catch(() => setSyncStatus(undefined));
+  }, [isAdmin]);
+
   if (auth.isLoading) {
     return <LoadingOverlay loading={true} />;
   }
@@ -76,7 +88,10 @@ export default function Dashboard() {
         menuOpen={model.menuOpen}
         setMenuOpen={model.setMenuOpen}
         setSourceOpen={model.setSourceOpen}
-        openIntegrations={model.openIntegrations}
+        openSyncStatus={() => {
+          setSyncOpen(true);
+          model.setMenuOpen(false);
+        }}
         currentUser={auth.user}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -130,6 +145,8 @@ export default function Dashboard() {
               onSaveToCloud={async () => {
                 await model.saveCurrentDataToCloud(auth.user?.role);
               }}
+              syncStatus={syncStatus}
+              onOpenSync={() => setSyncOpen(true)}
             />
             <KpiSummary
               tvMode={model.tvMode}
@@ -241,13 +258,7 @@ export default function Dashboard() {
         }}
         currentUser={auth.user}
       />
-      <IntegrationsModal
-        integrationsOpen={model.integrationsOpen && isAdmin}
-        setIntegrationsOpen={model.setIntegrationsOpen}
-        integrationLoading={model.integrationLoading}
-        integrationStatus={model.integrationStatus}
-        checkIntegrations={model.checkIntegrations}
-      />
+      <SyncStatusModal open={syncOpen && isAdmin} onClose={() => setSyncOpen(false)} status={syncStatus ?? null} />
       <ChangePasswordModal
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}

@@ -11,7 +11,19 @@ export interface ServiceAccount {
 
 const b64url = (data: string | Buffer) => Buffer.from(data).toString("base64url");
 
+/** Set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 to run everything against the local emulator. */
+const emulatorHost = () => process.env.FIRESTORE_EMULATOR_HOST || "";
+
+export function documentsBase(projectId: string): string {
+  const host = emulatorHost();
+  return host
+    ? `http://${host}/v1/projects/${projectId}/databases/(default)/documents`
+    : `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+}
+
 export async function getAccessToken(sa: ServiceAccount): Promise<string> {
+  // The emulator accepts "owner" as an admin token that skips rules.
+  if (emulatorHost()) return "owner";
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = b64url(
@@ -63,8 +75,8 @@ export async function listDocuments(
   const out: { id: string; data: Record<string, unknown> }[] = [];
   let pageToken = "";
   do {
-    const url = new URL(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collection}`);
-    url.searchParams.set("pageSize", "100");
+    const url = new URL(`${documentsBase(projectId)}/${collection}`);
+    url.searchParams.set("pageSize", "10"); // masterData documents are ~0.5 MB each
     if (pageToken) url.searchParams.set("pageToken", pageToken);
     const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
     const body = (await res.json()) as { documents?: { name: string; fields?: Record<string, FsValue> }[]; nextPageToken?: string; error?: { message: string } };
@@ -87,3 +99,92 @@ export async function loadMasterRows(projectId: string, token: string) {
   }
   return { rows, docs: docs.length, updatedAt };
 }
+
+// ---------- raw documents and writes ----------
+
+export interface RawDoc {
+  name: string;
+  fields: Record<string, FsValue>;
+  updateTime?: string;
+}
+
+/** Plain JS → Firestore REST value (integers stay integers). */
+export function encodeValue(v: unknown): FsValue {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === "boolean") return { booleanValue: v };
+  if (typeof v === "number") return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === "string") return { stringValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(encodeValue) } };
+  if (typeof v === "object") return { mapValue: { fields: encodeFields(v as Record<string, unknown>) } };
+  return { stringValue: String(v) };
+}
+
+export function encodeFields(obj: Record<string, unknown>): Record<string, FsValue> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined).map(([k, v]) => [k, encodeValue(v)]));
+}
+
+export class Firestore {
+  readonly base: string;
+  private token: string;
+
+  constructor(projectId: string, token: string) {
+    this.base = documentsBase(projectId);
+    this.token = token;
+  }
+
+  private headers(json = false) {
+    return { authorization: `Bearer ${this.token}`, ...(json ? { "content-type": "application/json" } : {}) };
+  }
+
+  /** All documents of a collection with their raw fields and update times. */
+  async listRaw(collection: string): Promise<RawDoc[]> {
+    const out: RawDoc[] = [];
+    let pageToken = "";
+    do {
+      const url = new URL(`${this.base}/${collection}`);
+      url.searchParams.set("pageSize", "10"); // masterData documents are ~0.5 MB each
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
+      const res = await fetch(url, { headers: this.headers() });
+      const body = (await res.json()) as { documents?: RawDoc[]; nextPageToken?: string; error?: { message: string } };
+      if (!res.ok) throw new Error(`list ${collection}: ${body.error?.message || res.status}`);
+      out.push(...(body.documents || []));
+      pageToken = body.nextPageToken || "";
+    } while (pageToken);
+    return out;
+  }
+
+  async get(path: string): Promise<RawDoc | null> {
+    const res = await fetch(`${this.base}/${path}`, { headers: this.headers() });
+    if (res.status === 404) return null;
+    const body = (await res.json()) as RawDoc & { error?: { message: string } };
+    if (!res.ok) throw new Error(`get ${path}: ${body.error?.message || res.status}`);
+    return body;
+  }
+
+  /**
+   * Replace a document. `updateTime` = only if nobody changed it since then;
+   * `mustNotExist` = only create.
+   */
+  async set(path: string, fields: Record<string, FsValue>, pre: { updateTime?: string; mustNotExist?: boolean } = {}): Promise<RawDoc> {
+    // commit (not PATCH): preconditions travel in the body, which both
+    // production and the emulator honour (the emulator ignores them in a PATCH URL).
+    const name = `${this.base.split("/v1/")[1]}/${path}`;
+    const currentDocument = pre.updateTime ? { updateTime: pre.updateTime } : pre.mustNotExist ? { exists: false } : undefined;
+    const res = await fetch(`${this.base}:commit`, {
+      method: "POST",
+      headers: this.headers(true),
+      body: JSON.stringify({ writes: [{ update: { name, fields }, ...(currentDocument ? { currentDocument } : {}) }] }),
+    });
+    const body = (await res.json()) as { writeResults?: { updateTime?: string }[]; error?: { message: string } };
+    if (!res.ok) throw new Error(`write ${path}: ${body.error?.message || res.status}`);
+    return { name, fields, updateTime: body.writeResults?.[0]?.updateTime };
+  }
+
+  async delete(path: string): Promise<void> {
+    const res = await fetch(`${this.base}/${path}`, { method: "DELETE", headers: this.headers() });
+    if (!res.ok && res.status !== 404) throw new Error(`delete ${path}: ${res.status}`);
+  }
+}
+
+/** Short document id from a full resource name. */
+export const docId = (name: string) => name.split("/").pop() || "";

@@ -129,7 +129,7 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
   const program = brand.mode === "single" && brand.program ? brand.program : detected;
   const engagement = v.likes + v.comments;
   return {
-    Date: t.date,
+    Date: t.iso, // masterData stores plain "YYYY-MM-DD" days
     Program: program,
     Episode_ID: "",
     Topic: firstLine(v.title, `YouTube ${t.iso} ${t.time}`).slice(0, 300),

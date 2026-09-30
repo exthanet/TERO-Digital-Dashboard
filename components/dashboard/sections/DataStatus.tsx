@@ -2,7 +2,8 @@
 import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User } from "@/lib/auth/types";
 import { dateTimeLabel, num } from "@/lib/dashboard/format";
-import { CloudUpload, Loader2 } from "lucide-react";
+import { isStale, type SyncStatus } from "@/lib/sync/status";
+import { AlertTriangle, CloudUpload, Loader2 } from "lucide-react";
 
 interface DataStatusProps
   extends Pick<
@@ -11,6 +12,9 @@ interface DataStatusProps
   > {
   currentUser?: User | null;
   onSaveToCloud?: () => Promise<void>;
+  /** Admins only: latest sync result, for the warning banner. */
+  syncStatus?: SyncStatus | null;
+  onOpenSync?: () => void;
 }
 
 export function DataStatus({
@@ -22,9 +26,24 @@ export function DataStatus({
   currentUser,
   cloudSaving,
   onSaveToCloud,
+  syncStatus,
+  onOpenSync,
 }: DataStatusProps) {
   const isAdmin = currentUser?.role === "admin";
   const canSaveCloud = isAdmin && sourceName !== "Firebase Firestore" && onSaveToCloud;
+  // syncStatus undefined = not loaded yet; null = the sync has never run.
+  const syncProblem =
+    isAdmin && syncStatus !== undefined
+      ? !syncStatus
+        ? "ยังไม่มีการ sync อัตโนมัติ"
+        : syncStatus.status === "failed"
+          ? "Sync รอบล่าสุดล้มเหลว ข้อมูลไม่ถูกแก้ไข"
+          : syncStatus.status === "blocked"
+            ? "Sync รอบล่าสุดไม่ผ่านการตรวจความถูกต้อง จึงไม่ได้เขียนข้อมูล"
+            : isStale(syncStatus)
+              ? "ไม่มีการ sync เกิน 26 ชั่วโมง"
+              : ""
+      : "";
 
   return (
     <>
@@ -34,7 +53,7 @@ export function DataStatus({
         </span>
         <span>{num(filtered.length)} รายการ</span>
         <span>
-          อัปโหลดล่าสุด: <strong>{uploadedAt ? `${dateTimeLabel(uploadedAt)} น.` : "-"}</strong>
+          ข้อมูลอัปเดตล่าสุด: <strong>{uploadedAt ? `${dateTimeLabel(uploadedAt)} น.` : "-"}</strong>
         </span>
         {canSaveCloud && (
           <button
@@ -71,6 +90,13 @@ export function DataStatus({
         {message && <span className="status-message">{message}</span>}
         <button onClick={reset}>ล้างตัวกรอง</button>
       </div>
+      {syncProblem && (
+        <div className="sync-banner mobile-hide">
+          <AlertTriangle size={16} />
+          <span>{syncProblem}</span>
+          {onOpenSync && <button onClick={onOpenSync}>ดูสถานะการ Sync</button>}
+        </div>
+      )}
     </>
   );
 }

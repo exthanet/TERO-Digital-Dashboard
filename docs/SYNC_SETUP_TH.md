@@ -71,6 +71,29 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 ถ้าต้องการเทียบกับข้อมูลจริงใน Firestore (แทนไฟล์ `public/master-data.json`) ให้เก็บไฟล์ key ของ service account
 (จากข้อ 7) ไว้ที่ `.secrets/firebase-sync.json` ในโฟลเดอร์โปรเจกต์ โฟลเดอร์ `.secrets/` อยู่ใน `.gitignore`
 
+## รันอัตโนมัติ (GitHub Actions: `data-sync.yml`)
+
+- รันเองทุกวัน **06:00 น.** ดึงข้อมูลย้อนหลัง 90 วัน แล้วเขียนเข้า Firestore
+- สั่งรันเอง: dashboard → **สถานะการ Sync** → **รันตอนนี้** (หรือ GitHub → Actions → Data sync → **Run workflow**)
+  เลือก `test-run` = ตรวจอย่างเดียว ไม่เขียน · ใส่ `since` ได้ถ้าต้องการดึงย้อนหลังไกลกว่า 90 วัน
+- Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`
+  และ `DISCORD_WEBHOOK_URL` (ไม่บังคับ: แจ้งเตือนเมื่อ sync ไม่สำเร็จ)
+
+ทุกรอบที่เขียนข้อมูล ระบบจะ:
+1. สำรอง masterData ไว้ใน `masterDataBackups` ก่อน (เก็บ 7 รอบล่าสุด)
+2. ตรวจความถูกต้อง 11 ข้อ ถ้าไม่ผ่านข้อใดข้อหนึ่ง **จะไม่เขียนอะไรเลย**
+3. เขียนแบบมีเงื่อนไข: ถ้ามีคนแก้ masterData ระหว่างรัน จะหยุด ไม่เขียนทับ
+4. อ่านกลับมาตรวจ ถ้าไม่ตรง จะกู้คืนจากสำรองอัตโนมัติ
+5. บันทึกรายงานใน `syncRuns` (เก็บ 90 วัน, admin เห็นในหน้า "สถานะการ Sync") และสถานะสั้นใน `syncStatus/latest`
+
+กู้คืนเอง (ถ้าจำเป็น) ใช้ runId จากหน้า "สถานะการ Sync":
+
+```bash
+node scripts/metricool-sync.mjs --restore-backup=2026-09-30T08-14-25Z
+```
+
+หลังแก้ `firestore.rules` ต้อง deploy ครั้งเดียว: `firebase deploy --only firestore:rules`
+
 ## ปัญหาที่อาจเจอ
 
 - **ข้อ 7 สร้าง key ไม่ได้** ("Service account key creation is disabled"): องค์กรห้ามสร้าง key
@@ -80,7 +103,7 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 ## การเก็บข้อมูล (ที่ตกลงกันไว้)
 
 - `masterData`: ข้อมูลล่าสุดที่ dashboard อ่าน
-- `snapshots/{YYYY-MM-DD}`: ตัวเลขรายวันของแต่ละโพสต์ ไม่เขียนทับ เก็บย้อนหลัง **1 ปี**
+- `snapshots/{YYYY-MM-DD}__{nn}`: ตัวเลขรายวันของแต่ละโพสต์ ไม่เขียนทับวันก่อน (รันซ้ำวันเดียวกันจะรวมเข้าด้วยกัน) เก็บย้อนหลัง **1 ปี**
   บันทึกเฉพาะโพสต์ที่ตัวเลขเปลี่ยนจากวันก่อน ใช้คำนวณยอดเพิ่มรายวัน/รายสัปดาห์
 - Metricool อัปเดตเฉพาะตัวเลข (Views, Likes, Comments, Shares, Engagement)
   คอลัมน์ที่ทีมกรอก (Program, Topic, Topic_Type, VDO_Type, Episode_ID, Best_of_Month, Revenue, Notes) ไม่ถูกเขียนทับ

@@ -5,9 +5,9 @@ import { validateMerge } from "../lib/integrations/syncValidation.ts";
 
 const TERO = { blogId: 6487104, label: "TERO Digital", mode: "multi", enabled: true };
 const base = () => [
-  { Date: "18/08/2026", Program: "ถกไม่เถียง", Topic: "ทีมกรอก", Topic_Type: "ข่าวการเมือง", VDO_Type: "Shorts", Platform: "YouTube",
+  { Date: "2026-08-18", Program: "ถกไม่เถียง", Topic: "ทีมกรอก", Topic_Type: "ข่าวการเมือง", VDO_Type: "Shorts", Platform: "YouTube",
     Channel: "-", Content_ID: "", URL: "https://www.youtube.com/watch?v=zu18DUg143A", Views: "500", Likes: "1", Comments: "0", Shares: "0", Engagement: "1", Engagement_Rate: "0.20%", Notes: "" },
-  { Date: "18/08/2026", Program: "ถกไม่เถียง", Topic: "เทป", Topic_Type: "ข่าวการเมือง", VDO_Type: "TV Episode", Platform: "TV",
+  { Date: "2026-08-18", Program: "ถกไม่เถียง", Topic: "เทป", Topic_Type: "ข่าวการเมือง", VDO_Type: "TV Episode", Platform: "TV",
     Channel: "ONE31", Content_ID: "", URL: "", Views: "0", Likes: "", Comments: "", Shares: "", Engagement: "0", Engagement_Rate: "0%", Notes: "", TV_Rating_Total: "0.33", TV_Audience_Total: "200000" },
 ];
 const incoming = () => [
@@ -51,4 +51,11 @@ test("negative numbers and a monthly drop are caught", () => {
   const f = failed(validateMerge(b, r));
   assert.ok(f.includes("5."));
   assert.ok(f.includes("7."));
+});
+
+test("a row stored as dd/mm/yyyy is caught (check 11)", () => {
+  const b = base();
+  const r = mergeIntoMaster(b, incoming());
+  r.merged[0] = { ...r.merged[0], Date: "18/08/2026" };
+  assert.ok(failed(validateMerge(b, r)).includes("11"));
 });

@@ -53,7 +53,7 @@ test("Data API videos map to master rows with the team's format labels", () => {
   const ep = mapYouTubeVideo({ ...base, id: "_ILZtzNFUvc", durationSec: 2400 }, TERO);
   assert.equal(ep.VDO_Type, "Video Episode");
   assert.equal(ep.Program, "ถกไม่เถียง");
-  assert.equal(ep.Date, "03/08/2026");
+  assert.equal(ep.Date, "2026-08-03");
   assert.equal(ep.Publish_Time, "18:00");
   assert.equal(ep.URL, "https://www.youtube.com/watch?v=_ILZtzNFUvc");
   assert.equal(mapYouTubeVideo({ ...base, id: "short0000001", durationSec: 58 }, TERO).VDO_Type, "Shorts");

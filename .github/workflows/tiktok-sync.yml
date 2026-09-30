@@ -1,9 +1,8 @@
 name: Sync TikTok content daily
 
+# Schedule off: TikTok now comes through Metricool (data-sync.yml).
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "15 2 * * *"
 
 permissions:
   contents: write

@@ -54,7 +54,7 @@ test("each network maps to a master row with the team's labels", () => {
   assert.equal(yt.Platform, "YouTube");
   assert.equal(yt.VDO_Type, "LIVE");
   assert.equal(yt.Program, "ถกไม่เถียง");
-  assert.equal(yt.Date, "18/09/2026");
+  assert.equal(yt.Date, "2026-09-18");
   assert.equal(yt.Publish_Time, "15:40");
   assert.equal(yt.Engagement, "65");
   assert.equal(yt.Engagement_Rate, "6.50%");

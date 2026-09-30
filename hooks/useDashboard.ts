@@ -22,7 +22,6 @@ import type {
   CompareRow,
   CompareSortKey,
   DatePreset,
-  IntegrationMap,
   RawRow,
   RecordRow,
 } from "@/lib/dashboard/types";
@@ -85,11 +84,6 @@ export function useDashboard(enabled = true) {
     [loading, setLoading] = useState(true),
     [menuOpen, setMenuOpen] = useState(false),
     [sourceOpen, setSourceOpen] = useState(false),
-    [integrationsOpen, setIntegrationsOpen] = useState(false),
-    [integrationLoading, setIntegrationLoading] = useState(false),
-    [integrationStatus, setIntegrationStatus] = useState<IntegrationMap | null>(
-      null,
-    ),
     [sheetUrl, setSheetUrl] = useState(""),
     [sourceName, setSourceName] = useState("Firebase Firestore"),
     [uploadedAt, setUploadedAt] = useState(""),
@@ -1103,29 +1097,6 @@ export function useDashboard(enabled = true) {
       setLoading(false);
     }
   }
-  async function checkIntegrations() {
-    if (isStaticHost) {
-      setMessage("เวอร์ชัน GitHub Pages รองรับรายงานและนำเข้าไฟล์เท่านั้น ไม่รองรับ API Sync");
-      return;
-    }
-    setIntegrationLoading(true);
-    try {
-      const response = await fetch("/api/integrations/status", {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("ตรวจสอบการตั้งค่าไม่สำเร็จ");
-      setIntegrationStatus((await response.json()) as IntegrationMap);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "ตรวจสอบ API ไม่สำเร็จ");
-    } finally {
-      setIntegrationLoading(false);
-    }
-  }
-  function openIntegrations() {
-    setIntegrationsOpen(true);
-    setMenuOpen(false);
-    void checkIntegrations();
-  }
   function applyDatePreset(value: DatePreset) {
     setDatePreset(value);
     if (value === "CUSTOM") return;
@@ -1207,12 +1178,6 @@ export function useDashboard(enabled = true) {
     setMenuOpen,
     sourceOpen,
     setSourceOpen,
-    integrationsOpen,
-    setIntegrationsOpen,
-    integrationLoading,
-    setIntegrationLoading,
-    integrationStatus,
-    setIntegrationStatus,
     sheetUrl,
     setSheetUrl,
     sourceName,
@@ -1300,8 +1265,6 @@ export function useDashboard(enabled = true) {
     applyRows,
     loadSheet,
     onFile,
-    checkIntegrations,
-    openIntegrations,
     rawRows,
     cloudSaving,
     cloudSaveProgress,
