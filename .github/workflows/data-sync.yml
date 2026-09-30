@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "test-run = check only, write = update Firestore"
+        description: "write = update Firestore · test-run = check only · test-email = send a test email"
         type: choice
-        options: [write, test-run]
+        options: [write, test-run, test-email]
         default: write
       since:
         description: "First day to fetch (YYYY-MM-DD). Blank = last 90 days"
@@ -49,11 +49,15 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          NOTIFY_TOKEN: ${{ secrets.NOTIFY_TOKEN }}
           MODE: ${{ inputs.mode || 'write' }}
           SINCE: ${{ inputs.since }}
         run: |
           if [ -z "$SINCE" ]; then SINCE=$(date -u -d "90 days ago" +%F); fi
-          if [ "$MODE" = "write" ]; then
+          if [ "$MODE" = "test-email" ]; then
+            node scripts/metricool-sync.mjs --notify-test
+          elif [ "$MODE" = "write" ]; then
             node scripts/metricool-sync.mjs --since="$SINCE" --write
           else
             node scripts/metricool-sync.mjs --since="$SINCE" --baseline=firestore

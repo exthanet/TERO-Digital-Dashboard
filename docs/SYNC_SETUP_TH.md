@@ -95,6 +95,29 @@ YouTube Data API ให้ยอดสะสมล่าสุดของทุ
 node scripts/metricool-sync.mjs --since=2026-09-01 --baseline=firestore --tv-file="ไฟล์.xlsx"
 ```
 
+## ส่วนที่ 7: อัปโหลดไฟล์ TV เอง (ใช้ได้ทันที ไม่ต้องตั้งค่า Microsoft)
+
+1. dashboard → **เครื่องมือ admin** → **อัปโหลดไฟล์ TV** → เลือกไฟล์ rating (.xlsx)
+2. ระบบอ่านเฉพาะแท็บที่ตั้งไว้ใน "แหล่งข้อมูล TV" (ในเบราว์เซอร์ แท็บอื่นไม่ถูกส่งขึ้น) แล้วแสดงผลให้ตรวจ: จำนวนเทป, เทปใหม่, rating ที่เปลี่ยน
+3. กด **บันทึก** → รอบ sync ถัดไป (06:00 น. หรือ GitHub → Run workflow) รวมเข้า masterData พร้อมตรวจ 5 ข้อ (12–16)
+4. ถ้าตั้งค่า SharePoint (ส่วนที่ 6) แล้วด้วย ระบบใช้ข้อมูลที่ใหม่กว่า และใช้ไฟล์ที่อัปโหลดแทนเมื่ออ่าน SharePoint ไม่ได้
+
+## ส่วนที่ 8: อีเมลแจ้งผลการ sync (Google Apps Script)
+
+ทำครั้งเดียวในบัญชี Google ที่จะเป็นผู้ส่ง (เช่น terodigital@gmail.com) ไม่มีการเก็บรหัสผ่านอีเมลที่ไหน
+
+25. เปิด https://script.google.com → **New project** → ลบโค้ดเดิม แล้ววางโค้ดจากไฟล์ `scripts/apps-script/notify.gs`
+26. **Project Settings** (รูปเฟือง) → **Script Properties** → **Add script property**
+    - Property: `NOTIFY_TOKEN` · Value: ข้อความสุ่มยาวๆ (เช่น 40 ตัวอักษร) จดไว้
+27. **Deploy** → **New deployment** → เลือก type **Web app**
+    - Execute as: **Me** · Who has access: **Anyone** → **Deploy** → อนุญาตสิทธิ์ส่งอีเมล (Google จะเตือนว่าแอปยังไม่ยืนยัน → Advanced → ไปต่อ)
+    - copy **Web app URL**
+28. GitHub secrets 2 ตัว: `NOTIFY_WEBHOOK_URL` = Web app URL · `NOTIFY_TOKEN` = ค่าจากข้อ 26
+29. dashboard → **เครื่องมือ admin** → **การแจ้งเตือน** → ใส่อีเมลผู้รับ (สูงสุด 10) · เลือก "ทุกรอบ" หรือ "เฉพาะเมื่อมีปัญหา" → **บันทึก**
+30. ทดสอบ: GitHub → Actions → **Data sync** → **Run workflow** → mode `test-email` → ควรได้อีเมล "🧪 อีเมลทดสอบ" ผลการส่งจะแสดงในหน้า "การแจ้งเตือน"
+
+หมายเหตุ: Gmail ส่วนตัวส่งได้ประมาณ 100 ผู้รับต่อวัน (เกินพอสำหรับวันละ 1 ฉบับ) · ถ้าส่งไม่สำเร็จ sync ยังทำงานตามปกติ
+
 ## ทดสอบในเครื่อง (test-run)
 
 ```bash
@@ -111,7 +134,7 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 - รันเองทุกวัน **06:00 น.** ดึงข้อมูลย้อนหลัง 90 วัน แล้วเขียนเข้า Firestore
 - สั่งรันเอง: dashboard → **สถานะการ Sync** → **รันตอนนี้** (หรือ GitHub → Actions → Data sync → **Run workflow**)
   เลือก `test-run` = ตรวจอย่างเดียว ไม่เขียน · ใส่ `since` ได้ถ้าต้องการดึงย้อนหลังไกลกว่า 90 วัน
-- Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`, (TV) `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+- Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`, (TV) `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, (อีเมล) `NOTIFY_WEBHOOK_URL`, `NOTIFY_TOKEN`
   และ `DISCORD_WEBHOOK_URL` (ไม่บังคับ: แจ้งเตือนเมื่อ sync ไม่สำเร็จ)
 
 ทุกรอบที่เขียนข้อมูล ระบบจะ:

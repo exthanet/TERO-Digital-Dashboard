@@ -40,7 +40,7 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
-import { Firestore, decodeFields, docId, encodeFields, getAccessToken } from "../lib/integrations/firestoreRest.ts";
+import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 import {
   backupMasterData,
   cleanupOld,
@@ -53,8 +53,9 @@ import {
 } from "../lib/integrations/syncWriter.ts";
 import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
-import { downloadSharedFile, graphCredentials, graphToken } from "../lib/integrations/sharepoint.ts";
-import { excelDate } from "../lib/dashboard/normalize.ts";
+import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
+import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
+import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
 
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
@@ -100,6 +101,20 @@ async function firestore() {
   const projectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(fs.readFileSync(".firebaserc", "utf8")).projects.default;
   db = new Firestore(projectId, await getAccessToken(sa));
   return db;
+}
+
+if (args["notify-test"]) {
+  const report = { runId: "test", status: "success", trigger, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
+    window: { since: "-", until: "-" }, message: "อีเมลทดสอบจากระบบ sync (ไม่มีการเปลี่ยนข้อมูล)", platforms: {}, sources: [], totals: {}, checks: [] };
+  await notifyRun(report, { force: true });
+  console.log(report.notify ? JSON.stringify(report.notify) : "ไม่มีผู้รับใน syncConfig/notifications");
+  if (report.notify) {
+    // Show the test result in the dashboard next to the other settings.
+    const db = await firestore();
+    const current = await db.get("syncStatus/latest");
+    await db.set("syncStatus/latest", { ...(current?.fields || {}), notify: encodeValue(report.notify) });
+  }
+  process.exit(report.notify?.ok ? 0 : 1);
 }
 
 if (args["restore-backup"]) {
@@ -330,7 +345,8 @@ report.checks = allChecks;
 if (!allOk) {
   const failed = allChecks.filter((c) => !c.pass).map((c) => c.name).join(", ");
   report.message = `ไม่ได้เขียนข้อมูล เพราะไม่ผ่านการตรวจ: ${failed} (ข้อมูลเดิมไม่ถูกแตะ)`;
-  await writeRunReport(await firestore(), finish(report));
+  await notifyRun(finish(report));
+  await writeRunReport(await firestore(), report);
   console.log(report.message);
   process.exitCode = 1;
   return;
@@ -355,7 +371,8 @@ try {
   report.message = `เขียนไม่สำเร็จ กู้คืนข้อมูลเดิมจากสำรองแล้ว: ${e.message}`;
   process.exitCode = 1;
 }
-await writeRunReport(fsdb, finish(report));
+await notifyRun(finish(report));
+await writeRunReport(fsdb, report);
 const removed = await cleanupOld(fsdb);
 console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
 }
@@ -381,26 +398,73 @@ async function tvStep(rows) {
   const books = new Map();
   const episodes = [];
   const competitors = [];
+  // Tabs an admin uploaded in the dashboard (tvUploads/{sourceId}).
+  const uploads = new Map();
+  if (!args["tv-file"] && baselineFile === "firestore") {
+    for (const d of await (await firestore()).listRaw("tvUploads")) uploads.set(docId(d.name), decodeFields(d.fields || {}));
+  }
+  const fromBook = (buf, s) => {
+    let book = books.get(s.url);
+    if (!book) {
+      book = XLSX.read(buf(), { type: "buffer" });
+      books.set(s.url, book);
+    }
+    const sheet = book.Sheets[s.sheet];
+    if (!sheet) throw new Error(`ไม่พบแท็บ "${s.sheet}"`);
+    const parsed = parseTvSheet(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), s);
+    if (parsed.missingColumns.length) throw new Error(`ไม่พบคอลัมน์: ${parsed.missingColumns.join(", ")}`);
+    return parsed;
+  };
+  // An upload was parsed in the browser; take only well-formed numbers, and
+  // the program/channel from the source settings, not from the upload.
+  const fromUpload = (u, s) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    const eps = (u.episodes || [])
+      .filter((e) => isPlainDay(e.date) && Number.isFinite(Number(e.rating)))
+      .map((e) => ({
+        date: e.date, program: s.program, channel: s.channel, topic: String(e.topic || ""), topicType: String(e.topicType || ""),
+        durationMin: num(e.durationMin), rating: num(e.rating), bkk: num(e.bkk), urban: num(e.urban), bkkUrban: num(e.bkkUrban),
+        rural: num(e.rural), viewers: num(e.viewers),
+      }));
+    const comps = (u.competitors || []).filter((c) => isPlainDay(c.date)).map((c) => ({
+      date: c.date, competitorChannel: String(c.competitorChannel || ""), program: String(c.program || ""), slot: String(c.slot || ""), rating: num(c.rating),
+    }));
+    return { episodes: eps, competitors: comps, pending: u.pending || [], cancelled: u.cancelled || [], uploadedAt: u.uploadedAt, fileName: u.fileName };
+  };
   console.log(`\nTV: ${sources.length} source(s)`);
   for (const s of sources) {
-    const status = { id: s.id, name: s.name, ok: false, episodes: 0, pending: 0, cancelled: 0, competitors: 0, error: "" };
+    const status = { id: s.id, name: s.name, ok: false, episodes: 0, pending: 0, cancelled: 0, competitors: 0, error: "", from: "" };
     try {
-      let book = books.get(s.url);
-      if (!book) {
-        let buf;
-        if (args["tv-file"]) buf = fs.readFileSync(args["tv-file"]);
-        else {
-          if (!creds) throw new Error("ยังไม่ได้ตั้งค่า Microsoft Graph (AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET)");
-          token ||= await graphToken(creds);
-          buf = await downloadSharedFile(s.url, token);
+      const upload = uploads.get(s.id);
+      let parsed;
+      if (args["tv-file"]) {
+        parsed = fromBook(() => fs.readFileSync(args["tv-file"]), s);
+        status.from = "file";
+      } else if (creds) {
+        // SharePoint and an upload: take whichever is newer.
+        token ||= await graphToken(creds);
+        const modified = await sharedFileModified(s.url, token).catch(() => "");
+        if (upload && modified && String(upload.uploadedAt) > modified) {
+          parsed = fromUpload(upload, s);
+          status.from = "upload";
+        } else {
+          try {
+            const buf = await downloadSharedFile(s.url, token);
+            parsed = fromBook(() => buf, s);
+            status.from = "sharepoint";
+          } catch (e) {
+            if (!upload) throw e;
+            parsed = fromUpload(upload, s);
+            status.from = "upload";
+            status.error = `SharePoint อ่านไม่ได้ ใช้ไฟล์ที่อัปโหลดแทน: ${String(e.message).slice(0, 120)}`;
+          }
         }
-        book = XLSX.read(buf, { type: "buffer" });
-        books.set(s.url, book);
+      } else if (upload) {
+        parsed = fromUpload(upload, s);
+        status.from = "upload";
+      } else {
+        throw new Error("ยังไม่มีข้อมูล: อัปโหลดไฟล์ใน dashboard (เครื่องมือ admin → อัปโหลดไฟล์ TV) หรือตั้งค่า Microsoft Graph");
       }
-      const sheet = book.Sheets[s.sheet];
-      if (!sheet) throw new Error(`ไม่พบแท็บ "${s.sheet}"`);
-      const parsed = parseTvSheet(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), s);
-      if (parsed.missingColumns.length) throw new Error(`ไม่พบคอลัมน์: ${parsed.missingColumns.join(", ")}`);
       episodes.push(...parsed.episodes);
       competitors.push({ source: s, rows: parsed.competitors });
       Object.assign(status, { ok: true, episodes: parsed.episodes.length, pending: parsed.pending.length, cancelled: parsed.cancelled.length, competitors: parsed.competitors.length });
@@ -408,7 +472,7 @@ async function tvStep(rows) {
       status.error = String(e.message || e).slice(0, 200);
     }
     tvStatus.push(status);
-    console.log(`  ${s.name}: ${status.ok ? `${status.episodes} เทป · รอ rating ${status.pending} · งด ${status.cancelled} · คู่แข่ง ${status.competitors}` : `ERROR ${status.error}`}`);
+    console.log(`  ${s.name}${status.from ? ` [${status.from}]` : ""}: ${status.ok ? `${status.episodes} เทป · รอ rating ${status.pending} · งด ${status.cancelled} · คู่แข่ง ${status.competitors}` : `ERROR ${status.error}`}`);
   }
   if (!episodes.length) return { result: null, episodes, competitors };
   const merged = mergeTvEpisodes(rows, episodes);
@@ -467,6 +531,29 @@ function baseReport(status) {
   };
 }
 
+// Email to the admins listed in syncConfig/notifications (via Apps Script).
+// A mail problem is recorded on the report and never fails the sync.
+async function notifyRun(report, { force = false } = {}) {
+  const url = process.env.NOTIFY_WEBHOOK_URL;
+  const secret = process.env.NOTIFY_TOKEN;
+  try {
+    const doc = await (await firestore()).get("syncConfig/notifications");
+    const cfg = doc ? decodeFields(doc.fields || {}) : {};
+    const to = cleanRecipients(cfg.emails);
+    const mode = cfg.mode || "always";
+    if (!to.length || (!force && !shouldNotify(mode, report.status))) return;
+    if (!url || !secret) {
+      report.notify = { ok: false, at: new Date().toISOString(), to: to.length, error: "ยังไม่ได้ตั้งค่า NOTIFY_WEBHOOK_URL / NOTIFY_TOKEN" };
+      return;
+    }
+    const result = await sendEmail(url, secret, to, buildEmail(report));
+    report.notify = { ok: result.ok, at: new Date().toISOString(), to: to.length, ...(result.error ? { error: result.error } : {}) };
+    console.log(`email: ${result.ok ? `sent to ${to.length}` : `failed ${result.error}`}`);
+  } catch (e) {
+    report.notify = { ok: false, at: new Date().toISOString(), to: 0, error: String(e.message || e).slice(0, 200) };
+  }
+}
+
 function finish(report) {
   report.finishedAt = new Date().toISOString();
   report.platforms = platformStatus();
@@ -483,6 +570,7 @@ try {
     try {
       const report = finish(baseReport("failed"));
       report.message = `sync ล้มเหลวก่อนเขียนข้อมูล: ${String(e.message || e).slice(0, 300)} (ข้อมูลเดิมไม่ถูกแตะ)`;
+      await notifyRun(report);
       await writeRunReport(await firestore(), report);
     } catch (reportError) {
       console.error("could not record the failed run:", reportError);

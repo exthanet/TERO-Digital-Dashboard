@@ -20,6 +20,8 @@ export interface TvSourceStatus {
   cancelled?: number;
   competitors?: number;
   error?: string;
+  /** Where the numbers came from: "upload" (admin upload) or "sharepoint". */
+  from?: string;
 }
 
 export interface SyncStatus {
@@ -30,6 +32,8 @@ export interface SyncStatus {
   message: string;
   platforms: Record<string, PlatformStatus>;
   tvSources?: TvSourceStatus[];
+  /** Last email notification attempt. */
+  notify?: { ok: boolean; at: string; to: number; error?: string };
 }
 
 export interface SyncCheck {
@@ -97,4 +101,54 @@ export async function loadTvSources(): Promise<TvSourceConfig[]> {
 
 export async function saveTvSources(sources: TvSourceConfig[], updatedBy: string): Promise<void> {
   await setDoc(doc(db, "syncConfig", "tvSources"), { sources, updatedAt: new Date().toISOString(), updatedBy });
+}
+
+// ---------- TV workbook uploaded by an admin (read by the next sync) ----------
+
+export interface TvUploadDoc {
+  sourceId: string;
+  name: string;
+  sheet: string;
+  channel: "One31" | "GMM25";
+  program: string;
+  fileName: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  episodes: Record<string, unknown>[];
+  competitors: Record<string, unknown>[];
+  pending: string[];
+  cancelled: string[];
+}
+
+export async function saveTvUpload(upload: TvUploadDoc): Promise<void> {
+  await setDoc(doc(db, "tvUploads", upload.sourceId), upload);
+}
+
+export async function loadTvUploadInfo(): Promise<Record<string, { fileName: string; uploadedAt: string; uploadedBy: string; episodes: number }>> {
+  const snap = await getDocs(collection(db, "tvUploads"));
+  return Object.fromEntries(
+    snap.docs.map((d) => {
+      const x = d.data() as TvUploadDoc;
+      return [d.id, { fileName: x.fileName, uploadedAt: x.uploadedAt, uploadedBy: x.uploadedBy, episodes: x.episodes?.length || 0 }];
+    }),
+  );
+}
+
+// ---------- Email notifications after each sync ----------
+
+export type NotifyMode = "always" | "problems" | "off";
+
+export interface NotificationConfig {
+  emails: string[];
+  mode: NotifyMode;
+}
+
+export async function loadNotificationConfig(): Promise<NotificationConfig> {
+  const snap = await getDoc(doc(db, "syncConfig", "notifications"));
+  const d = snap.exists() ? snap.data() : {};
+  return { emails: (d.emails as string[]) || [], mode: (d.mode as NotifyMode) || "always" };
+}
+
+export async function saveNotificationConfig(config: NotificationConfig, updatedBy: string): Promise<void> {
+  await setDoc(doc(db, "syncConfig", "notifications"), { ...config, updatedAt: new Date().toISOString(), updatedBy });
 }

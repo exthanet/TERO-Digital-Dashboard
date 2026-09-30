@@ -7,9 +7,11 @@ import {
   Activity,
   BadgeDollarSign,
   BarChart3,
+  Bell,
   ChevronDown,
   ChevronUp,
   FileSpreadsheet,
+  FileUp,
   KeyRound,
   LayoutDashboard,
   Lightbulb,
@@ -37,6 +39,8 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
   syncStatus?: SyncStatus | null;
   openSyncStatus?: () => void;
   openTvSources?: () => void;
+  openTvUpload?: () => void;
+  openNotifications?: () => void;
   onOpenUserManagement?: () => void;
   onOpenChangePassword?: () => void;
   onLogout?: () => void;
@@ -116,6 +120,8 @@ export function DashboardSidebar({
   syncStatus,
   openSyncStatus,
   openTvSources,
+  openTvUpload,
+  openNotifications,
   onOpenUserManagement,
   onOpenChangePassword,
   onLogout,
@@ -264,9 +270,19 @@ export function DashboardSidebar({
                   <button type="button" onClick={run(openSyncStatus)}>
                     <RefreshCw /> สถานะการ Sync
                   </button>
+                  {openTvUpload && (
+                    <button type="button" className="mobile-hide" onClick={run(openTvUpload)}>
+                      <FileUp /> อัปโหลดไฟล์ TV
+                    </button>
+                  )}
                   {openTvSources && (
                     <button type="button" onClick={run(openTvSources)}>
                       <Tv /> แหล่งข้อมูล TV
+                    </button>
+                  )}
+                  {openNotifications && (
+                    <button type="button" onClick={run(openNotifications)}>
+                      <Bell /> การแจ้งเตือน
                     </button>
                   )}
                   <button type="button" className="mobile-hide" onClick={run(() => setSourceOpen(true))}>

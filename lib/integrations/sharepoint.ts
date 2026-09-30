@@ -49,3 +49,13 @@ export async function downloadSharedFile(url: string, token: string): Promise<Bu
   }
   return Buffer.from(await res.arrayBuffer());
 }
+
+/** When the shared file was last changed (to compare with a manual upload). */
+export async function sharedFileModified(url: string, token: string): Promise<string> {
+  const res = await fetch(`https://graph.microsoft.com/v1.0/shares/${shareId(url)}/driveItem?$select=lastModifiedDateTime`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return "";
+  const body = (await res.json().catch(() => ({}))) as { lastModifiedDateTime?: string };
+  return body.lastModifiedDateTime || "";
+}

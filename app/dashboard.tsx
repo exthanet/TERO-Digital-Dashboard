@@ -18,6 +18,8 @@ import { RankingSection } from "@/components/dashboard/sections/RankingSection";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
 import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
+import { TvUploadModal } from "@/components/dashboard/sections/TvUploadModal";
+import { NotificationsModal } from "@/components/dashboard/sections/NotificationsModal";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +42,8 @@ export default function Dashboard() {
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
+  const [tvUploadOpen, setTvUploadOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   // undefined = not loaded; null = no sync has run yet.
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null | undefined>(undefined);
   // Firestore only serves data to signed-in, active accounts.
@@ -98,6 +102,8 @@ export default function Dashboard() {
         onTabChange={setActiveTab}
         syncStatus={syncStatus}
         openTvSources={() => setTvSourcesOpen(true)}
+        openTvUpload={() => setTvUploadOpen(true)}
+        openNotifications={() => setNotificationsOpen(true)}
         onOpenUserManagement={() => setUserManagementOpen(true)}
         onOpenChangePassword={() => setChangePasswordOpen(true)}
         onLogout={auth.logout}
@@ -261,6 +267,18 @@ export default function Dashboard() {
       <TvSourcesModal
         open={tvSourcesOpen && isAdmin}
         onClose={() => setTvSourcesOpen(false)}
+        status={syncStatus ?? null}
+        userEmail={auth.user?.email || ""}
+      />
+      <TvUploadModal
+        open={tvUploadOpen && isAdmin}
+        onClose={() => setTvUploadOpen(false)}
+        rawRows={model.rawRows}
+        userEmail={auth.user?.email || ""}
+      />
+      <NotificationsModal
+        open={notificationsOpen && isAdmin}
+        onClose={() => setNotificationsOpen(false)}
         status={syncStatus ?? null}
         userEmail={auth.user?.email || ""}
       />
