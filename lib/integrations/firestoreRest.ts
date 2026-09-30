@@ -123,6 +123,19 @@ export function encodeFields(obj: Record<string, unknown>): Record<string, FsVal
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined).map(([k, v]) => [k, encodeValue(v)]));
 }
 
+/** Temporary server errors (5xx, dropped connection) are retried with a short backoff. */
+async function fetchRetry(url: string | URL, init?: RequestInit, tries = 4): Promise<Response> {
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status < 500 || i >= tries) return res;
+    } catch (e) {
+      if (i >= tries) throw e;
+    }
+    await new Promise((r) => setTimeout(r, 500 * 2 ** i));
+  }
+}
+
 export class Firestore {
   readonly base: string;
   private token: string;
@@ -144,7 +157,7 @@ export class Firestore {
       const url = new URL(`${this.base}/${collection}`);
       url.searchParams.set("pageSize", "10"); // masterData documents are ~0.5 MB each
       if (pageToken) url.searchParams.set("pageToken", pageToken);
-      const res = await fetch(url, { headers: this.headers() });
+      const res = await fetchRetry(url, { headers: this.headers() });
       const body = (await res.json()) as { documents?: RawDoc[]; nextPageToken?: string; error?: { message: string } };
       if (!res.ok) throw new Error(`list ${collection}: ${body.error?.message || res.status}`);
       out.push(...(body.documents || []));
@@ -154,7 +167,7 @@ export class Firestore {
   }
 
   async get(path: string): Promise<RawDoc | null> {
-    const res = await fetch(`${this.base}/${path}`, { headers: this.headers() });
+    const res = await fetchRetry(`${this.base}/${path}`, { headers: this.headers() });
     if (res.status === 404) return null;
     const body = (await res.json()) as RawDoc & { error?: { message: string } };
     if (!res.ok) throw new Error(`get ${path}: ${body.error?.message || res.status}`);
@@ -170,7 +183,7 @@ export class Firestore {
     // production and the emulator honour (the emulator ignores them in a PATCH URL).
     const name = `${this.base.split("/v1/")[1]}/${path}`;
     const currentDocument = pre.updateTime ? { updateTime: pre.updateTime } : pre.mustNotExist ? { exists: false } : undefined;
-    const res = await fetch(`${this.base}:commit`, {
+    const res = await fetchRetry(`${this.base}:commit`, {
       method: "POST",
       headers: this.headers(true),
       body: JSON.stringify({ writes: [{ update: { name, fields }, ...(currentDocument ? { currentDocument } : {}) }] }),
@@ -181,7 +194,7 @@ export class Firestore {
   }
 
   async delete(path: string): Promise<void> {
-    const res = await fetch(`${this.base}/${path}`, { method: "DELETE", headers: this.headers() });
+    const res = await fetchRetry(`${this.base}/${path}`, { method: "DELETE", headers: this.headers() });
     if (!res.ok && res.status !== 404) throw new Error(`delete ${path}: ${res.status}`);
   }
 }

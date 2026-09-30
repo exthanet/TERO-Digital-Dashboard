@@ -214,6 +214,8 @@ function vdoType(network: Network, post: Post, text: string): string {
 // ---------- mapping ----------
 
 export interface MappedRow extends MasterRowOutput {
+  /** Facebook posts only: people who watched the video (3-second views). "" elsewhere. */
+  Video_Views: string;
   /** Program could not be detected; the team should fill it in. */
   _review: boolean;
   _brand: string;
@@ -236,6 +238,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
   const n = (k: string) => parseNumber(post[k]);
   let platform: string, url: string, id: string, text: string, when: unknown;
   let views: number, likes: number, comments: number, shares: number, durationSec: number;
+  let videoViews = -1; // -1 = not a Facebook post
   switch (network) {
     case "facebook":
       platform = "Facebook";
@@ -243,9 +246,11 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       id = String(post.postId ?? "").split("_").pop() || postId(platform, url);
       text = String(post.text ?? "");
       when = post.timestamp ?? post.created;
-      // The team's Facebook "Views" are impressions (see row Notes); video
-      // views are only a fallback when impressions are missing.
+      // Views follow Meta's "Views" (content shown or played) = impressions, as
+      // in the team's data; video views only when impressions are missing.
+      // Watched-video counts are kept separately in Video_Views.
       views = n("impressions") || n("videoViews");
+      videoViews = n("videoViews");
       likes = n("reactions");
       comments = n("comments");
       shares = n("shares");
@@ -271,7 +276,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       id = postId(platform, url) || String(post.postId ?? post.reelId ?? "");
       text = String(post.content ?? "");
       when = post.publishedAt;
-      views = n("views") || n("impressionsTotal");
+      views = n("views"); // Meta "views"; never impressions
       likes = n("likes");
       comments = n("comments");
       shares = n("shares");
@@ -333,6 +338,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     Shares: formatWhole(shares),
     Engagement: formatWhole(engagement),
     Engagement_Rate: formatPercent(views > 0 ? (engagement / views) * 100 : 0),
+    Video_Views: videoViews >= 0 ? formatWhole(videoViews) : "",
     ...EMPTY_TV,
     Best_of_Month: "",
     Upload_Count: "1",
@@ -346,7 +352,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
 // ---------- merge ----------
 
 /** Columns Metricool keeps up to date on rows that already exist. */
-export const METRIC_COLUMNS = ["Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate"] as const;
+export const METRIC_COLUMNS = ["Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate", "Video_Views"] as const;
 
 export interface MergeResult {
   merged: Record<string, unknown>[];

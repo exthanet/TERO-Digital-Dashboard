@@ -37,6 +37,9 @@ function summarize(source: RecordRow[], tvMode: boolean) {
   const digitalViews = digital.reduce((a, r) => a + r.views, 0);
   const views = perf.reduce((a, r) => a + (tvMode ? r.audienceTotal + r.gmmAudience : r.views), 0);
   const engagement = perf.reduce((a, r) => a + r.engagement, 0);
+  // Rate over content that has views: photo posts have engagement but no views.
+  const viewed = perf.filter((r) => (tvMode ? r.audienceTotal + r.gmmAudience : r.views) > 0);
+  const rateEngagement = viewed.reduce((a, r) => a + r.engagement, 0);
   const tvAudience = tv.reduce((a, r) => a + r.audienceTotal + r.gmmAudience, 0);
   return {
     rows: source.length,
@@ -46,7 +49,7 @@ function summarize(source: RecordRow[], tvMode: boolean) {
     ratingOne31: one31.length ? one31.reduce((a, r) => a + r.ratingTotal, 0) / one31.length : 0,
     ratingGmm25: gmm25.length ? gmm25.reduce((a, r) => a + r.gmmRating, 0) / gmm25.length : 0,
     engagement,
-    engagementRate: views ? engagement / views : 0,
+    engagementRate: views ? rateEngagement / views : 0,
   };
 }
 
@@ -297,6 +300,10 @@ export function useDashboard(enabled = true) {
         0,
       ),
       engagement = performanceFiltered.reduce((a, r) => a + r.engagement, 0),
+      // Rate over content that has views: photo posts have engagement but no views.
+      rateEngagement = performanceFiltered
+        .filter((r) => (tvMode ? r.audienceTotal + r.gmmAudience : r.views) > 0)
+        .reduce((a, r) => a + r.engagement, 0),
       likes = performanceFiltered.reduce((a, r) => a + r.likes, 0),
       comments = performanceFiltered.reduce((a, r) => a + r.comments, 0),
       shares = performanceFiltered.reduce((a, r) => a + r.shares, 0),
@@ -361,7 +368,7 @@ export function useDashboard(enabled = true) {
       tvAudience,
       tvEpisodes,
       tvAudienceAvg: tvEpisodes ? tvAudience / tvEpisodes : 0,
-      engagementRate: views ? engagement / views : 0,
+      engagementRate: views ? rateEngagement / views : 0,
       avgDaily: views / days,
     };
   }, [performanceFiltered, filtered, digitalFiltered, tvMode]);

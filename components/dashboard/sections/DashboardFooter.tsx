@@ -17,7 +17,10 @@ export function DashboardFooter({
         แหล่งข้อมูล: <strong>{sourceName}</strong> · {num(totalRows)} รายการ · ข้อมูลอัปเดตล่าสุด:{" "}
         <strong>{uploadedAt ? `${dateTimeLabel(uploadedAt)} น.` : "-"}</strong>
       </span>
-      <span>Digital Views แยกจาก TV Rating · Metricool อาจล่าช้า 2–3 วัน</span>
+      <span>
+        Digital Views แยกจาก TV Rating · Facebook: โพสต์ = การแสดงผล (Views ตามนิยาม Meta), Reels = ยอดเล่น ·
+        Metricool อาจล่าช้า 2–3 วัน
+      </span>
     </footer>
   );
 }

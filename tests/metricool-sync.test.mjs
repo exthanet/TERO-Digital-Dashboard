@@ -76,13 +76,24 @@ test("each network maps to a master row with the team's labels", () => {
     text: "#ถกไม่เถียง", type: "video", timestamp: 1790670955000, videoViews: 900, impressions: 4852, reactions: 225, comments: 29, shares: 6,
   }, TERO);
   assert.equal(fbPost.VDO_Type, "Facebook Post"); // videos in the posts feed are still "Facebook Post"
-  // Team data: Facebook Views = impressions, also for video posts (not video views).
+  // Facebook post Views = impressions (Meta "Views", as in the team data);
+  // watched-video counts are kept in Video_Views.
   assert.equal(fbPost.Views, "4852");
-  const noImpressions = mapPost("facebook", {
+  assert.equal(fbPost.Video_Views, "900");
+  const photo = mapPost("facebook", {
     postId: "330339053719456_1069294735733467", link: "https://www.facebook.com/330339053719456/posts/1069294735733467",
-    text: "#ถกไม่เถียง", type: "video", timestamp: 1790670955000, videoViews: 900, reactions: 1, comments: 0, shares: 0,
+    text: "#ถกไม่เถียง", type: "photo", timestamp: 1790670955000, impressions: 5000, reactions: 50, comments: 2, shares: 1,
   }, TERO);
-  assert.equal(noImpressions.Views, "900");
+  assert.equal(photo.Views, "5000"); // photos: shown on screen = Meta views
+  assert.equal(photo.Video_Views, "0");
+  const noImpressions = mapPost("facebook", {
+    postId: "330339053719456_1069294735733468", link: "https://www.facebook.com/330339053719456/posts/1069294735733468",
+    text: "x", type: "video", timestamp: 1790670955000, videoViews: 451, reactions: 1, comments: 0, shares: 0,
+  }, TERO);
+  assert.equal(noImpressions.Views, "451"); // no impressions from Metricool: video views
+  assert.equal(reel.Video_Views, ""); // only Facebook posts carry Video_Views
+  const igNoViews = mapPost("instagram", { url: "https://www.instagram.com/p/ABCDE12345/", content: "x", publishedAt: "2026-09-26T11:58:58+0200", impressionsTotal: 700 }, TERO);
+  assert.equal(igNoViews.Views, "0"); // never impressions as views
 
   const tt = mapPost("tiktok", {
     videoId: "7689781312269356294", shareUrl: "https://www.tiktok.com/@thok/video/7689781312269356294",

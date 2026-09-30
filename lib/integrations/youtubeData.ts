@@ -147,6 +147,7 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
     Shares: "0",
     Engagement: formatWhole(engagement),
     Engagement_Rate: formatPercent(v.views > 0 ? (engagement / v.views) * 100 : 0),
+    Video_Views: "",
     TV_Rating_Total: "",
     "TV_Rating_15+BKK": "",
     "TV_Rating_15+URBAN": "",

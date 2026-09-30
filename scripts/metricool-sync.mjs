@@ -19,7 +19,9 @@
  * TV ratings: the workbook tabs listed in Firestore syncConfig/tvSources (set
  * by admins in the dashboard) are downloaded from SharePoint with Microsoft
  * Graph (AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET) and merged
- * in the same run. For testing: --tv-file=<local .xlsx> reads that file
+ * in the same run. --update-only refreshes rows already in masterData and adds
+ * no new ones (for backfilling a column over a long window).
+ * For testing: --tv-file=<local .xlsx> reads that file
  * instead, --tv-config=<json with { sources: [...] }> replaces the Firestore list.
  *
  * Credentials: METRICOOL_API_TOKEN, METRICOOL_USER_ID (env or .env.local).
@@ -193,7 +195,11 @@ const original = await loadBaseline();
 const dedupe = dedupeDigitalRows(original);
 const baseline = dedupe.rows;
 if (dedupe.removed.length) console.log(`duplicates: ${dedupe.removed.length} extra rows in ${dedupe.groups} posts will be removed (backup: removed-duplicates.json)`);
-const result = mergeIntoMaster(baseline, incoming);
+// --update-only: refresh numbers of rows already in masterData, add nothing new.
+const baselineKeys = new Set(baseline.map((r) => rowKey(r)).filter(Boolean));
+const toMerge = args["update-only"] === "true" ? incoming.filter((r) => baselineKeys.has(rowKey(r))) : incoming;
+if (toMerge.length !== incoming.length) console.log(`update-only: ${incoming.length - toMerge.length} posts not in masterData are left out`);
+const result = mergeIntoMaster(baseline, toMerge);
 
 // How well does automatic detection agree with what the team labelled?
 const byKey = new Map(baseline.map((r) => [rowKey(r), r]).filter(([k]) => k));
@@ -292,7 +298,7 @@ console.log(`report: ${outDir}/summary.json, new-rows.csv, needs-review.csv, upd
 
 // Safety checks: all must pass before this data may replace production.
 fs.writeFileSync(path.join(outDir, "removed-duplicates.json"), JSON.stringify(dedupe.removed, null, 1));
-const validation = validateMerge(baseline, result, incoming, { originalCount: original.length, removed: dedupe.removed });
+const validation = validateMerge(baseline, result, toMerge, { originalCount: original.length, removed: dedupe.removed });
 fs.writeFileSync(path.join(outDir, "validation.json"), JSON.stringify(validation, null, 2));
 console.log(`\nvalidation: ${validation.ok ? "PASS" : "FAIL"}`);
 for (const c of validation.checks) {
