@@ -76,7 +76,13 @@ test("each network maps to a master row with the team's labels", () => {
     text: "#ถกไม่เถียง", type: "video", timestamp: 1790670955000, videoViews: 900, impressions: 4852, reactions: 225, comments: 29, shares: 6,
   }, TERO);
   assert.equal(fbPost.VDO_Type, "Facebook Post"); // videos in the posts feed are still "Facebook Post"
-  assert.equal(fbPost.Views, "900");
+  // Team data: Facebook Views = impressions, also for video posts (not video views).
+  assert.equal(fbPost.Views, "4852");
+  const noImpressions = mapPost("facebook", {
+    postId: "330339053719456_1069294735733467", link: "https://www.facebook.com/330339053719456/posts/1069294735733467",
+    text: "#ถกไม่เถียง", type: "video", timestamp: 1790670955000, videoViews: 900, reactions: 1, comments: 0, shares: 0,
+  }, TERO);
+  assert.equal(noImpressions.Views, "900");
 
   const tt = mapPost("tiktok", {
     videoId: "7689781312269356294", shareUrl: "https://www.tiktok.com/@thok/video/7689781312269356294",

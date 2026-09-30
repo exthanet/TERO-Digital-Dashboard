@@ -243,7 +243,9 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       id = String(post.postId ?? "").split("_").pop() || postId(platform, url);
       text = String(post.text ?? "");
       when = post.timestamp ?? post.created;
-      views = n("videoViews") || n("impressions");
+      // The team's Facebook "Views" are impressions (see row Notes); video
+      // views are only a fallback when impressions are missing.
+      views = n("impressions") || n("videoViews");
       likes = n("reactions");
       comments = n("comments");
       shares = n("shares");
