@@ -26,6 +26,7 @@ import {
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
 import { getAccessToken, loadMasterRows } from "../lib/integrations/firestoreRest.ts";
 import { validateMerge } from "../lib/integrations/syncValidation.ts";
+import { excelDate } from "../lib/dashboard/normalize.ts";
 
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
@@ -49,15 +50,8 @@ const until = args.until || today;
 const baselineFile = args.baseline || "public/master-data.json";
 const outDir = args.out || path.join("output", "metricool-test-run");
 
-// Firestore stores dates as "YYYY-MM-DDT16:59:56Z" (4 s before Bangkok
-// midnight of the NEXT day), so the Bangkok date is the day after the UTC one.
-const toIso = (d) => {
-  const s = String(d || "");
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return new Date(Date.parse(s) + 7 * 3600000 + 60000).toISOString().slice(0, 10);
-  return s.slice(0, 10);
-};
+// Same date rules as the dashboard: plain days, read as written.
+const toIso = (d) => excelDate(d);
 
 const api = new MetricoolApi({
   userId: process.env.METRICOOL_USER_ID,

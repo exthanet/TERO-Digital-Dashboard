@@ -38,6 +38,8 @@ yarn-error.log*
 *-firebase-adminsdk-*.json
 # local credential files for the data sync (never commit)
 .secrets/
+# Firestore backups made by maintenance scripts (real data, never commit)
+backups/
 
 # local Docker overrides
 docker-compose.override.yml

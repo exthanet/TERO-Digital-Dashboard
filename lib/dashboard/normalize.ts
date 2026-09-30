@@ -16,52 +16,72 @@ export const pick = (r: RawRow, ...keys: string[]) => {
   return null;
 };
 
-/**
- * Calendar day in Bangkok for an instant. Dates saved to Firestore from the
- * spreadsheets arrive as "YYYY-MM-DDT16:59:56Z", i.e. 4 seconds before
- * Bangkok midnight of the intended day; reading the UTC date put every row one
- * day early. The extra minute absorbs that rounding.
- */
-const bangkokDay = (ms: number) =>
-  Number.isFinite(ms) ? new Date(ms + 7 * 3600000 + 60000).toISOString().slice(0, 10) : "";
+// masterData stores dates as plain days ("YYYY-MM-DD") that match the source
+// files exactly. The dashboard reads them as written and never shifts them;
+// anything else is flagged so it gets fixed in the data, not hidden in code.
 
+/** A plain calendar day as stored in masterData. */
+export const isPlainDay = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/** Excel serial (days since 1899-12-30) → YYYY-MM-DD, date arithmetic only. */
+const serialDay = (n: number) =>
+  new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000).toISOString().slice(0, 10);
+
+const dmyDay = (t: string) => {
+  const m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s|$)/);
+  if (!m) return "";
+  let year = Number(m[3]);
+  if (year > 2400) year -= 543; // Buddhist Era (2569 → 2026)
+  return `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+};
+
+/**
+ * The day exactly as written in an imported file: Excel serial, "YYYY-MM-DD"
+ * or "DD/MM/YYYY" (Buddhist years allowed). Returns "" for anything that would
+ * need a timezone guess (JS Dates, timestamps), so imports never invent a day.
+ */
+export function sourceDay(v: unknown): string {
+  if (typeof v === "number") return v > 20000 && v < 80000 ? serialDay(v) : "";
+  const t = s(v);
+  if (isPlainDay(t)) return t;
+  return dmyDay(t);
+}
+
+/** Rows whose stored date is not a plain "YYYY-MM-DD" day. */
+export function countNonPlainDates(rows: RawRow[]): number {
+  return rows.filter((r) => {
+    const v = pick(r, "Date", "date", "Publish Date");
+    return v !== null && !isPlainDay(v);
+  }).length;
+}
+
+/** Day the dashboard uses for a row. Plain days and file formats are read as written. */
 export const excelDate = (v: unknown) => {
   if (!v) return "";
+  const day = sourceDay(v);
+  if (day) return day;
+  // Legacy shapes (Firestore Timestamps, JS Dates, ISO instants) are read
+  // literally as their UTC date, with no adjustment. countNonPlainDates makes
+  // the dashboard warn about them so the data is corrected at the source.
   if (typeof v === "object" && v !== null) {
     if ("toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
-      return bangkokDay((v as { toDate: () => Date }).toDate().getTime());
+      const d = (v as { toDate: () => Date }).toDate();
+      return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
     }
     if ("seconds" in v && typeof (v as { seconds: number }).seconds === "number") {
-      return bangkokDay((v as { seconds: number }).seconds * 1000);
+      return new Date((v as { seconds: number }).seconds * 1000).toISOString().slice(0, 10);
     }
   }
-  if (v instanceof Date) {
-    return bangkokDay(v.getTime());
-  }
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
   if (typeof v === "number") {
-    // Check if it's unix timestamp in seconds or ms
-    if (v > 1000000000000) {
-      return bangkokDay(v);
-    }
-    if (v > 1000000000) {
-      return bangkokDay(v * 1000);
-    }
-    // Excel serial date
-    return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000)
-      .toISOString()
-      .slice(0, 10);
+    if (v > 1000000000000) return new Date(v).toISOString().slice(0, 10);
+    if (v > 1000000000) return new Date(v * 1000).toISOString().slice(0, 10);
+    return "";
   }
   const t = s(v);
-  // A time part means an instant ("2026-09-26T16:59:56Z"); a bare date is the day itself.
-  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(t)) return bangkokDay(Date.parse(t));
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
-  const m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-  if (m) {
-    let year = Number(m[3]);
-    if (year > 2400) year -= 543; // Handle Buddhist Era years (e.g. 2569 -> 2026)
-    return `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  }
-  return bangkokDay(new Date(t).getTime());
+  const parsed = new Date(t);
+  return isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
 };
 
 export const normalizeVdoType = (v: string, p: string) => {

@@ -12,7 +12,7 @@ const vite = await createServer({
 });
 after(() => vite.close());
 const { parseCsv } = await vite.ssrLoadModule("/lib/dashboard/csv.ts");
-const { normalize, normalizeRowsWithDeduplication, normalizeTopic, excelDate } =
+const { normalize, normalizeRowsWithDeduplication, normalizeTopic, excelDate, isPlainDay, countNonPlainDates, sourceDay } =
   await vite.ssrLoadModule("/lib/dashboard/normalize.ts");
 const { sumBy, topicSimilarity } = await vite.ssrLoadModule(
   "/lib/dashboard/analytics.ts",
@@ -162,21 +162,31 @@ test("TV episodes sort by One31 rating and compare with the previous 4 weeks", (
   assert.ok(Math.abs(r[1].vsAverage + 0.1) < 1e-9);
 });
 
-test("dates stored as Firestore instants read as the intended Bangkok day", () => {
-  // What the spreadsheets saved: 4 s before Bangkok midnight of 27 Sep.
-  const stored = "2026-09-26T16:59:56Z";
-  assert.equal(excelDate(stored), "2026-09-27");
-  assert.equal(excelDate({ seconds: Date.parse(stored) / 1000, nanoseconds: 0 }), "2026-09-27");
-  assert.equal(excelDate({ toDate: () => new Date(stored) }), "2026-09-27");
-  assert.equal(excelDate(new Date(stored)), "2026-09-27");
-  assert.equal(excelDate(Date.parse(stored)), "2026-09-27");
-  // A real afternoon post stays on its day.
-  assert.equal(excelDate("2026-09-27T06:13:00Z"), "2026-09-27");
-  // Plain days and Excel serials are unchanged.
+test("dates are read exactly as stored, never shifted", () => {
+  // masterData stores plain days that match the source files.
   assert.equal(excelDate("2026-09-27"), "2026-09-27");
   assert.equal(excelDate("27/09/2026"), "2026-09-27");
   assert.equal(excelDate("27/09/2569"), "2026-09-27");
-  assert.equal(excelDate(46292), "2026-09-27");
+  assert.equal(excelDate(46292), "2026-09-27"); // Excel serial
+  // Legacy instants are read literally (UTC date), not compensated.
+  assert.equal(excelDate("2026-09-26T16:59:56Z"), "2026-09-26");
   assert.equal(excelDate(""), "");
   assert.equal(excelDate("not a date"), "");
+});
+
+test("non-plain stored dates are counted so the dashboard can warn", () => {
+  assert.equal(isPlainDay("2026-09-27"), true);
+  assert.equal(isPlainDay("2026-09-26T16:59:56Z"), false);
+  assert.equal(countNonPlainDates([{ Date: "2026-09-27" }, { Date: "2026-09-26T16:59:56Z" }, { Date: 46292 }, { Topic: "no date" }]), 2);
+});
+
+test("imports store the day exactly as written in the file", () => {
+  assert.equal(sourceDay(46292), "2026-09-27"); // Excel date cell (serial)
+  assert.equal(sourceDay("27/09/2026"), "2026-09-27"); // CSV / Google Sheet text
+  assert.equal(sourceDay("27/09/2569 00:00"), "2026-09-27");
+  assert.equal(sourceDay("2026-09-27"), "2026-09-27");
+  // Anything needing a timezone guess is refused instead of invented.
+  assert.equal(sourceDay(new Date("2026-09-26T17:00:00Z")), "");
+  assert.equal(sourceDay("2026-09-26T16:59:56Z"), "");
+  assert.equal(sourceDay(1790670955000), "");
 });

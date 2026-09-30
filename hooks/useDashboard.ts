@@ -10,7 +10,13 @@ import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
 import { getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { compact, num, pct } from "@/lib/dashboard/format";
-import { n, normalize, normalizeRowsWithDeduplication } from "@/lib/dashboard/normalize";
+import {
+  countNonPlainDates,
+  n,
+  normalize,
+  normalizeRowsWithDeduplication,
+  sourceDay,
+} from "@/lib/dashboard/normalize";
 import type {
   CompareFilter,
   CompareRow,
@@ -43,6 +49,22 @@ function summarize(source: RecordRow[], tvMode: boolean) {
     engagement,
     engagementRate: views ? engagement / views : 0,
   };
+}
+
+/** Imported rows with each date stored as the plain day written in the file. */
+function toPlainDates(raw: RawRow[]): { rows: RawRow[]; unreadable: number } {
+  let unreadable = 0;
+  const rows = raw.map((r) => {
+    const key = ["Date", "date", "Publish Date"].find((k) => r[k] !== undefined && r[k] !== null && r[k] !== "");
+    if (!key) return r;
+    const day = sourceDay(r[key]);
+    if (!day) {
+      unreadable++;
+      return r;
+    }
+    return { ...r, [key]: day };
+  });
+  return { rows, unreadable };
 }
 
 const shiftIso = (iso: string, days: number) => {
@@ -101,6 +123,10 @@ export function useDashboard(enabled = true) {
           const cloudResult = await loadMasterDataWithMetaFromFirebase().catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
             setRawRows(cloudResult.rows);
+            const nonPlain = countNonPlainDates(cloudResult.rows);
+            if (nonPlain) {
+              setMessage(`⚠️ พบ ${num(nonPlain)} แถวที่วันที่ไม่ใช่รูปแบบ YYYY-MM-DD ในข้อมูล Cloud วันที่ของแถวเหล่านี้อาจคลาดเคลื่อน กรุณาแจ้งผู้ดูแลระบบ`);
+            }
             const x = normalizeRowsWithDeduplication(cloudResult.rows);
             setRows(x);
             const d = x.map((r) => r.date).filter(Boolean).sort();
@@ -953,7 +979,10 @@ export function useDashboard(enabled = true) {
           : "ยังไม่มีข้อมูล Engagement เพียงพอ",
     ];
   }, [top, platforms, platformTotal, performanceFiltered, tvMode]);
-  function applyRows(raw: RawRow[], name: string, fileTimestamp?: string) {
+  function applyRows(imported: RawRow[], name: string, fileTimestamp?: string) {
+    // Every import path (Excel, CSV, Google Sheet) stores the day exactly as
+    // written in the file, so "บันทึกขึ้น Cloud" keeps raw data = source.
+    const { rows: raw, unreadable } = toPlainDates(imported);
     const x = normalizeRowsWithDeduplication(raw);
     if (!x.length) throw new Error("ไม่พบข้อมูลที่มีคอลัมน์ Date");
     setRawRows(raw);
@@ -963,7 +992,10 @@ export function useDashboard(enabled = true) {
     setEndDate(d.at(-1) || d[0]);
     setSourceName(name);
     setUploadedAt(fileTimestamp || new Date().toISOString());
-    setMessage(`นำเข้า ${num(x.length)} แถวเรียบร้อย (สามารถกดบันทึกขึ้น Cloud ได้)`);
+    setMessage(
+      `นำเข้า ${num(x.length)} แถวเรียบร้อย (สามารถกดบันทึกขึ้น Cloud ได้)` +
+        (unreadable ? ` · ⚠️ ${num(unreadable)} แถวอ่านวันที่ไม่ได้ กรุณาตรวจคอลัมน์ Date ในไฟล์` : ""),
+    );
     setSourceOpen(false);
   }
 
@@ -1045,10 +1077,9 @@ export function useDashboard(enabled = true) {
         parsedRows = parseCsv(text);
       } else {
         const XLSX = await import("xlsx");
-        const wb = XLSX.read(await file.arrayBuffer(), {
-          type: "array",
-          cellDates: true,
-        });
+        // Date cells stay Excel serial numbers: turning them into JS Dates
+        // (cellDates) is what saved Bangkok midnight as the previous UTC day.
+        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
         const shName =
           wb.SheetNames.find((x) => x.toLowerCase().includes("master")) ||
           wb.SheetNames[0];
