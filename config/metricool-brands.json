@@ -1,0 +1,8 @@
+[
+  { "blogId": 6487104, "label": "TERO Digital", "mode": "multi", "enabled": true, "youtubeChannelId": "UCq2_AaNWBd0kxzR1HL2yhsw" },
+  { "blogId": 6499952, "label": "ถกไม่เถียง", "mode": "single", "program": "ถกไม่เถียง", "enabled": true, "youtubeChannelId": "UCLZd__C13KacoUKip4I5cJw" },
+  { "blogId": 6499961, "label": "เงินทองของจริง", "mode": "single", "program": "เงินทองของจริง", "enabled": false },
+  { "blogId": 6499969, "label": "TERO News", "mode": "multi", "enabled": false },
+  { "blogId": 6499994, "label": "Kids Fun คิดฝัน", "mode": "single", "program": "Kidsfun", "enabled": false },
+  { "blogId": 6500128, "label": "HITZ Thailand", "mode": "single", "program": "Hitzradio", "enabled": false }
+]

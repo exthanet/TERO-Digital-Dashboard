@@ -39,13 +39,37 @@
 
 ## ส่วนที่ 4: ค่า Metricool (ที่เดียวกับข้อ 8)
 
-12. เพิ่ม repository secret อีก 3 ตัว (Metricool → Account settings → API):
+12. เพิ่ม repository secret อีก 2 ตัว (Metricool → Account settings → API):
 
 | Secret | ค่า |
 |---|---|
 | `METRICOOL_API_TOKEN` | API token |
 | `METRICOOL_USER_ID` | user id |
-| `METRICOOL_BLOG_ID` | id ของ brand ถกไม่เถียง |
+
+ไม่ต้องใส่ blog id: ระบบดึงรายชื่อ brand เอง และเลือก brand ที่จะดึงใน `config/metricool-brands.json`
+
+## ส่วนที่ 5: YouTube Data API key (เติมคลิปที่ Metricool ไม่มี)
+
+Metricool ไม่มีข้อมูล YouTube บางคลิป (ประมาณ 11% ในเดือน ส.ค.) และช้า 2–3 วัน
+YouTube Data API ให้ยอดสะสมล่าสุดของทุกคลิป ฟรีวันละ 10,000 units (ระบบใช้ประมาณ 200)
+
+13. Google Cloud Console (โปรเจกต์เดียวกัน) → **APIs & Services** → **Library** → ค้นหา **YouTube Data API v3** → **ENABLE**
+14. **APIs & Services** → **Credentials** → **+ CREATE CREDENTIALS** → **API key**
+15. กด **Edit API key** (หรือ Restrict key):
+    - **API restrictions** → **Restrict key** → เลือก **YouTube Data API v3** อย่างเดียว → **Save**
+16. เพิ่ม repository secret `YOUTUBE_API_KEY` = key ที่ได้
+17. ทดสอบในเครื่อง: เปิด `.env.local` แล้วใส่ `YOUTUBE_API_KEY=...` ในบรรทัดใหม่
+
+## ทดสอบในเครื่อง (test-run)
+
+```bash
+node scripts/metricool-sync.mjs --since=2026-08-01
+```
+
+รันแบบนี้เป็น test-run เสมอ: ดึงข้อมูลจริงและสรุปผลใน `output/metricool-test-run/` แต่ไม่เขียน Firestore
+
+ถ้าต้องการเทียบกับข้อมูลจริงใน Firestore (แทนไฟล์ `public/master-data.json`) ให้เก็บไฟล์ key ของ service account
+(จากข้อ 7) ไว้ที่ `.secrets/firebase-sync.json` ในโฟลเดอร์โปรเจกต์ โฟลเดอร์ `.secrets/` อยู่ใน `.gitignore`
 
 ## ปัญหาที่อาจเจอ
 
