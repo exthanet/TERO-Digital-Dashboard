@@ -12,7 +12,7 @@ const vite = await createServer({
 });
 after(() => vite.close());
 const { parseCsv } = await vite.ssrLoadModule("/lib/dashboard/csv.ts");
-const { normalize, normalizeRowsWithDeduplication, normalizeTopic } =
+const { normalize, normalizeRowsWithDeduplication, normalizeTopic, excelDate } =
   await vite.ssrLoadModule("/lib/dashboard/normalize.ts");
 const { sumBy, topicSimilarity } = await vite.ssrLoadModule(
   "/lib/dashboard/analytics.ts",
@@ -160,4 +160,23 @@ test("TV episodes sort by One31 rating and compare with the previous 4 weeks", (
   assert.deepEqual(r.map((x) => x.row.date), ["2026-09-22", "2026-09-23"]);
   assert.ok(Math.abs(r[0].vsAverage - 0.1) < 1e-9);
   assert.ok(Math.abs(r[1].vsAverage + 0.1) < 1e-9);
+});
+
+test("dates stored as Firestore instants read as the intended Bangkok day", () => {
+  // What the spreadsheets saved: 4 s before Bangkok midnight of 27 Sep.
+  const stored = "2026-09-26T16:59:56Z";
+  assert.equal(excelDate(stored), "2026-09-27");
+  assert.equal(excelDate({ seconds: Date.parse(stored) / 1000, nanoseconds: 0 }), "2026-09-27");
+  assert.equal(excelDate({ toDate: () => new Date(stored) }), "2026-09-27");
+  assert.equal(excelDate(new Date(stored)), "2026-09-27");
+  assert.equal(excelDate(Date.parse(stored)), "2026-09-27");
+  // A real afternoon post stays on its day.
+  assert.equal(excelDate("2026-09-27T06:13:00Z"), "2026-09-27");
+  // Plain days and Excel serials are unchanged.
+  assert.equal(excelDate("2026-09-27"), "2026-09-27");
+  assert.equal(excelDate("27/09/2026"), "2026-09-27");
+  assert.equal(excelDate("27/09/2569"), "2026-09-27");
+  assert.equal(excelDate(46292), "2026-09-27");
+  assert.equal(excelDate(""), "");
+  assert.equal(excelDate("not a date"), "");
 });

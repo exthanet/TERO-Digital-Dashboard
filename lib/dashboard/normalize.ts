@@ -16,28 +16,35 @@ export const pick = (r: RawRow, ...keys: string[]) => {
   return null;
 };
 
+/**
+ * Calendar day in Bangkok for an instant. Dates saved to Firestore from the
+ * spreadsheets arrive as "YYYY-MM-DDT16:59:56Z", i.e. 4 seconds before
+ * Bangkok midnight of the intended day; reading the UTC date put every row one
+ * day early. The extra minute absorbs that rounding.
+ */
+const bangkokDay = (ms: number) =>
+  Number.isFinite(ms) ? new Date(ms + 7 * 3600000 + 60000).toISOString().slice(0, 10) : "";
+
 export const excelDate = (v: unknown) => {
   if (!v) return "";
   if (typeof v === "object" && v !== null) {
     if ("toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
-      const d = (v as { toDate: () => Date }).toDate();
-      return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+      return bangkokDay((v as { toDate: () => Date }).toDate().getTime());
     }
     if ("seconds" in v && typeof (v as { seconds: number }).seconds === "number") {
-      const d = new Date((v as { seconds: number }).seconds * 1000);
-      return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+      return bangkokDay((v as { seconds: number }).seconds * 1000);
     }
   }
   if (v instanceof Date) {
-    return isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
+    return bangkokDay(v.getTime());
   }
   if (typeof v === "number") {
     // Check if it's unix timestamp in seconds or ms
     if (v > 1000000000000) {
-      return new Date(v).toISOString().slice(0, 10);
+      return bangkokDay(v);
     }
     if (v > 1000000000) {
-      return new Date(v * 1000).toISOString().slice(0, 10);
+      return bangkokDay(v * 1000);
     }
     // Excel serial date
     return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000)
@@ -45,6 +52,8 @@ export const excelDate = (v: unknown) => {
       .slice(0, 10);
   }
   const t = s(v);
+  // A time part means an instant ("2026-09-26T16:59:56Z"); a bare date is the day itself.
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(t)) return bangkokDay(Date.parse(t));
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
   const m = t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
   if (m) {
@@ -52,8 +61,7 @@ export const excelDate = (v: unknown) => {
     if (year > 2400) year -= 543; // Handle Buddhist Era years (e.g. 2569 -> 2026)
     return `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   }
-  const parsed = new Date(t);
-  return isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+  return bangkokDay(new Date(t).getTime());
 };
 
 export const normalizeVdoType = (v: string, p: string) => {
