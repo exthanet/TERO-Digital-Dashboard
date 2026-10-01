@@ -63,17 +63,17 @@ export type IntegrationMap = Record<
   IntegrationStatus
 >;
 
+/** Date menu: rolling ranges end yesterday; years, months and quarters carry their year. */
 export type DatePreset =
-  | "ALL"
-  | "TODAY"
   | "LAST_7_DAYS"
   | "LAST_28_DAYS"
-  | "THIS_MONTH"
-  | "LAST_MONTH"
-  | "THIS_YEAR"
-  | "LAST_YEAR"
-  | "QUARTER_1"
-  | "QUARTER_2"
-  | "QUARTER_3"
-  | "QUARTER_4"
+  | "LAST_90_DAYS"
+  | "LAST_365_DAYS"
+  | "ALL"
+  | `YEAR_${number}`
+  | `MONTH_${number}-${string}`
+  | `QUARTER_${number}_${1 | 2 | 3 | 4}`
   | "CUSTOM";
+
+/** What the KPI % compares with. */
+export type ComparePreset = "PREVIOUS" | "YEAR_AGO" | "CUSTOM" | "NONE";

@@ -139,6 +139,7 @@ export default function Dashboard() {
               setDatePreset={model.setDatePreset}
               options={model.options}
               applyDatePreset={model.applyDatePreset}
+              dataFirstDate={model.dataFirstDate}
             />
             <DataStatus
               sourceName={model.sourceName}
@@ -160,6 +161,13 @@ export default function Dashboard() {
               types={model.types}
               growth={model.growth}
               comparePeriod={model.comparePeriod}
+              compareMode={model.compareMode}
+              setCompareMode={model.setCompareMode}
+              compareStart={model.compareStart}
+              setCompareStart={model.setCompareStart}
+              compareEnd={model.compareEnd}
+              setCompareEnd={model.setCompareEnd}
+              dataFirstDate={model.dataFirstDate}
             />
             <ExecutiveInsights insights={model.insights} />
             <RankingSection

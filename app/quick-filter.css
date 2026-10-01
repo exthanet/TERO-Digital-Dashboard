@@ -408,3 +408,45 @@
     width: 100% !important;
   }
 }
+
+/* Preset chosen: the range is shown as text, the date fields only for "กำหนดเอง". */
+.date-filter .date-range-text {
+  grid-column: 2 / -1;
+  align-self: center;
+  color: #334155;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "% เปลี่ยนแปลงเทียบกับ [ช่วงก่อนหน้า ▾] 6 ส.ค. – 2 ก.ย. 2569" */
+.kpi-compare-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kpi-compare-note .compare-select,
+.kpi-compare-note .compare-date {
+  border: 1px solid #dce3ee;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #0757e8;
+  font: inherit;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+.kpi-compare-note .compare-date {
+  background: #f8fafc;
+  color: #334155;
+}
+.kpi-compare-note .compare-empty {
+  color: #b54708;
+}
+@media (max-width: 800px) {
+  .date-filter .date-range-text {
+    grid-column: 1 / -1;
+  }
+}

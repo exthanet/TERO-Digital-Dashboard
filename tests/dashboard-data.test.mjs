@@ -109,12 +109,12 @@ test("grouping and topic matching retain their existing behavior", () => {
   assert.equal(topicSimilarity("ข่าวไทย กัมพูชา #ข่าว", "ข่าวไทย กัมพูชา"), 1);
   assert.equal(topicSimilarity("", "ข่าว"), 0);
 });
-test("quarter presets use the selected data year", () => {
-  assert.deepEqual(getDatePresetRange("QUARTER_4", 2025), [
+test("quarter presets carry their year", () => {
+  assert.deepEqual(getDatePresetRange("QUARTER_2025_4"), [
     "2025-10-01",
     "2025-12-31",
   ]);
-  assert.deepEqual(getDatePresetRange("QUARTER_1", 2024), [
+  assert.deepEqual(getDatePresetRange("QUARTER_2024_1"), [
     "2024-01-01",
     "2024-03-31",
   ]);
@@ -199,4 +199,34 @@ test("28 วันล่าสุด: 28 full days ending yesterday (Bangkok)", 
   assert.equal(end, day(todayBkk, -1));
   assert.equal(start, day(todayBkk, -28));
   assert.equal((Date.parse(end) - Date.parse(start)) / 86400000 + 1, 28);
+});
+
+test("date menu: ranges end yesterday; years, months, quarters from the data", async () => {
+  const { getDatePresetRange, datePresetGroups } = await import("../lib/dashboard/dates.ts");
+  const now = new Date("2026-10-01T03:00:00Z"); // 10:00 in Bangkok, 1 Oct 2026
+  assert.deepEqual(getDatePresetRange("LAST_7_DAYS", undefined, now), ["2026-09-24", "2026-09-30"]);
+  assert.deepEqual(getDatePresetRange("LAST_90_DAYS", undefined, now), ["2026-07-03", "2026-09-30"]);
+  assert.deepEqual(getDatePresetRange("LAST_365_DAYS", undefined, now), ["2025-10-01", "2026-09-30"]);
+  assert.deepEqual(getDatePresetRange("ALL", { first: "2025-08-06", last: "2026-10-01" }, now), ["2025-08-06", "2026-10-01"]);
+  assert.deepEqual(getDatePresetRange("YEAR_2026", undefined, now), ["2026-01-01", "2026-09-30"]);
+  assert.deepEqual(getDatePresetRange("YEAR_2025", undefined, now), ["2025-01-01", "2025-12-31"]);
+  assert.deepEqual(getDatePresetRange("MONTH_2026-09", undefined, now), ["2026-09-01", "2026-09-30"]);
+  assert.deepEqual(getDatePresetRange("QUARTER_2026_3", undefined, now), ["2026-07-01", "2026-09-30"]);
+  const groups = datePresetGroups("2025-08-06", now);
+  const values = (label) => groups.find((g) => g.label === label).options.map((o) => o.value);
+  assert.deepEqual(values("รายปี"), ["YEAR_2026", "YEAR_2025"]);
+  assert.deepEqual(values("รายเดือน"), ["MONTH_2026-09", "MONTH_2026-08", "MONTH_2026-07"]); // 1 Oct: no full day of Oct yet
+  assert.deepEqual(values("รายไตรมาส"), ["QUARTER_2026_3", "QUARTER_2026_2", "QUARTER_2026_1"]);
+  const mid = datePresetGroups("2025-08-06", new Date("2026-10-15T03:00:00Z"));
+  assert.equal(mid.find((g) => g.label === "รายเดือน").options[0].label, "ต.ค. 2569 (ถึงเมื่อวาน)");
+});
+
+test("comparison: previous period, same period last year, custom, none", async () => {
+  const { getCompareRange, shiftYear } = await import("../lib/dashboard/dates.ts");
+  assert.deepEqual(getCompareRange("2026-09-03", "2026-09-30", "PREVIOUS"), { start: "2026-08-06", end: "2026-09-02" });
+  assert.deepEqual(getCompareRange("2026-09-01", "2026-09-30", "YEAR_AGO"), { start: "2025-09-01", end: "2025-09-30" });
+  assert.equal(shiftYear("2028-02-29", -1), "2027-02-28");
+  assert.deepEqual(getCompareRange("2026-09-01", "2026-09-30", "CUSTOM", { start: "2026-06-01", end: "2026-06-30" }), { start: "2026-06-01", end: "2026-06-30" });
+  assert.equal(getCompareRange("2026-09-01", "2026-09-30", "CUSTOM", { start: "2026-06-30", end: "2026-06-01" }), null);
+  assert.equal(getCompareRange("2026-09-01", "2026-09-30", "NONE"), null);
 });

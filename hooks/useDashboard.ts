@@ -8,7 +8,7 @@ import {
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
-import { getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
+import { getCompareRange, getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import {
   countNonPlainDates,
@@ -21,6 +21,7 @@ import type {
   CompareFilter,
   CompareRow,
   CompareSortKey,
+  ComparePreset,
   DatePreset,
   RawRow,
   RecordRow,
@@ -98,7 +99,10 @@ export function useDashboard(enabled = true) {
     [search, setSearch] = useState(""),
     [startDate, setStartDate] = useState(""),
     [endDate, setEndDate] = useState(""),
-    [datePreset, setDatePreset] = useState<DatePreset>("ALL");
+    [datePreset, setDatePreset] = useState<DatePreset>("LAST_28_DAYS"),
+    [compareMode, setCompareModeState] = useState<ComparePreset>("PREVIOUS"),
+    [compareStart, setCompareStart] = useState(""),
+    [compareEnd, setCompareEnd] = useState("");
   const [topVdoType, setTopVdoType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
@@ -848,15 +852,16 @@ export function useDashboard(enabled = true) {
     () => rows.reduce((max, r) => (r.date > max ? r.date : max), ""),
     [rows],
   );
-  // % change on the KPI cards: the selected range against the period of the
-  // same length right before it (e.g. 1–26 Sep vs 6–31 Aug).
-  const comparePeriod = useMemo(() => {
-    if (!startDate || !endDate || endDate < startDate) return null;
-    const days =
-      Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
-    const end = shiftIso(startDate, -1);
-    return { start: shiftIso(end, -(days - 1)), end };
-  }, [startDate, endDate]);
+  const dataFirstDate = useMemo(
+    () => rows.reduce((m, r) => (r.date && (!m || r.date < m) ? r.date : m), ""),
+    [rows],
+  );
+  // % change on the KPI cards: the selected range against the chosen
+  // comparison (default: the period of the same length right before it).
+  const comparePeriod = useMemo(
+    () => getCompareRange(startDate, endDate, compareMode, { start: compareStart, end: compareEnd }),
+    [startDate, endDate, compareMode, compareStart, compareEnd],
+  );
   const growth = useMemo(() => {
     if (!comparePeriod) return null;
     const prev = summarize(
@@ -1099,26 +1104,21 @@ export function useDashboard(enabled = true) {
     setEndDate(end);
     setDatePreset("LAST_28_DAYS");
   }
+  /** Custom comparison starts from the previous period, so its dates are never empty. */
+  function setCompareMode(mode: ComparePreset) {
+    if (mode === "CUSTOM" && (!compareStart || !compareEnd)) {
+      const prev = getCompareRange(startDate, endDate, "PREVIOUS");
+      if (prev) {
+        setCompareStart(prev.start);
+        setCompareEnd(prev.end);
+      }
+    }
+    setCompareModeState(mode);
+  }
   function applyDatePreset(value: DatePreset) {
     setDatePreset(value);
     if (value === "CUSTOM") return;
-    if (value === "ALL") {
-      const dates = rows.map((r) => r.date).sort();
-      setStartDate(dates[0] || "");
-      setEndDate(dates.at(-1) || "");
-      return;
-    }
-    const latestYear = Number(
-      (
-        rows
-          .map((r) => r.date)
-          .sort()
-          .at(-1) ||
-        endDate ||
-        String(new Date().getFullYear())
-      ).slice(0, 4),
-    );
-    const [start, end] = getDatePresetRange(value, latestYear);
+    const [start, end] = getDatePresetRange(value, { first: dataFirstDate, last: dataLatestDate });
     setStartDate(start);
     setEndDate(end);
   }
@@ -1166,6 +1166,7 @@ export function useDashboard(enabled = true) {
     setVdoType("ALL");
     setTopicType("ALL");
     setSearch("");
+    setCompareMode("PREVIOUS");
     showDefaultRange();
   }
   return {
@@ -1200,6 +1201,13 @@ export function useDashboard(enabled = true) {
     endDate,
     setEndDate,
     datePreset,
+    compareMode,
+    setCompareMode,
+    compareStart,
+    setCompareStart,
+    compareEnd,
+    setCompareEnd,
+    dataFirstDate,
     setDatePreset,
     topVdoType,
     setTopVdoType,

@@ -2,8 +2,17 @@
 import { SelectBox } from "@/components/dashboard/shared/SelectBox";
 import { Input } from "@/components/ui/input";
 import type { DashboardModel } from "@/hooks/useDashboard";
+import { datePresetGroups } from "@/lib/dashboard/dates";
 import type { DatePreset } from "@/lib/dashboard/types";
 import { Search } from "lucide-react";
+const thDay = (iso: string, withYear: boolean) =>
+  new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(
+    new Date(`${iso}T00:00:00Z`),
+  );
+/** "3 ก.ย. – 30 ก.ย. 2569" for the selected range. */
+const rangeLabel = (start: string, end: string) =>
+  start && end ? `${thDay(start, start.slice(0, 4) !== end.slice(0, 4))} – ${thDay(end, true)}` : "";
+
 export function DashboardFilters({
   program,
   setProgram,
@@ -23,6 +32,7 @@ export function DashboardFilters({
   setDatePreset,
   options,
   applyDatePreset,
+  dataFirstDate,
 }: Pick<
   DashboardModel,
   | "program"
@@ -43,7 +53,10 @@ export function DashboardFilters({
   | "setDatePreset"
   | "options"
   | "applyDatePreset"
+  | "dataFirstDate"
 >) {
+  const groups = datePresetGroups(dataFirstDate);
+  const custom = datePreset === "CUSTOM";
   return (
     <>
       {/* Phones keep only รายการ and วันเดือนปี; app/dashboard.tsx resets the rest */}
@@ -62,20 +75,18 @@ export function DashboardFilters({
               value={datePreset}
               onChange={(e) => applyDatePreset(e.target.value as DatePreset)}
             >
-              <option value="ALL">ทั้งหมด</option>
-              <option value="TODAY">วันนี้</option>
-              <option value="LAST_7_DAYS">7 วันล่าสุด</option>
-              <option value="LAST_28_DAYS">28 วันล่าสุด</option>
-              <option value="THIS_MONTH">เดือนนี้</option>
-              <option value="LAST_MONTH">เดือนที่แล้ว</option>
-              <option value="THIS_YEAR">ปีนี้</option>
-              <option value="LAST_YEAR">ปีที่แล้ว</option>
-              <option value="QUARTER_1">ไตรมาส 1 (ม.ค.–มี.ค.)</option>
-              <option value="QUARTER_2">ไตรมาส 2 (เม.ย.–มิ.ย.)</option>
-              <option value="QUARTER_3">ไตรมาส 3 (ก.ค.–ก.ย.)</option>
-              <option value="QUARTER_4">ไตรมาส 4 (ต.ค.–ธ.ค.)</option>
-              <option value="CUSTOM">กำหนดเอง</option>
+              {groups.map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
+            {custom ? (
+              <>
             <input
               className="date-input"
               type="date"
@@ -95,6 +106,10 @@ export function DashboardFilters({
                 setDatePreset("CUSTOM");
               }}
             />
+              </>
+            ) : (
+              <span className="date-range-text">{rangeLabel(startDate, endDate)}</span>
+            )}
           </div>
         </label>
         <SelectBox

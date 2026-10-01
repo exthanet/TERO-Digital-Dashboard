@@ -3,6 +3,8 @@ import { Growth } from "@/components/dashboard/shared/Growth";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, num, pct } from "@/lib/dashboard/format";
+import { COMPARE_OPTIONS } from "@/lib/dashboard/dates";
+import type { ComparePreset } from "@/lib/dashboard/types";
 import { Activity, BarChart3, Globe2, Sparkles, Tv, Upload } from "lucide-react";
 const shortDate = (iso: string, withYear = false) =>
   new Intl.DateTimeFormat("th-TH", {
@@ -19,13 +21,34 @@ export function KpiSummary({
   types,
   growth,
   comparePeriod,
+  compareMode,
+  setCompareMode,
+  compareStart,
+  setCompareStart,
+  compareEnd,
+  setCompareEnd,
+  dataFirstDate,
 }: Pick<
   DashboardModel,
-  "tvMode" | "performanceFiltered" | "metrics" | "types" | "growth" | "comparePeriod"
+  | "tvMode"
+  | "performanceFiltered"
+  | "metrics"
+  | "types"
+  | "growth"
+  | "comparePeriod"
+  | "compareMode"
+  | "setCompareMode"
+  | "compareStart"
+  | "setCompareStart"
+  | "compareEnd"
+  | "setCompareEnd"
+  | "dataFirstDate"
 >) {
-  const compareText = comparePeriod
-    ? `เทียบกับช่วงก่อนหน้า ${shortDate(comparePeriod.start)} – ${shortDate(comparePeriod.end, true)}`
+  const modeLabel = COMPARE_OPTIONS.find((o) => o.value === compareMode)?.label || "";
+  const rangeText = comparePeriod
+    ? `${shortDate(comparePeriod.start, comparePeriod.start.slice(0, 4) !== comparePeriod.end.slice(0, 4))} – ${shortDate(comparePeriod.end, true)}`
     : "";
+  const compareText = comparePeriod ? `เทียบกับ${modeLabel} ${rangeText}` : "";
   // Only render a badge when there is a previous value to compare with.
   const badge = (value: number | null | undefined, label?: string) =>
     growth && value !== null && value !== undefined ? (
@@ -40,11 +63,34 @@ export function KpiSummary({
     ) : undefined;
   return (
     <>
-      {growth && compareText && (
-        <p className="kpi-compare-note">
-          <span className="kpi-growth up">▲</span> <span className="kpi-growth down">▼</span> = % เปลี่ยนแปลง{compareText}
-        </p>
-      )}
+      <div className="kpi-compare-note">
+        <span className="kpi-growth up">▲</span> <span className="kpi-growth down">▼</span> = % เปลี่ยนแปลงเทียบกับ
+        <select
+          className="compare-select"
+          value={compareMode}
+          onChange={(e) => setCompareMode(e.target.value as ComparePreset)}
+          aria-label="เปรียบเทียบกับ"
+        >
+          {COMPARE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {compareMode === "CUSTOM" ? (
+          <>
+            <input className="compare-date" type="date" value={compareStart} onChange={(e) => setCompareStart(e.target.value)} />
+            <b>–</b>
+            <input className="compare-date" type="date" value={compareEnd} onChange={(e) => setCompareEnd(e.target.value)} />
+          </>
+        ) : (
+          rangeText && <span>{rangeText}</span>
+        )}
+        {comparePeriod && !growth && <span className="compare-empty">· ไม่มีข้อมูลในช่วงที่เทียบ</span>}
+        {comparePeriod && growth && dataFirstDate && comparePeriod.start < dataFirstDate && (
+          <span className="compare-empty">· ข้อมูลช่วงที่เทียบมีตั้งแต่ {shortDate(dataFirstDate, true)} เท่านั้น (ไม่ครบช่วง)</span>
+        )}
+      </div>
       {/* แถวที่ 1: Reach & Viewership (ยอดวิวรวมทั้งหมด, Digital Views, TV Audience, TV Rating) */}
       <section
         className="kpi-grid kpi-reach"
