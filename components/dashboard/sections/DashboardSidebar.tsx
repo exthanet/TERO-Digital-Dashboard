@@ -69,14 +69,6 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     ],
   },
   {
-    id: "revenue",
-    label: "รายได้",
-    items: [
-      { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
-      { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
-    ],
-  },
-  {
     // Advanced mode: analysis pages, admins only while it is being tried out.
     id: "advanced",
     label: "วิเคราะห์เชิงลึก",
@@ -85,6 +77,14 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth" },
       { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality" },
       { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail" },
+    ],
+  },
+  {
+    id: "revenue",
+    label: "รายได้",
+    items: [
+      { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
+      { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
     ],
   },
 ];
