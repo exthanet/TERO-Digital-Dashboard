@@ -655,3 +655,33 @@
 .advice-status p:last-child {
   margin-bottom: 0;
 }
+
+/* Phones: the share-watched cell stacks its number over the bar, so the clip
+   count beside it never runs into the bar. */
+@media (max-width: 600px) {
+  .quality-formats th,
+  .quality-formats td {
+    padding: 5px 3px;
+  }
+
+  .quality-formats td.num + td.num {
+    padding-left: 10px;
+  }
+
+  .quality-format-watch {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 3px;
+  }
+
+  .quality-format-watch .value-bar {
+    flex: none;
+    width: 100%;
+    min-width: 48px;
+  }
+
+  .quality-format-watch span {
+    min-width: 0;
+    text-align: right;
+  }
+}
