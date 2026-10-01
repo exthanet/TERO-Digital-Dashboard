@@ -10,6 +10,7 @@ import {
   Bell,
   ChevronDown,
   ChevronUp,
+  CircleHelp,
   FileSpreadsheet,
   FileUp,
   Gauge,
@@ -34,7 +35,7 @@ import {
 } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 
-type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "advice";
+type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "advice" | "help";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -89,6 +90,11 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
       { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
     ],
+  },
+  {
+    id: "help",
+    label: "ช่วยเหลือ",
+    items: [{ id: "help", label: "คู่มือ & FAQ", icon: <CircleHelp />, tab: "help" }],
   },
 ];
 const SECTION_IDS = GROUPS[0].items.map((i) => i.id).filter((id) => id !== "overview");

@@ -11,6 +11,7 @@ import { GROWTH_MAX_DAYS, daysBetween, summarizeGrowth, type GrowthEntry } from 
 import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
+import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -77,7 +78,7 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
     <section className="panel growth-panel" id="growth">
       <div className="panel-head">
         <div>
-          <h2>การเติบโต: ยอดที่เพิ่มขึ้นจริงในช่วงนี้</h2>
+          <h2>การเติบโต: ยอดที่เพิ่มขึ้นจริงในช่วงนี้<HelpLink topic="growth" /></h2>
           <p className="growth-sub">
             นับวิวที่เกิดขึ้นในช่วง {thDate(startDate)} – {thDate(endDate)} ของทุกคลิป รวมคลิปที่โพสต์ก่อนหน้า
             (ต่างจากหน้ารายงานที่นับยอดสะสมของคลิปที่โพสต์ในช่วงนี้)

@@ -11,6 +11,7 @@ import { GrowthSection } from "@/components/dashboard/sections/GrowthSection";
 import { QualitySection } from "@/components/dashboard/sections/QualitySection";
 import { ThumbnailSection } from "@/components/dashboard/sections/ThumbnailSection";
 import { AdviceSection } from "@/components/dashboard/sections/AdviceSection";
+import { HelpSection } from "@/components/dashboard/sections/HelpSection";
 import { ExecutiveAnalysis } from "@/components/dashboard/sections/ExecutiveAnalysis";
 import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts";
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
@@ -43,7 +44,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "advice">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "advice" | "help">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -82,6 +83,28 @@ export default function Dashboard() {
   }, [setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen]);
 
   const isAdmin = auth.user?.role === "admin";
+
+  // "?" links beside section headings point at #help-{topic}: open the help
+  // page and scroll to that topic once it is on screen.
+  useEffect(() => {
+    const open = () => {
+      const id = window.location.hash.slice(1);
+      if (!id.startsWith("help")) return;
+      setActiveTab("help");
+      // Jump (not animate): the page may still be drawing the help page, and the
+      // site-wide smooth scrolling does not run in a background tab.
+      let tries = 0;
+      const jump = () => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "instant", block: "start" });
+        else if (tries++ < 20) window.setTimeout(jump, 50);
+      };
+      window.setTimeout(jump, 0);
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
 
   // Admins get the latest sync result (one read) for the warning banner.
   useEffect(() => {
@@ -187,6 +210,8 @@ export default function Dashboard() {
             comparePeriod={model.comparePeriod}
           />
         )}
+
+        {activeTab === "help" && <HelpSection isAdmin={isAdmin} />}
 
         {activeTab === "advice" && isAdmin && (
           <AdviceSection

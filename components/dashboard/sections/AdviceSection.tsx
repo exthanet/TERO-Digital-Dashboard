@@ -6,6 +6,7 @@ import { ChevronDown, CircleAlert, Info, Sparkles } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact } from "@/lib/dashboard/format";
 import { computeAdvice, type Advice, type AdviceLevel } from "@/lib/dashboard/advice";
+import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -90,7 +91,7 @@ export function AdviceSection({ rows, allRows, startDate, endDate, latestDate, c
     <section className="panel growth-panel" id="advice">
       <div className="panel-head">
         <div>
-          <h2>คำแนะนำ: สิ่งที่ข้อมูลบอกและควรลองทำ</h2>
+          <h2>คำแนะนำ: สิ่งที่ข้อมูลบอกและควรลองทำ<HelpLink topic="advice" /></h2>
           <p className="growth-sub">
             จากคลิปที่โพสต์ในช่วง {thDate(startDate)} – {thDate(endDate)} ตามตัวกรองด้านบน · ใช้กฎตายตัว (ไม่ใช่ AI)
             ทุกข้อแสดงตัวเลขและคลิปที่ใช้ตัดสิน · เทียบเฉพาะ platform และรูปแบบเดียวกัน

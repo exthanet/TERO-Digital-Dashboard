@@ -9,6 +9,7 @@ import { GROWTH_MAX_DAYS, addDays, daysBetween, type GrowthEntry } from "@/lib/d
 import { THUMB_FRESH_DAYS, earlyViews, rankThumbnails, type ThumbClip } from "@/lib/dashboard/thumbnails";
 import { loadGrowthDays } from "@/lib/growthData";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
+import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -134,7 +135,7 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
     <section className="panel growth-panel" id="thumbnail">
       <div className="panel-head">
         <div>
-          <h2>Thumbnail: ภาพปกของคลิปที่ดึงคนดูได้ดีและไม่ดี</h2>
+          <h2>Thumbnail: ภาพปกของคลิปที่ดึงคนดูได้ดีและไม่ดี<HelpLink topic="thumbnail" /></h2>
           <p className="growth-sub">
             คลิปที่โพสต์ในช่วง {thDate(startDate, { day: "numeric", month: "short", year: "numeric" })} –{" "}
             {thDate(endDate, { day: "numeric", month: "short", year: "numeric" })} · เทียบวิวกับค่ากลางของคลิปรูปแบบเดียวกัน

@@ -11,6 +11,7 @@ import {
   type RankGrain,
   type RankedClip,
 } from "@/lib/dashboard/ranking";
+import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`));
@@ -112,7 +113,7 @@ export function RankingSection({
     <section className="panel ranking-panel" id="ranking">
       <div className="panel-head">
         <div>
-          <h2>Ranking: ดีที่สุด / แย่ที่สุด</h2>
+          <h2>Ranking: ดีที่สุด / แย่ที่สุด<HelpLink topic="ranking" /></h2>
           <p>
             คลิปที่ลงใน{grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ {num(clips.total)} ชิ้น · เทียบกับค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน
           </p>

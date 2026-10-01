@@ -15,6 +15,7 @@ import {
   type RankedQualityClip,
 } from "@/lib/dashboard/quality";
 import { Growth } from "@/components/dashboard/shared/Growth";
+import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -120,7 +121,7 @@ export function QualitySection({ rows, allRows, startDate, endDate, comparePerio
     <section className="panel growth-panel" id="quality">
       <div className="panel-head">
         <div>
-          <h2>คุณภาพคลิป: คนดูนานแค่ไหน และมีส่วนร่วมเท่าไร</h2>
+          <h2>คุณภาพคลิป: คนดูนานแค่ไหน และมีส่วนร่วมเท่าไร<HelpLink topic="quality" /></h2>
           <p className="growth-sub">
             คลิปที่โพสต์ในช่วง {thDate(startDate)} – {thDate(endDate)} ตามตัวกรองด้านบน · แยกแต่ละแพลตฟอร์ม
             เพราะแต่ละแพลตฟอร์มนับวิวต่างกัน จึงไม่รวมเป็นตัวเลขเดียว
