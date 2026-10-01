@@ -144,3 +144,153 @@
     height: 220px;
   }
 }
+
+/* Advanced → คุณภาพคลิป (components/dashboard/sections/QualitySection.tsx) */
+.quality-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.quality-card {
+  min-width: 0;
+  border: 1px solid #e2e8f4;
+  border-top: 4px solid #64748b;
+  border-radius: 11px;
+  background: #fff;
+  padding: 12px;
+}
+
+.quality-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quality-card header b {
+  font-size: 14px;
+  color: #172139;
+}
+
+.quality-card header small,
+.quality-line.muted {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.quality-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.quality-main > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.quality-main p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.quality-main strong {
+  font-size: 24px;
+  font-weight: 900;
+  color: #172139;
+  line-height: 1.1;
+}
+
+.quality-main span:not(.kpi-growth):not(.kpi-growth-label) {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.quality-main em {
+  font-style: normal;
+  font-size: 12px;
+  color: #94a3b8;
+  padding-top: 6px;
+}
+
+.quality-line {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.quality-formats {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.quality-formats th,
+.quality-formats td {
+  padding: 4px 4px;
+  border-top: 1px solid #eef2f8;
+  text-align: left;
+}
+
+.quality-formats th {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.quality-formats .num {
+  text-align: right;
+}
+
+.quality-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f4;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 11px;
+  color: #334155;
+  box-shadow: 0 4px 12px #16305b1a;
+}
+
+.quality-rank-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quality-rank-head h3 {
+  margin: 0;
+}
+
+.quality-rank-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.quality-rank-grid h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+@media (max-width: 800px) {
+  .quality-rank-grid {
+    grid-template-columns: 1fr;
+  }
+}

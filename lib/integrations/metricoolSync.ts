@@ -200,6 +200,17 @@ function vdoType(network: Network, post: Post, text: string): string {
 export interface MappedRow extends MasterRowOutput {
   /** Facebook posts only: people who watched the video (3-second views). "" elsewhere. */
   Video_Views: string;
+  /**
+   * Watch time, as the API reports it (seconds). "" where the API has none:
+   * TikTok, Instagram feed posts, Facebook posts (their unit is unclear).
+   * YouTube: average view duration; Facebook Reels: average time watched;
+   * Instagram Reels: average watch time.
+   */
+  Avg_Watch_Sec: string;
+  /** Video length from the same API, in seconds, beside Avg_Watch_Sec. */
+  Video_Length_Sec: string;
+  /** Instagram Reels only: % of plays skipped in the first seconds. */
+  Skip_Rate: string;
   /** Program could not be detected; the team should fill it in. */
   _review: boolean;
   _brand: string;
@@ -220,6 +231,9 @@ const EMPTY_TV = {
 
 export function mapPost(network: Network, post: Post, brand: BrandConfig): MappedRow | null {
   const n = (k: string) => parseNumber(post[k]);
+  // Raw value as the API sends it ("" when the field is missing), up to 3 decimals.
+  const raw = (k: string) => (post[k] === undefined || post[k] === null || post[k] === "" ? "" : String(Math.round(n(k) * 1000) / 1000));
+  let watch = { avg: "", length: "", skip: "" };
   let platform: string, url: string, id: string, text: string, when: unknown;
   let views: number, likes: number, comments: number, shares: number, durationSec: number;
   let videoViews = -1; // -1 = not a Facebook post
@@ -252,6 +266,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       comments = n("postVideoSocialActions");
       shares = 0;
       durationSec = n("length");
+      watch = { avg: raw("postVideoAvgTimeWatchedSeconds"), length: raw("length"), skip: "" };
       break;
     case "instagram":
     case "reels":
@@ -265,6 +280,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       comments = n("comments");
       shares = n("shares");
       durationSec = n("durationSeconds");
+      if (network === "reels") watch = { avg: raw("averageWatchTime"), length: raw("durationSeconds"), skip: raw("reelsSkipRate") };
       break;
     case "tiktok":
       platform = "TikTok";
@@ -289,6 +305,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       comments = n("comments");
       shares = n("shares");
       durationSec = n("durationSeconds");
+      watch = { avg: raw("averageViewDuration"), length: raw("durationSeconds"), skip: "" };
       break;
   }
   const utc = postTimeUtc(when);
@@ -323,6 +340,9 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     Engagement: formatWhole(engagement),
     Engagement_Rate: formatPercent(views > 0 ? (engagement / views) * 100 : 0),
     Video_Views: videoViews >= 0 ? formatWhole(videoViews) : "",
+    Avg_Watch_Sec: watch.avg,
+    Video_Length_Sec: watch.avg ? watch.length : "",
+    Skip_Rate: watch.skip,
     ...EMPTY_TV,
     Best_of_Month: "",
     Upload_Count: "1",
@@ -336,7 +356,10 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
 // ---------- merge ----------
 
 /** Columns Metricool keeps up to date on rows that already exist. */
-export const METRIC_COLUMNS = ["Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate", "Video_Views"] as const;
+export const METRIC_COLUMNS = [
+  "Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate", "Video_Views",
+  "Avg_Watch_Sec", "Video_Length_Sec", "Skip_Rate",
+] as const;
 
 export interface MergeResult {
   merged: Record<string, unknown>[];

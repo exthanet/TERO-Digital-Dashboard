@@ -33,6 +33,7 @@ export const DASHBOARD_COLUMNS = [
   "Best_of_Month", "Best of Month",
   "Upload_Count",
   "Revenue", "Estimated revenue (THB)",
+  "Avg_Watch_Sec", "Video_Length_Sec", "Skip_Rate",
 ] as const;
 
 const KEEP = new Set<string>(DASHBOARD_COLUMNS);

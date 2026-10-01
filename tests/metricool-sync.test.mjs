@@ -154,3 +154,45 @@ test("duplicate digital posts collapse to the newest row; TV is untouched", () =
   assert.equal(kept.Views, "16969"); // the newest (highest lifetime) count
   assert.equal(kept.Topic_Type, "ข่าวการเมือง"); // borrowed from the copy
 });
+
+test("watch time is stored as the API sends it, only where the API has it", () => {
+  const yt = mapPost("youtube", {
+    videoId: "zu18DUg143A", title: "ถกไม่เถียง", description: "", publishedAt: { dateTime: "2026-09-18T10:40:00", timezone: "Europe/Madrid" },
+    views: 4681, durationSeconds: 57, averageViewDuration: 34.03914911343731, videoType: "SHORT",
+  }, TERO);
+  assert.deepEqual([yt.Avg_Watch_Sec, yt.Video_Length_Sec, yt.Skip_Rate], ["34.039", "57", ""]);
+  const reel = mapPost("fbreels", {
+    reelId: "1049539704083857", reelUrl: "https://www.facebook.com/reel/1049539704083857/", description: "x",
+    created: { dateTime: "2026-06-30T13:01:41", timezone: "Europe/Madrid" }, blueReelsPlayCount: 2450, length: 66.501, postVideoAvgTimeWatchedSeconds: 6.023,
+  }, TERO);
+  assert.deepEqual([reel.Avg_Watch_Sec, reel.Video_Length_Sec, reel.Skip_Rate], ["6.023", "66.501", ""]);
+  const ig = mapPost("reels", {
+    url: "https://www.instagram.com/reel/ABCDE12345/", content: "x", publishedAt: "2026-09-26T11:58:58+0200",
+    views: 122, durationSeconds: 67, averageWatchTime: 9.165, reelsSkipRate: 65.2,
+  }, TERO);
+  assert.deepEqual([ig.Avg_Watch_Sec, ig.Video_Length_Sec, ig.Skip_Rate], ["9.165", "67", "65.2"]);
+  // No watch time from the API: blank, never 0.
+  const fbPost = mapPost("facebook", {
+    postId: "330339053719456_1069294735733466", link: "https://www.facebook.com/330339053719456/posts/1069294735733466",
+    text: "x", type: "video", timestamp: 1790670955000, videoViews: 3295, videoTimeWatched: 52, impressions: 7073,
+  }, TERO);
+  assert.deepEqual([fbPost.Avg_Watch_Sec, fbPost.Video_Length_Sec, fbPost.Skip_Rate], ["", "", ""]);
+  const tt = mapPost("tiktok", {
+    videoId: "7689781312269356294", shareUrl: "https://www.tiktok.com/@thok/video/7689781312269356294",
+    videoDescription: "x", createTime: "2026-09-26T11:58:58+0200", viewCount: 10, duration: 30,
+  }, TERO);
+  assert.deepEqual([tt.Avg_Watch_Sec, tt.Video_Length_Sec, tt.Skip_Rate], ["", "", ""]);
+  const noAvg = mapPost("youtube", {
+    videoId: "zu18DUg143B", title: "x", description: "", publishedAt: { dateTime: "2026-09-18T10:40:00", timezone: "Europe/Madrid" }, views: 5, durationSeconds: 57,
+  }, TERO);
+  assert.deepEqual([noAvg.Avg_Watch_Sec, noAvg.Video_Length_Sec], ["", ""]);
+});
+
+test("watch-time columns are refreshed on existing rows like the other numbers", () => {
+  const master = [{ Platform: "YouTube", URL: "https://www.youtube.com/watch?v=zu18DUg143A", Content_ID: "zu18DUg143A", Views: "100", Program: "ถกไม่เถียง" }];
+  const incoming = [{ ...master[0], Program: "อื่น", Views: "100", Avg_Watch_Sec: "34.039", Video_Length_Sec: "57", Skip_Rate: "" }];
+  const result = mergeIntoMaster(master, incoming);
+  assert.equal(result.updated.length, 1);
+  assert.deepEqual(result.updated[0].after, { Avg_Watch_Sec: "34.039", Video_Length_Sec: "57" });
+  assert.equal(result.merged[0].Program, "ถกไม่เถียง"); // team columns untouched
+});

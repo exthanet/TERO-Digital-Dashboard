@@ -30,6 +30,12 @@ export type RecordRow = {
   bestOfMonth: string;
   uploadCount: number;
   revenue: number;
+  /** Average watch time per view, seconds, from the API (0 = not reported). */
+  avgWatchSec: number;
+  /** Video length from the same API, seconds (0 = not reported). */
+  videoLengthSec: number;
+  /** Instagram Reels: % of plays skipped at the start; null = not reported. */
+  skipRate: number | null;
 };
 
 export type CompareRow = {

@@ -265,6 +265,11 @@ const snapshotBytes = Buffer.byteLength(JSON.stringify(snapshot));
 // Daily growth: what each post gained since the previous run (lib/dashboard/growth.ts).
 const growthDay = growthDayFor(today);
 const growth = buildGrowth(result, growthDay);
+// Only the normal daily window (about 90 days) measures one day's gain. A wider
+// run (backfill) also refreshes old posts not updated for months; their whole
+// change would land on one day, so such runs write no growth.
+const growthWindowStart = new Date(Date.parse(`${today}T00:00:00Z`) - 100 * 86400000).toISOString().slice(0, 10);
+const growthEnabled = since >= growthWindowStart;
 
 const summary = {
   window: { since, until, baseline: baselineFile },
@@ -297,6 +302,7 @@ const summary = {
     newPosts: growth.entries.filter((e) => e[5]).length,
     drops: growth.entries.filter((e) => e[1] < 0).length,
     latePostsLeftOut: growth.late,
+    written: growthEnabled ? "yes" : `no: window starts ${since}, before ${growthWindowStart} (backfill)`,
   },
   newRowsByPlatformProgram: newByProgram,
   baselineRowsNotReturnedByApi: missingFromApi,
@@ -393,7 +399,8 @@ try {
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
   // Last, so a run that is rolled back never leaves gains behind (the next run
   // would count them again). Analysis only: a failure here never fails the run.
-  try {
+  if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);
+  else try {
     const g = await writeGrowth(fsdb, growthDay, today, runId, growth);
     console.log(`growth: growthDaily/${growthDay} ${g.rows} posts (${Math.round(g.bytes / 1024)} KB)`);
   } catch (e) {

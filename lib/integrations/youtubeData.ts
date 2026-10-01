@@ -148,6 +148,10 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
     Engagement: formatWhole(engagement),
     Engagement_Rate: formatPercent(v.views > 0 ? (engagement / v.views) * 100 : 0),
     Video_Views: "",
+    // Watch time comes from Metricool (combineYouTube keeps it); the Data API has none.
+    Avg_Watch_Sec: "",
+    Video_Length_Sec: "",
+    Skip_Rate: "",
     TV_Rating_Total: "",
     "TV_Rating_15+BKK": "",
     "TV_Rating_15+URBAN": "",
