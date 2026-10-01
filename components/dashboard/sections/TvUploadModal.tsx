@@ -114,7 +114,7 @@ export function TvUploadModal({
           cancelled: r.parsed!.cancelled,
         });
       }
-      setMessage(`บันทึกแล้ว ${ok.length} แท็บ · จะรวมเข้า masterData ในรอบ sync ถัดไป (06:00 น.) หรือกด "รันตอนนี้"`);
+      setMessage(`บันทึกแล้ว ${ok.length} แท็บ · จะรวมเข้า masterData ในรอบ sync ถัดไป (ประมาณ 05:17 น.) หรือกด "รันตอนนี้"`);
       setPrevious(await loadTvUploadInfo());
     } catch {
       setError("บันทึกไม่สำเร็จ (ต้องเป็น admin)");

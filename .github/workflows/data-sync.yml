@@ -1,10 +1,11 @@
 name: Data sync (Metricool + YouTube)
 
-# Daily 06:00 Bangkok. Admins can also start it from the dashboard's
+# Daily 05:17 Bangkok (off the hour: GitHub delays on-the-hour schedules).
+# Admins can also start it from the dashboard's
 # "สถานะการ Sync" → "รันตอนนี้" (Actions → Run workflow).
 on:
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "17 22 * * *"
   workflow_dispatch:
     inputs:
       mode:

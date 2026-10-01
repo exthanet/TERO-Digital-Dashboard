@@ -83,7 +83,7 @@ export function SyncStatusModal({
           </div>
           <div>
             <h2>สถานะการ Sync ข้อมูล</h2>
-            <p>ดึงข้อมูลจาก Metricool และ YouTube อัตโนมัติทุกวัน 06:00 น. · รอบถัดไป {thTime(nextScheduledRun().toISOString())}</p>
+            <p>ดึงข้อมูลจาก Metricool และ YouTube อัตโนมัติทุกวันประมาณ 05:17 น. · รอบถัดไป {thTime(nextScheduledRun().toISOString())}</p>
           </div>
           <a className="sync-run-link" href={SYNC_WORKFLOW_URL} target="_blank" rel="noreferrer">
             รันตอนนี้ (GitHub Actions) <ExternalLink size={14} />

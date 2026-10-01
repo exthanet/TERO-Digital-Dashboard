@@ -56,10 +56,10 @@ export interface SyncRun extends Omit<SyncStatus, "lastSuccessAt"> {
 /** Where admins start a run by hand (GitHub Actions → Run workflow). */
 export const SYNC_WORKFLOW_URL = "https://github.com/exthanet/TERO-Digital-Dashboard/actions/workflows/data-sync.yml";
 
-/** The daily run starts 06:00 Bangkok (23:00 UTC). */
+/** The daily run starts 05:17 Bangkok (22:17 UTC); GitHub may start it later. */
 export function nextScheduledRun(now = new Date()): Date {
   const next = new Date(now);
-  next.setUTCHours(23, 0, 0, 0);
+  next.setUTCHours(22, 17, 0, 0);
   if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
   return next;
 }

@@ -99,7 +99,7 @@ node scripts/metricool-sync.mjs --since=2026-09-01 --baseline=firestore --tv-fil
 
 1. dashboard → **เครื่องมือ admin** → **อัปโหลดไฟล์ TV** → เลือกไฟล์ rating (.xlsx)
 2. ระบบอ่านเฉพาะแท็บที่ตั้งไว้ใน "แหล่งข้อมูล TV" (ในเบราว์เซอร์ แท็บอื่นไม่ถูกส่งขึ้น) แล้วแสดงผลให้ตรวจ: จำนวนเทป, เทปใหม่, rating ที่เปลี่ยน
-3. กด **บันทึก** → รอบ sync ถัดไป (06:00 น. หรือ GitHub → Run workflow) รวมเข้า masterData พร้อมตรวจ 5 ข้อ (12–16)
+3. กด **บันทึก** → รอบ sync ถัดไป (ประมาณ 05:17 น. หรือ GitHub → Run workflow) รวมเข้า masterData พร้อมตรวจ 5 ข้อ (12–16)
 4. ถ้าตั้งค่า SharePoint (ส่วนที่ 6) แล้วด้วย ระบบใช้ข้อมูลที่ใหม่กว่า และใช้ไฟล์ที่อัปโหลดแทนเมื่ออ่าน SharePoint ไม่ได้
 
 ## ส่วนที่ 8: อีเมลแจ้งผลการ sync (Google Apps Script)
@@ -131,7 +131,7 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 
 ## รันอัตโนมัติ (GitHub Actions: `data-sync.yml`)
 
-- รันเองทุกวัน **06:00 น.** ดึงข้อมูลย้อนหลัง 90 วัน แล้วเขียนเข้า Firestore
+- รันเองทุกวัน **ประมาณ 05:17 น.** ดึงข้อมูลย้อนหลัง 90 วัน แล้วเขียนเข้า Firestore (GitHub อาจเริ่มช้ากว่ากำหนด ตั้งไม่ตรงชั่วโมงพอดีเพื่อลดการเลื่อน)
 - สั่งรันเอง: dashboard → **สถานะการ Sync** → **รันตอนนี้** (หรือ GitHub → Actions → Data sync → **Run workflow**)
   เลือก `test-run` = ตรวจอย่างเดียว ไม่เขียน · ใส่ `since` ได้ถ้าต้องการดึงย้อนหลังไกลกว่า 90 วัน
 - Secrets ที่ต้องมี: `FIREBASE_SERVICE_ACCOUNT`, `METRICOOL_API_TOKEN`, `METRICOOL_USER_ID`, `YOUTUBE_API_KEY`, (TV) `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, (อีเมล) `NOTIFY_WEBHOOK_URL`, `NOTIFY_TOKEN`
