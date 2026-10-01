@@ -2,13 +2,13 @@
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
 import {
   loadMasterDataFromFirebase,
-  loadMasterDataWithMetaFromFirebase,
   saveMasterDataToFirebase,
 } from "@/lib/firebase";
 import { bestFormat, sumBy, topicSimilarity } from "@/lib/dashboard/analytics";
 import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
 import { getCompareRange, getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
+import { loadDashboardRows } from "@/lib/dashboardCache";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import {
   countNonPlainDates,
@@ -121,7 +121,8 @@ export function useDashboard(enabled = true) {
       setLoading(true);
       try {
         if (!isStaticHost) {
-          const cloudResult = await loadMasterDataWithMetaFromFirebase().catch(() => null);
+          // Compact copy / this browser when they match masterData, else masterData itself.
+          const cloudResult = await loadDashboardRows().catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
             setRawRows(cloudResult.rows);
             const nonPlain = countNonPlainDates(cloudResult.rows);
@@ -1000,6 +1001,13 @@ export function useDashboard(enabled = true) {
       throw new Error(msg);
     }
 
+    // Only imported data is saved. Data shown from the Cloud may be the compact
+    // dashboard copy (not every column); saving it would strip masterData.
+    if (sourceName === "Firebase Firestore") {
+      const msg = "ข้อมูลที่แสดงอยู่มาจาก Cloud แล้ว ไม่ต้องบันทึกซ้ำ (นำเข้าไฟล์ก่อน แล้วจึงบันทึกขึ้น Cloud)";
+      setMessage(msg);
+      throw new Error(msg);
+    }
     const dataToSave = rawRows.length > 0 ? rawRows : (rows as unknown as RawRow[]);
     if (!dataToSave.length) {
       const msg = "ไม่มีข้อมูลสำหรับบันทึก";

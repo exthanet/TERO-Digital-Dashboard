@@ -3,6 +3,7 @@ import { connectAuthEmulator, getAuth } from "firebase/auth";
 import {
   collection,
   connectFirestoreEmulator,
+  deleteDoc,
   doc,
   getDocs,
   getFirestore,
@@ -95,6 +96,10 @@ export async function saveMasterDataToFirebase(
   const CHUNK_SIZE = 250;
   const totalChunks = Math.ceil(rows.length / CHUNK_SIZE);
 
+  // 0. The fast-open dashboard copy stops matching before masterData changes
+  //    (rebuilt at the end; until then the dashboard reads masterData).
+  await deleteDoc(doc(db, "dashboardCache", "meta"));
+
   // 1. Fetch existing chunks to track any leftover chunks
   const existingSnap = await getDocs(collection(db, "masterData"));
   const existingChunkIds = new Set<string>();
@@ -134,6 +139,14 @@ export async function saveMasterDataToFirebase(
       updatedAt: now,
       rows: [],
     });
+  }
+
+  // 4. Rebuild the fast-open copy for this version (failure is harmless).
+  try {
+    const { writeDashboardCache } = await import("@/lib/dashboardCache");
+    await writeDashboardCache(rows, now, now);
+  } catch (e) {
+    console.warn("dashboard copy not written; the dashboard will read masterData:", e);
   }
 
   return {

@@ -104,6 +104,12 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isAdmin();
     }
+    // Compact gzipped copy of masterData for opening the dashboard fast; written
+    // by the sync (service account) or by an admin right after saving masterData.
+    match /dashboardCache/{doc} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
     match /affiliateData/{doc} {
       allow read: if isActive();
       allow write: if isAdmin();

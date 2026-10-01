@@ -52,6 +52,7 @@ import {
   writeSnapshot,
 } from "../lib/integrations/syncWriter.ts";
 import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts";
+import { invalidateDashboardCache, writeDashboardCache } from "../lib/integrations/dashboardCacheWriter.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
@@ -119,7 +120,8 @@ if (args["notify-test"]) {
 
 if (args["restore-backup"]) {
   const n = await restoreMasterData(await firestore(), args["restore-backup"]);
-  console.log(`restored masterData from backup ${args["restore-backup"]} (${n} documents)`);
+  await invalidateDashboardCache(await firestore());
+  console.log(`restored masterData from backup ${args["restore-backup"]} (${n} documents); dashboard copy cleared until the next sync`);
   process.exit(0);
 }
 
@@ -356,10 +358,22 @@ const backed = await backupMasterData(fsdb, rawDocs, runId);
 report.backupId = runId;
 console.log(`backup: masterDataBackups/${runId} (${backed} documents)`);
 try {
+  // The dashboard copy stops matching before masterData changes, so a run that
+  // stops halfway can never leave the dashboard showing old numbers.
+  await invalidateDashboardCache(fsdb);
   const chunks = await writeMasterData(fsdb, finalRows, rawDocs);
   const problem = await verifyMasterData(fsdb, finalRows);
   if (problem) throw new Error(problem);
   report.snapshotDocs = await writeSnapshot(fsdb, today, runId, snapshot);
+  // Compact copy for opening the dashboard fast; if it fails the dashboard
+  // reads masterData as before, so it never fails the run.
+  try {
+    const version = new Date().toISOString();
+    const parts = await writeDashboardCache(fsdb, finalRows, version, version);
+    console.log(`dashboard copy: ${parts} part(s), version ${version}`);
+  } catch (e) {
+    console.error(`dashboard copy not written (dashboard will read masterData): ${e.message}`);
+  }
   report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}` +
     (tvRun.result ? ` · TV อัปเดต ${tvRun.result.updated.length} เทป ใหม่ ${tvRun.result.inserted.length}` : "");
   await writeCompetitors(fsdb, tvRun.competitors);
@@ -367,6 +381,7 @@ try {
 } catch (e) {
   console.error(`write failed, restoring backup ${runId}: ${e.message}`);
   await restoreMasterData(fsdb, runId);
+  await invalidateDashboardCache(fsdb).catch(() => undefined);
   report.status = "failed";
   report.message = `เขียนไม่สำเร็จ กู้คืนข้อมูลเดิมจากสำรองแล้ว: ${e.message}`;
   process.exitCode = 1;

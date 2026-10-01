@@ -77,6 +77,8 @@ export function useAuth(): AuthState {
 
   const logout = useCallback(() => {
     setAllUsers([]);
+    // No company data stays in this browser after signing out.
+    void import("@/lib/dashboardCache").then((m) => m.clearDashboardBrowserCache()).catch(() => undefined);
     void signOutUser();
   }, []);
 

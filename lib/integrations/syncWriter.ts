@@ -69,7 +69,8 @@ export async function writeMasterData(db: Firestore, rows: Row[], readDocs: RawD
   }
   const now = new Date().toISOString();
   const total = Math.ceil(rows.length / CHUNK_ROWS);
-  const byId = new Map(current.map((d) => [docId(d.name), d]));
+  // Only data chunks; other documents (masterData/meta) are not rows.
+  const byId = new Map(current.filter((d) => docId(d.name).startsWith("chunk_")).map((d) => [docId(d.name), d]));
   for (let i = 0; i < total; i++) {
     const id = `chunk_${String(i).padStart(3, "0")}`;
     const chunk = rows.slice(i * CHUNK_ROWS, (i + 1) * CHUNK_ROWS);
