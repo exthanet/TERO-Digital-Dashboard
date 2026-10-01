@@ -128,13 +128,7 @@ export function useDashboard(enabled = true) {
             setRows(x);
             const d = x.map((r) => r.date).filter(Boolean).sort();
             const latest = d.at(-1) || "";
-            if (latest) {
-              const y = latest.slice(0, 4);
-              const m = latest.slice(5, 7);
-              setStartDate(`${y}-${m}-01`);
-              setEndDate(latest);
-              setDatePreset("CUSTOM");
-            }
+            if (latest) showDefaultRange();
             setSourceName("Firebase Firestore");
             if (cloudResult.updatedAt) {
               setUploadedAt(cloudResult.updatedAt);
@@ -153,13 +147,7 @@ export function useDashboard(enabled = true) {
         setRows(x);
         const d = x.map((r) => r.date).filter(Boolean).sort();
         const latest = d.at(-1) || "";
-        if (latest) {
-          const y = latest.slice(0, 4);
-          const m = latest.slice(5, 7);
-          setStartDate(`${y}-${m}-01`);
-          setEndDate(latest);
-          setDatePreset("CUSTOM");
-        }
+        if (latest) showDefaultRange();
         setSourceName(isStaticHost ? "master-data.json" : "Firebase Firestore");
         if (lastModifiedHeader) {
           setUploadedAt(new Date(lastModifiedHeader).toISOString());
@@ -1104,6 +1092,13 @@ export function useDashboard(enabled = true) {
       setLoading(false);
     }
   }
+  /** Opening view (and "ล้างตัวกรอง"): the last 28 full days, compared with the 28 before. */
+  function showDefaultRange() {
+    const [start, end] = getDatePresetRange("LAST_28_DAYS");
+    setStartDate(start);
+    setEndDate(end);
+    setDatePreset("LAST_28_DAYS");
+  }
   function applyDatePreset(value: DatePreset) {
     setDatePreset(value);
     if (value === "CUSTOM") return;
@@ -1171,10 +1166,7 @@ export function useDashboard(enabled = true) {
     setVdoType("ALL");
     setTopicType("ALL");
     setSearch("");
-    setDatePreset("ALL");
-    const d = rows.map((r) => r.date).sort();
-    setStartDate(d[0] || "");
-    setEndDate(d.at(-1) || "");
+    showDefaultRange();
   }
   return {
     rows,

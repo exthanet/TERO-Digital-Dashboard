@@ -65,6 +65,7 @@ export function DashboardFilters({
               <option value="ALL">ทั้งหมด</option>
               <option value="TODAY">วันนี้</option>
               <option value="LAST_7_DAYS">7 วันล่าสุด</option>
+              <option value="LAST_28_DAYS">28 วันล่าสุด</option>
               <option value="THIS_MONTH">เดือนนี้</option>
               <option value="LAST_MONTH">เดือนที่แล้ว</option>
               <option value="THIS_YEAR">ปีนี้</option>

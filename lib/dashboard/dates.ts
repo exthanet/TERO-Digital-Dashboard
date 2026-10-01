@@ -23,6 +23,15 @@ export function getDatePresetRange(preset: DatePreset, referenceYear?: number) {
     start.setUTCDate(start.getUTCDate() - 6);
     return [isoDate(start), isoDate(today)];
   }
+  // 28 full days ending yesterday: today is not over, and the morning sync
+  // only has part of it. Also the default view of the dashboard.
+  if (preset === "LAST_28_DAYS") {
+    const end = new Date(today);
+    end.setUTCDate(end.getUTCDate() - 1);
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 27);
+    return [isoDate(start), isoDate(end)];
+  }
   if (preset === "THIS_MONTH")
     return [isoDate(new Date(Date.UTC(year, month, 1))), isoDate(today)];
   if (preset === "LAST_MONTH")

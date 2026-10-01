@@ -190,3 +190,13 @@ test("imports store the day exactly as written in the file", () => {
   assert.equal(sourceDay("2026-09-26T16:59:56Z"), "");
   assert.equal(sourceDay(1790670955000), "");
 });
+
+test("28 วันล่าสุด: 28 full days ending yesterday (Bangkok)", async () => {
+  const { getDatePresetRange } = await import("../lib/dashboard/dates.ts");
+  const [start, end] = getDatePresetRange("LAST_28_DAYS");
+  const todayBkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
+  const day = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  assert.equal(end, day(todayBkk, -1));
+  assert.equal(start, day(todayBkk, -28));
+  assert.equal((Date.parse(end) - Date.parse(start)) / 86400000 + 1, 28);
+});

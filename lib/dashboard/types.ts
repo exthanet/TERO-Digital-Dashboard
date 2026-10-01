@@ -67,6 +67,7 @@ export type DatePreset =
   | "ALL"
   | "TODAY"
   | "LAST_7_DAYS"
+  | "LAST_28_DAYS"
   | "THIS_MONTH"
   | "LAST_MONTH"
   | "THIS_YEAR"
