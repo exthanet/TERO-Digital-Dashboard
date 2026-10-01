@@ -7,16 +7,19 @@ import { isValidEmail } from "@/lib/auth/validation";
 
 interface AuthScreenProps {
   auth: AuthState;
+  /** After setting a password: the account's email and a note to show. */
+  initialEmail?: string;
+  initialInfo?: string;
 }
 
-export function AuthScreen({ auth }: AuthScreenProps) {
+export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(initialInfo || null);
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(initialEmail);
   const [loginPassword, setLoginPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {

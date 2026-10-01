@@ -24,6 +24,7 @@ import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { PasswordActionScreen, readPasswordAction } from "@/components/auth/PasswordActionScreen";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
 import { loadSyncStatus, type SyncStatus } from "@/lib/sync/status";
@@ -41,6 +42,11 @@ export default function Dashboard() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  // Set-password link from an invitation / "ลืมรหัสผ่าน" email (?mode=resetPassword&oobCode=…).
+  const [passwordAction, setPasswordAction] = useState(() =>
+    typeof window === "undefined" ? null : readPasswordAction(window.location.search),
+  );
+  const [passwordSetFor, setPasswordSetFor] = useState<string | null>(null);
   const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
   const [tvUploadOpen, setTvUploadOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -79,12 +85,33 @@ export default function Dashboard() {
       .catch(() => setSyncStatus(undefined));
   }, [isAdmin]);
 
+  if (passwordAction) {
+    return (
+      <PasswordActionScreen
+        action={passwordAction}
+        onDone={(email) => {
+          // The one-time code must not stay in the address bar or history.
+          window.history.replaceState(null, "", window.location.pathname);
+          if (auth.isAuthenticated) void auth.logout();
+          setPasswordSetFor(email);
+          setPasswordAction(null);
+        }}
+      />
+    );
+  }
+
   if (auth.isLoading) {
     return <LoadingOverlay loading={true} />;
   }
 
   if (!auth.isAuthenticated) {
-    return <AuthScreen auth={auth} />;
+    return (
+      <AuthScreen
+        auth={auth}
+        initialEmail={passwordSetFor || ""}
+        initialInfo={passwordSetFor ? "ตั้งรหัสผ่านเรียบร้อยแล้ว เข้าสู่ระบบได้เลย" : undefined}
+      />
+    );
   }
 
   return (

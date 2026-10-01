@@ -117,8 +117,19 @@ export function signOutUser(): Promise<void> {
   return signOut(auth);
 }
 
+/**
+ * Where the set-password link leads back to (Firebase "continue URL"). The
+ * dashboard handles the link itself when the email template's action URL is
+ * set to the dashboard; invited=1 switches the page to the welcome wording.
+ * The domain must be in Firebase Auth → Authorized domains.
+ */
+export function resetLinkSettings(invited: boolean) {
+  const origin = typeof window === "undefined" ? "https://digital-dashboard.terodigital.com" : window.location.origin;
+  return { url: `${origin}/${invited ? "?invited=1" : ""}` };
+}
+
 export function sendResetEmail(email: string): Promise<void> {
-  return sendPasswordResetEmail(auth, normalizeEmail(email));
+  return sendPasswordResetEmail(auth, normalizeEmail(email), resetLinkSettings(false));
 }
 
 export async function changeOwnPassword(data: ChangePasswordData): Promise<void> {
@@ -156,7 +167,7 @@ export async function inviteUser(data: NewUserData): Promise<void> {
   } finally {
     await deleteApp(secondary);
   }
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(auth, email, resetLinkSettings(true));
 }
 
 export async function listUsers(): Promise<User[]> {
