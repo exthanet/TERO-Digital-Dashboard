@@ -19,11 +19,12 @@ service cloud.firestore {
     }
     function validProfile() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['email', 'name', 'role', 'active', 'createdAt'])
+      return d.keys().hasOnly(['email', 'name', 'role', 'active', 'createdAt', 'mustChangePassword'])
         && d.email is string
         && d.name is string
         && d.role in ['admin', 'viewer']
-        && d.active is bool;
+        && d.active is bool
+        && (!('mustChangePassword' in d) || d.mustChangePassword is bool);
     }
 
     match /users/{uid} {
@@ -33,6 +34,11 @@ service cloud.firestore {
       allow update: if isAdmin() && validProfile()
         && (uid != request.auth.uid
             || (request.resource.data.role == 'admin' && request.resource.data.active == true));
+      // After setting their own password, a person clears the temporary-password
+      // flag on their profile, and nothing else.
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChangePassword'])
+        && request.resource.data.mustChangePassword == false;
       allow delete: if false;
     }
 

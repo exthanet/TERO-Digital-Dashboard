@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  Copy,
+  KeyRound,
   Mail,
   Plus,
   Shield,
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import type { AuthState } from "@/hooks/useAuth";
 import type { LoginEvent, UserRole } from "@/lib/auth/types";
-import { isValidEmail } from "@/lib/auth/validation";
+import { inviteMessage, isValidEmail } from "@/lib/auth/validation";
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -50,6 +52,9 @@ export function UserManagementModal({
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("viewer");
   const [busy, setBusy] = useState<string | null>(null);
+  // Shown once after an invite: the admin copies it and sends it to the person.
+  const [invited, setInvited] = useState<{ email: string; message: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [events, setEvents] = useState<LoginEvent[] | null>(null);
@@ -110,17 +115,23 @@ export function UserManagementModal({
       setError("รูปแบบอีเมลไม่ถูกต้อง");
       return;
     }
-    const ok = await run(
-      "invite",
-      () => auth.inviteUser({ email, name, role }),
-      `สร้างบัญชี ${email.trim()} แล้ว และส่งอีเมลให้ตั้งรหัสผ่านเรียบร้อย`,
-    );
-    if (ok) {
-      setEmail("");
-      setName("");
-      setRole("viewer");
-      setShowAddUser(false);
+    setError(null);
+    setSuccess(null);
+    setInvited(null);
+    setBusy("invite");
+    const res = await auth.inviteUser({ email, name, role });
+    setBusy(null);
+    if (!res.success || !res.tempPassword) {
+      setError(res.error || "สร้างผู้ใช้ไม่สำเร็จ");
+      return;
     }
+    const address = email.trim().toLowerCase();
+    setInvited({ email: address, message: inviteMessage(name.trim(), address, res.tempPassword, window.location.origin) });
+    setCopied(false);
+    setEmail("");
+    setName("");
+    setRole("viewer");
+    setShowAddUser(false);
   };
 
   const activeCount = usage.length;
@@ -176,6 +187,30 @@ export function UserManagementModal({
             <div className="auth-info">
               <CheckCircle2 size={18} />
               <span>{success}</span>
+            </div>
+          )}
+
+          {tab === "users" && invited && (
+            <div className="invite-result">
+              <b>
+                <KeyRound size={16} /> สร้างบัญชี {invited.email} แล้ว · ส่งข้อความนี้ให้ผู้ใช้
+              </b>
+              <pre>{invited.message}</pre>
+              <div className="invite-result-actions">
+                <button
+                  type="button"
+                  className="auth-btn-primary"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(invited.message).then(() => setCopied(true));
+                  }}
+                >
+                  <Copy size={15} /> {copied ? "คัดลอกแล้ว" : "คัดลอกข้อความ"}
+                </button>
+                <button type="button" className="auth-btn-secondary" onClick={() => setInvited(null)}>
+                  เสร็จแล้ว
+                </button>
+              </div>
+              <small>รหัสชั่วคราวแสดงครั้งเดียว ระบบไม่ได้เก็บไว้ · ผู้ใช้ต้องตั้งรหัสใหม่เมื่อเข้าระบบครั้งแรก</small>
             </div>
           )}
 
@@ -256,7 +291,7 @@ export function UserManagementModal({
                   </div>
 
                   <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
-                    ระบบจะส่งอีเมลให้ผู้ใช้ตั้งรหัสผ่านเอง ผู้ดูแลไม่ต้องรู้รหัสของใคร
+                    ระบบจะสร้างรหัสผ่านชั่วคราวให้ คุณส่งให้ผู้ใช้เอง (LINE / อีเมล) ผู้ใช้ต้องตั้งรหัสใหม่เมื่อเข้าระบบครั้งแรก
                   </p>
 
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -266,7 +301,7 @@ export function UserManagementModal({
                       style={{ width: "auto", margin: 0, padding: "0.5rem 1rem", fontSize: "0.85rem" }}
                       disabled={busy === "invite"}
                     >
-                      {busy === "invite" ? "กำลังสร้าง..." : "สร้างบัญชีและส่งอีเมลเชิญ"}
+                      {busy === "invite" ? "กำลังสร้าง..." : "สร้างบัญชี"}
                     </button>
                   </div>
                 </form>

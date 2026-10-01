@@ -13,6 +13,7 @@ import type {
 import {
   changeOwnPassword,
   inviteUser,
+  setFirstPassword,
   listLoginEvents,
   listUsers,
   sendResetEmail,
@@ -37,6 +38,7 @@ export interface AuthState {
   allUsers: User[];
   refreshUsers: () => Promise<void>;
   inviteUser: (data: NewUserData) => Promise<AuthResult>;
+  setFirstPassword: (newPassword: string) => Promise<AuthResult>;
   setUserRole: (uid: string, role: UserRole) => Promise<AuthResult>;
   setUserActive: (uid: string, active: boolean) => Promise<AuthResult>;
   loadLoginEvents: (since: Date) => Promise<LoginEvent[]>;
@@ -124,7 +126,21 @@ export function useAuth(): AuthState {
     changePassword,
     allUsers,
     refreshUsers,
-    inviteUser: (data) => adminAction(() => inviteUser(data), "สร้างผู้ใช้ไม่สำเร็จ"),
+    inviteUser: async (data) => {
+      let password = "";
+      const res = await adminAction(async () => {
+        password = await inviteUser(data);
+      }, "สร้างผู้ใช้ไม่สำเร็จ");
+      return res.success ? { ...res, tempPassword: password } : res;
+    },
+    setFirstPassword: async (newPassword) => {
+      try {
+        await setFirstPassword(newPassword);
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: authErrorMessage(e, "ตั้งรหัสผ่านไม่สำเร็จ") };
+      }
+    },
     setUserRole: (uid, role) => adminAction(() => updateUser(uid, { role }), "เปลี่ยนสิทธิ์ไม่สำเร็จ"),
     setUserActive: (uid, active) =>
       adminAction(() => updateUser(uid, { active }), "เปลี่ยนสถานะบัญชีไม่สำเร็จ"),

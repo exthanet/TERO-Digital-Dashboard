@@ -5,8 +5,8 @@
  *
  *   firebase emulators:exec --only auth,firestore "node scripts/test-auth-emulator.mjs"
  *
- * Flow: seed an admin → admin invites a viewer → viewer sets a password from
- * the invite email → viewer logs in → rules allow/deny the right things →
+ * Flow: seed an admin → admin invites a viewer (temporary password) → viewer
+ * signs in and sets their own password → viewer logs in → rules allow/deny the right things →
  * admin deactivates the viewer → viewer loses access.
  */
 import assert from "node:assert/strict";
@@ -81,19 +81,6 @@ async function seedAdmin(email, password) {
 }
 
 /** What the user does when they click the link in the invite email. */
-async function setPasswordFromEmail(email, newPassword) {
-  const res = await fetch(`${AUTH}/emulator/v1/projects/${PROJECT}/oobCodes`);
-  const { oobCodes } = await res.json();
-  const code = oobCodes.filter((c) => c.email === email && c.requestType === "PASSWORD_RESET").at(-1);
-  assert.ok(code, `no password email was sent to ${email}`);
-  const done = await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=emulator`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ oobCode: code.oobCode, newPassword }),
-  });
-  assert.equal(done.status, 200, "reset link rejected");
-}
-
 const ADMIN = "admin@example.com";
 const VIEWER = "exec@gmail.com";
 const master = fs.doc(db, "masterData", "chunk_000");
@@ -108,8 +95,10 @@ await users.signIn(ADMIN, "admin-pass-123");
 await check("admin reads dashboard data", async () => {
   await fs.getDoc(master);
 });
-await check("admin invites a viewer with any email domain", async () => {
-  await users.inviteUser({ email: VIEWER, name: "ผู้บริหาร", role: "viewer" });
+let tempPassword = "";
+await check("admin invites a viewer with any email domain and gets a temporary password", async () => {
+  tempPassword = await users.inviteUser({ email: VIEWER, name: "ผู้บริหาร", role: "viewer" });
+  assert.match(tempPassword, /^\w{4}-\w{4}-\w{4}$/);
   assert.equal(auth.currentUser?.email, ADMIN, "admin was signed out by the invite");
   const list = await users.listUsers();
   assert.deepEqual(
@@ -127,8 +116,22 @@ await check("admin cannot demote or deactivate themselves", async () => {
 await check("admin writes dashboard data", () => fs.setDoc(master, { rowCount: 1 }));
 await users.signOutUser();
 
-await check("viewer sets a password from the invite email and logs in", async () => {
-  await setPasswordFromEmail(VIEWER, "viewer-pass-123");
+await check("viewer signs in with the temporary password and must set their own", async () => {
+  await users.signIn(VIEWER, tempPassword);
+  const me = await fs.getDoc(fs.doc(db, "users", auth.currentUser.uid));
+  assert.equal(me.data()?.mustChangePassword, true);
+});
+await check("while clearing the flag a viewer cannot change anything else, nor set it back", async () => {
+  const ref = fs.doc(db, "users", auth.currentUser.uid);
+  await denied(fs.updateDoc(ref, { mustChangePassword: false, role: "admin" }));
+  await denied(fs.updateDoc(ref, { mustChangePassword: true }));
+});
+await check("viewer sets their own password, the flag clears, and the new password works", async () => {
+  await users.setFirstPassword("viewer-pass-123");
+  const me = await fs.getDoc(fs.doc(db, "users", auth.currentUser.uid));
+  assert.equal(me.data()?.mustChangePassword, false);
+  await users.signOutUser();
+  await assert.rejects(users.signIn(VIEWER, tempPassword));
   await users.signIn(VIEWER, "viewer-pass-123");
   assert.equal(auth.currentUser?.email, VIEWER);
 });

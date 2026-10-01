@@ -10,7 +10,8 @@ const {
   MIN_PASSWORD_LENGTH,
   normalizeEmail,
   passwordProblem,
-  randomPassword,
+  tempPassword,
+  inviteMessage,
 } = await import("../lib/auth/validation.ts");
 
 test("emails are trimmed and lower-cased", () => {
@@ -30,11 +31,22 @@ test("password length rule", () => {
   assert.equal(passwordProblem("x".repeat(MIN_PASSWORD_LENGTH)), null);
 });
 
-test("invite passwords are long and not repeated", () => {
-  const a = randomPassword();
-  const b = randomPassword();
-  assert.equal(a.length, 48);
+test("temporary passwords: readable groups, no look-alike characters, long enough, not repeated", () => {
+  const a = tempPassword();
+  const b = tempPassword();
+  assert.match(a, /^[A-Za-z2-9]{4}-[A-Za-z2-9]{4}-[A-Za-z2-9]{4}$/);
+  assert.doesNotMatch(a, /[01OIl]/);
+  assert.equal(passwordProblem(a), null);
   assert.notEqual(a, b);
+});
+
+test("invite message carries the link, email and temporary password", () => {
+  const m = inviteMessage("คุณเอ", "a@x.com", "Abcd-Efgh-Jkmn", "https://digital-dashboard.terodigital.com");
+  assert.match(m, /คุณเอ/);
+  assert.ok(m.includes("https://digital-dashboard.terodigital.com"));
+  assert.ok(m.includes("a@x.com"));
+  assert.match(m, /Abcd-Efgh-Jkmn/);
+  assert.match(m, /ตั้งรหัสผ่านใหม่/);
 });
 
 test("Firebase error codes map to Thai messages with a fallback", () => {

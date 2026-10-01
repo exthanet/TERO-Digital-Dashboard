@@ -8,6 +8,8 @@ export interface User {
   role: UserRole;
   active: boolean;
   createdAt: string;
+  /** Signed in with a temporary password: must set their own before using the dashboard. */
+  mustChangePassword: boolean;
 }
 
 export interface LoginCredentials {
@@ -34,4 +36,4 @@ export interface LoginEvent {
   at: string;
 }
 
-export type AuthResult = { success: boolean; error?: string };
+export type AuthResult = { success: boolean; error?: string; /** inviteUser: password to pass on. */ tempPassword?: string };

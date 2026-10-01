@@ -38,7 +38,7 @@ import type {
   User,
   UserRole,
 } from "./types";
-import { normalizeEmail, randomPassword } from "./validation";
+import { normalizeEmail, tempPassword } from "./validation";
 
 const usersCol = collection(db, "users");
 const loginEventsCol = collection(db, "loginEvents");
@@ -56,6 +56,7 @@ function toUser(id: string, data: DocumentData): User {
     role: data.role === "admin" ? "admin" : "viewer",
     active: data.active === true,
     createdAt: toIso(data.createdAt),
+    mustChangePassword: data.mustChangePassword === true,
   };
 }
 
@@ -144,10 +145,12 @@ export async function changeOwnPassword(data: ChangePasswordData): Promise<void>
 
 /**
  * Creates the Auth account on a separate Firebase app instance so the admin
- * stays signed in, writes the profile, then emails the invitee a link to set
- * their own password.
+ * stays signed in, with a temporary password the admin passes on; the
+ * profile makes the person set their own password at the first sign-in.
+ * Returns the temporary password.
  */
-export async function inviteUser(data: NewUserData): Promise<void> {
+export async function inviteUser(data: NewUserData): Promise<string> {
+  const password = tempPassword();
   const email = normalizeEmail(data.email);
   const secondary = initializeApp(firebaseConfig, `invite-${Date.now()}`);
   try {
@@ -155,7 +158,7 @@ export async function inviteUser(data: NewUserData): Promise<void> {
     if (useFirebaseEmulator) {
       connectAuthEmulator(secondaryAuth, "http://127.0.0.1:9099", { disableWarnings: true });
     }
-    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, randomPassword());
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     await signOut(secondaryAuth);
     await setDoc(doc(db, "users", cred.user.uid), {
       email,
@@ -163,11 +166,20 @@ export async function inviteUser(data: NewUserData): Promise<void> {
       role: data.role,
       active: true,
       createdAt: serverTimestamp(),
+      mustChangePassword: true,
     });
   } finally {
     await deleteApp(secondary);
   }
-  await sendPasswordResetEmail(auth, email, resetLinkSettings(true));
+  return password;
+}
+
+/** First sign-in with a temporary password: set one's own, then clear the flag. */
+export async function setFirstPassword(newPassword: string): Promise<void> {
+  const current = auth.currentUser;
+  if (!current) throw Object.assign(new Error("not signed in"), { code: "auth/requires-recent-login" });
+  await updatePassword(current, newPassword);
+  await updateDoc(doc(db, "users", current.uid), { mustChangePassword: false });
 }
 
 export async function listUsers(): Promise<User[]> {

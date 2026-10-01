@@ -25,6 +25,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { PasswordActionScreen, readPasswordAction } from "@/components/auth/PasswordActionScreen";
+import { FirstPasswordScreen } from "@/components/auth/FirstPasswordScreen";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
 import { loadSyncStatus, type SyncStatus } from "@/lib/sync/status";
@@ -53,7 +54,8 @@ export default function Dashboard() {
   // undefined = not loaded; null = no sync has run yet.
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null | undefined>(undefined);
   // Firestore only serves data to signed-in, active accounts.
-  const model = useDashboard(auth.isAuthenticated);
+  // No data until the person has replaced a temporary password.
+  const model = useDashboard(auth.isAuthenticated && !auth.user?.mustChangePassword);
   const { setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen } = model;
 
   // Phones only show the รายการ and วันเดือนปี filters, so the hidden ones
@@ -112,6 +114,10 @@ export default function Dashboard() {
         initialInfo={passwordSetFor ? "ตั้งรหัสผ่านเรียบร้อยแล้ว เข้าสู่ระบบได้เลย" : undefined}
       />
     );
+  }
+
+  if (auth.user?.mustChangePassword) {
+    return <FirstPasswordScreen auth={auth} />;
   }
 
   return (

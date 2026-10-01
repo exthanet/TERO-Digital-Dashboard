@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Lock, Mail } from "lu
 import { confirmPasswordReset, sendPasswordResetEmail, verifyPasswordResetCode } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { resetLinkSettings } from "@/lib/auth/users";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/auth/validation";
 
 /** The parts of a Firebase email action link this page handles. */
 export interface PasswordAction {
@@ -31,7 +32,7 @@ const codeError = (e: unknown) => {
   if (code.includes("invalid-action-code")) return "ลิงก์นี้ใช้ไปแล้ว หรือไม่ถูกต้อง";
   if (code.includes("user-disabled")) return "บัญชีนี้ถูกปิดการใช้งาน ติดต่อผู้ดูแลระบบ";
   if (code.includes("user-not-found")) return "ไม่พบบัญชีนี้ ติดต่อผู้ดูแลระบบ";
-  if (code.includes("weak-password")) return "รหัสผ่านสั้นเกินไป ต้องมีอย่างน้อย 6 ตัวอักษร";
+  if (code.includes("weak-password")) return `รหัสผ่านสั้นเกินไป ต้องมีอย่างน้อย ${MIN_PASSWORD_LENGTH} ตัวอักษร`;
   if (code.includes("network")) return "เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง";
   return "ทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง";
 };
@@ -59,7 +60,8 @@ export function PasswordActionScreen({ action, onDone }: { action: PasswordActio
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) return setError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    const problem = passwordProblem(password);
+    if (problem) return setError(problem);
     if (password !== confirm) return setError("รหัสผ่านทั้ง 2 ช่องไม่ตรงกัน");
     setSaving(true);
     try {
@@ -159,7 +161,7 @@ export function PasswordActionScreen({ action, onDone }: { action: PasswordActio
             </div>
             <div className="auth-field">
               <label className="auth-label" htmlFor="new-password">
-                รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)
+                รหัสผ่านใหม่ (อย่างน้อย {MIN_PASSWORD_LENGTH} ตัวอักษร)
               </label>
               <div className="auth-input-wrap">
                 <Lock className="auth-input-icon" />

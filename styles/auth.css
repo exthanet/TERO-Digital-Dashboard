@@ -843,3 +843,47 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Invite result: temporary password message the admin copies and sends. */
+.invite-result {
+  display: grid;
+  gap: 8px;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.82rem;
+  color: #065f46;
+}
+.invite-result b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.invite-result pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: #fff;
+  border: 1px solid #d1fadf;
+  border-radius: 8px;
+  padding: 10px;
+  color: #0f1b31;
+}
+.invite-result-actions {
+  display: flex;
+  gap: 8px;
+}
+.invite-result-actions .auth-btn-primary,
+.invite-result-actions .auth-btn-secondary {
+  width: auto;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.invite-result small {
+  color: #047857;
+}

@@ -17,14 +17,30 @@ export function passwordProblem(password: string): string | null {
   return null;
 }
 
+// No look-alike characters (0/O, 1/l/I), so it can be read out or retyped.
+const TEMP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
 /**
- * Throwaway password for a newly invited account. Nobody ever sees it: the
- * user sets their own password from the invite (password reset) email.
+ * Temporary password for a new account, e.g. "Xk7m-Pq4r-Tz9d". The admin sends
+ * it to the person, who must set their own password at the first sign-in.
  */
-export function randomPassword(): string {
-  const bytes = new Uint8Array(24);
+export function tempPassword(): string {
+  const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  const chars = Array.from(bytes, (b) => TEMP_ALPHABET[b % TEMP_ALPHABET.length]).join("");
+  return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8, 12)}`;
+}
+
+/** Text the admin copies and sends (LINE, email) to a newly invited person. */
+export function inviteMessage(name: string, email: string, password: string, url: string): string {
+  return [
+    `สวัสดีครับ/ค่ะ ${name || email}`,
+    "คุณได้รับสิทธิ์เข้าใช้ TERO Entertainment Dashboard",
+    `เข้าระบบ: ${url}`,
+    `อีเมล: ${email}`,
+    `รหัสผ่านชั่วคราว: ${password}`,
+    "เข้าระบบครั้งแรก ระบบจะให้ตั้งรหัสผ่านใหม่ของคุณเอง",
+  ].join("\n");
 }
 
 const FIREBASE_ERRORS: Record<string, string> = {
