@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { AlertCircle, Eye, EyeOff, KeyRound, Lock, LogOut } from "lucide-react";
 import type { AuthState } from "@/hooks/useAuth";
 import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/auth/validation";
+import { BRAND } from "@/lib/brand";
 
 /**
  * First sign-in with the temporary password an admin sent: the person sets
@@ -36,7 +37,7 @@ export function FirstPasswordScreen({ auth }: { auth: AuthState }) {
         <div className="auth-header">
           <div className="auth-logo-badge">
             <span className="live-dot" />
-            TERO DIGITAL
+            {BRAND.company}
           </div>
           <h1 className="auth-title">ยินดีต้อนรับ</h1>
           <p className="auth-subtitle">

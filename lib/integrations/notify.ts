@@ -3,6 +3,7 @@
 // Env: NOTIFY_WEBHOOK_URL (the web app URL), NOTIFY_TOKEN (shared secret).
 // Recipients and when to send come from Firestore syncConfig/notifications.
 import type { RunReport } from "./syncWriter.ts";
+import { BRAND } from "../brand.ts";
 
 export type NotifyMode = "always" | "problems" | "off";
 
@@ -68,7 +69,7 @@ ${list("การตรวจที่ไม่ผ่าน", failed.map((c) => 
 ${list("แพลตฟอร์ม", platforms)}
 ${list("แหล่งข้อมูล TV", tv)}
 <p style="margin-top:16px"><a href="${esc(dashboardUrl)}">เปิด dashboard</a>${report.githubRunUrl ? ` · <a href="${esc(report.githubRunUrl)}">ดูรายละเอียดใน GitHub</a>` : ""}</p>
-<p style="color:#7b879a;font-size:11px">ส่งอัตโนมัติจากระบบ sync ของ TERO Digital Dashboard · เปลี่ยนผู้รับได้ที่ เครื่องมือ admin → การแจ้งเตือน</p>
+<p style="color:#7b879a;font-size:11px">ส่งอัตโนมัติจากระบบ sync ของ ${BRAND.product} · เปลี่ยนผู้รับได้ที่ เครื่องมือ admin → การแจ้งเตือน</p>
 </div>`;
   const text = [subject, ...rows.map(([k, v]) => `${k}: ${v}`), ...failed.map((c) => `ไม่ผ่าน: ${c.name} — ${c.detail}`), dashboardUrl].join("\n");
   return { subject, html, text };

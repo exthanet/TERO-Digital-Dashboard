@@ -1,4 +1,5 @@
 // Pure helpers shared by the auth service and its tests (no Firebase imports).
+import { BRAND } from "../brand.ts";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -35,7 +36,7 @@ export function tempPassword(): string {
 export function inviteMessage(name: string, email: string, password: string, url: string): string {
   return [
     `สวัสดีครับ/ค่ะ ${name || email}`,
-    "คุณได้รับสิทธิ์เข้าใช้ TERO Entertainment Dashboard",
+    `คุณได้รับสิทธิ์เข้าใช้ ${BRAND.product}`,
     `เข้าระบบ: ${url}`,
     `อีเมล: ${email}`,
     `รหัสผ่านชั่วคราว: ${password}`,

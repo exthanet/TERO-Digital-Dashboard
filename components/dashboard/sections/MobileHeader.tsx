@@ -1,6 +1,7 @@
 "use client";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { Menu, X } from "lucide-react";
+import { BRAND } from "@/lib/brand";
 // Importing master data is desktop-only, so the phone header has no upload button.
 export function MobileHeader({
   menuOpen,
@@ -17,7 +18,7 @@ export function MobileHeader({
         >
           {menuOpen ? <X /> : <Menu />}
         </button>
-        <strong>Entertainment Dashboard</strong>
+        <strong>{BRAND.product}</strong>
         <span className="mobile-header-spacer" />
       </header>
     </>

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
 import type { AuthState } from "@/hooks/useAuth";
 import { isValidEmail } from "@/lib/auth/validation";
+import { BRAND } from "@/lib/brand";
 
 interface AuthScreenProps {
   auth: AuthState;
@@ -73,9 +74,9 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
         <div className="auth-header">
           <div className="auth-logo-badge">
             <span className="live-dot" />
-            TERO DIGITAL
+            {BRAND.company}
           </div>
-          <h1 className="auth-title">ENTERTAINMENT DASHBOARD</h1>
+          <h1 className="auth-title">{BRAND.productShort.toUpperCase()}</h1>
           <p className="auth-subtitle">
             ระบบรายงานวิเคราะห์ Performance & Rating สำหรับผู้บริหาร
           </p>

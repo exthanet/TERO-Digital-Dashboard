@@ -6,6 +6,7 @@ import { confirmPasswordReset, sendPasswordResetEmail, verifyPasswordResetCode }
 import { auth } from "@/lib/firebase";
 import { resetLinkSettings } from "@/lib/auth/users";
 import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/auth/validation";
+import { BRAND } from "@/lib/brand";
 
 /** The parts of a Firebase email action link this page handles. */
 export interface PasswordAction {
@@ -93,13 +94,13 @@ export function PasswordActionScreen({ action, onDone }: { action: PasswordActio
         <div className="auth-header">
           <div className="auth-logo-badge">
             <span className="live-dot" />
-            TERO DIGITAL
+            {BRAND.company}
           </div>
           <h1 className="auth-title">{action.invited ? "ยินดีต้อนรับ" : "ตั้งรหัสผ่านใหม่"}</h1>
           <p className="auth-subtitle">
             {action.invited
-              ? "คุณได้รับสิทธิ์เข้าใช้ Entertainment Dashboard ตั้งรหัสผ่านเพื่อเริ่มใช้งาน"
-              : "ตั้งรหัสผ่านใหม่สำหรับ Entertainment Dashboard"}
+              ? `คุณได้รับสิทธิ์เข้าใช้ ${BRAND.product} ตั้งรหัสผ่านเพื่อเริ่มใช้งาน`
+              : `ตั้งรหัสผ่านใหม่สำหรับ ${BRAND.product}`}
           </p>
         </div>
 

@@ -32,6 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { BRAND } from "@/lib/brand";
 
 type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "advice";
 
@@ -236,7 +237,7 @@ export function DashboardSidebar({
           <X />
         </button>
         <div className="brand">
-          <h1>ENTERTAINMENT DASHBOARD</h1>
+          <h1>{BRAND.product.toUpperCase()}</h1>
         </div>
 
         <div className="sidebar-scroll">
