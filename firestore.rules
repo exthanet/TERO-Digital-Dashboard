@@ -65,6 +65,11 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if false;
     }
+    // Cover-image links per platform for the thumbnail page (written by the sync only).
+    match /thumbnails/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
     // What each post gained per day (written by the sync only).
     match /growthDaily/{doc} {
       allow read: if isActive();

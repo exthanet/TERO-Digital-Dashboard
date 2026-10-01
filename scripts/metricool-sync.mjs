@@ -54,6 +54,7 @@ import {
 import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts";
 import { invalidateDashboardCache, writeDashboardCache } from "../lib/integrations/dashboardCacheWriter.ts";
 import { buildGrowth, growthDayFor, writeGrowth } from "../lib/integrations/growthWriter.ts";
+import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
@@ -127,6 +128,8 @@ if (args["restore-backup"]) {
 }
 
 const fetchStats = [];
+// Cover-image links per post key, for the thumbnail page (kept out of masterData).
+const thumbs = new Map();
 const incoming = [];
 const tvStatus = [];
 
@@ -156,6 +159,8 @@ for (const brand of brands) {
     for (const p of posts) {
       const row = mapPost(network, p, brand);
       if (!row) { skipped++; continue; }
+      const thumb = thumbOf(network, p);
+      if (thumb) thumbs.set(rowKey(row), thumb);
       const d = toIso(row.Date);
       if (d < since || d > until) { outside++; continue; }
       if (network === "youtube") brandYouTube.push(row);
@@ -399,6 +404,14 @@ try {
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
   // Last, so a run that is rolled back never leaves gains behind (the next run
   // would count them again). Analysis only: a failure here never fails the run.
+  // Cover links for posts in masterData; analysis only, never fails the run.
+  try {
+    const inMaster = new Set(finalRows.map((r) => rowKey(r)).filter(Boolean));
+    const counts = await writeThumbnails(fsdb, thumbs, (k) => inMaster.has(k));
+    console.log(`thumbnails: ${JSON.stringify(counts)}`);
+  } catch (e) {
+    console.error(`thumbnails not written: ${e.message}`);
+  }
   if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);
   else try {
     const g = await writeGrowth(fsdb, growthDay, today, runId, growth);

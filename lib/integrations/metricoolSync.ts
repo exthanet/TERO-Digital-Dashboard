@@ -50,7 +50,7 @@ export interface Brand {
   networks: string[];
 }
 
-type Post = Record<string, unknown>;
+export type Post = Record<string, unknown>;
 
 export class MetricoolApi {
   private userId: string;

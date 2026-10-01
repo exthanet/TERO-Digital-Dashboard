@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   FileUp,
   Gauge,
+  Images,
   KeyRound,
   LayoutDashboard,
   Lightbulb,
@@ -31,7 +32,7 @@ import {
   X,
 } from "lucide-react";
 
-type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality";
+type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -83,6 +84,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     items: [
       { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth" },
       { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality" },
+      { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail" },
     ],
   },
 ];
