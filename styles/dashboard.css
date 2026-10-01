@@ -524,6 +524,11 @@ body {
 .source-modal {
   position: relative;
   width: min(500px, calc(100vw - 28px));
+  /* Never taller than the screen; long content scrolls inside. */
+  max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #fff;
   border-radius: 18px;
   padding: 28px;
