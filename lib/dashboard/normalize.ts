@@ -177,6 +177,7 @@ export function normalize(r: RawRow): RecordRow {
     bestOfMonth: s(pick(r, "Best_of_Month", "Best of Month")),
     uploadCount: n(pick(r, "Upload_Count")) || 1,
     revenue: n(pick(r, "Revenue", "Estimated revenue (THB)")),
+    publishTime: s(pick(r, "Publish_Time")),
     avgWatchSec: n(pick(r, "Avg_Watch_Sec")),
     videoLengthSec: n(pick(r, "Video_Length_Sec")),
     skipRate: s(pick(r, "Skip_Rate")) === "" ? null : n(pick(r, "Skip_Rate")),

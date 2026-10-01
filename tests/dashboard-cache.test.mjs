@@ -18,7 +18,7 @@ const tv = {
 test("digital rows keep only what the dashboard reads; TV rows stay whole", () => {
   const [d, t] = slimRows([digital, tv]);
   assert.equal(d.Notes, undefined);
-  assert.equal(d.Publish_Time, undefined);
+  assert.equal(d.Publish_Time, "18:05"); // the advice page reads posting time
   assert.equal(d.Video_Views, undefined); // blank values dropped
   assert.equal(d.Views, "1200");
   assert.equal(d.URL, digital.URL);

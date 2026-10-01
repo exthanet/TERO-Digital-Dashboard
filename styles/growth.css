@@ -487,3 +487,171 @@
 .quality-format-watch span {
   min-width: 42px;
 }
+
+/* Advanced → คำแนะนำ (components/dashboard/sections/AdviceSection.tsx) */
+.advice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.advice-card {
+  min-width: 0;
+  border: 1px solid #e2e8f4;
+  border-left: 4px solid #3b82f6;
+  border-radius: 11px;
+  background: #fff;
+  padding: 12px 13px;
+}
+
+.advice-card.good {
+  border-left-color: #22a35a;
+}
+
+.advice-card.warn {
+  border-left-color: #f08a3e;
+}
+
+.advice-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.advice-card header small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.advice-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+.advice-level.good {
+  background: #e8f7ee;
+  color: #15803d;
+}
+
+.advice-level.warn {
+  background: #fff3e8;
+  color: #c2410c;
+}
+
+.advice-card h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #172139;
+  line-height: 1.4;
+}
+
+.advice-card p {
+  margin: 0 0 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.advice-card p b {
+  color: #172139;
+}
+
+.advice-card .advice-caution {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.advice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.advice-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #0757e8;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.advice-actions button.active {
+  background: #eef4ff;
+}
+
+.advice-actions button.active svg {
+  transform: rotate(180deg);
+}
+
+.advice-clips {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.advice-clips li {
+  margin-bottom: 5px;
+}
+
+.advice-clips a {
+  display: block;
+  overflow: hidden;
+  color: #172139;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.advice-clips a:hover {
+  color: #0757e8;
+}
+
+.advice-clips small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.advice-card .advice-criteria {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f6f8fc;
+  font-size: 11px;
+}
+
+.advice-status {
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: #f1f5fb;
+  font-size: 12px;
+  color: #334155;
+}
+
+.advice-status p {
+  margin: 0 0 4px;
+  line-height: 1.55;
+}
+
+.advice-status p:last-child {
+  margin-bottom: 0;
+}

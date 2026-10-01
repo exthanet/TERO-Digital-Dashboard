@@ -30,6 +30,8 @@ export type RecordRow = {
   bestOfMonth: string;
   uploadCount: number;
   revenue: number;
+  /** Bangkok time of posting, "HH:MM" ("" when unknown, e.g. rows the team typed in). */
+  publishTime: string;
   /** Average watch time per view, seconds, from the API (0 = not reported). */
   avgWatchSec: number;
   /** Video length from the same API, seconds (0 = not reported). */
