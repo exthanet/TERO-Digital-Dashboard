@@ -65,6 +65,11 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if false;
     }
+    // What each post gained per day (written by the sync only).
+    match /growthDaily/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
     // Backups of masterData taken before each sync write: never read or
     // written from the browser; restore with the sync script.
     match /masterDataBackups/{doc} {

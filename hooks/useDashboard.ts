@@ -214,6 +214,23 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, vdoType, topicType, startDate, endDate, search],
   );
+  // Advanced → การเติบโต: the same filters without the date (gains are dated by when they happened).
+  const growthRows = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          r.platform !== "TV" &&
+          (program === "ALL" || r.program === program) &&
+          (platform === "ALL" || r.platform === platform) &&
+          (vdoType === "ALL" || r.vdoType === vdoType) &&
+          (topicType === "ALL" || r.topicType === topicType) &&
+          (!search ||
+            `${r.topic} ${r.program} ${r.channel}`
+              .toLowerCase()
+              .includes(search.toLowerCase())),
+      ),
+    [rows, program, platform, vdoType, topicType, search],
+  );
   const executiveGrain = useMemo<"day" | "month">(
     () =>
       startDate && endDate && startDate.slice(0, 7) === endDate.slice(0, 7)
@@ -1237,6 +1254,7 @@ export function useDashboard(enabled = true) {
     options,
     filtered,
     executiveRows,
+    growthRows,
     executiveGrain,
     digitalVsTv,
     programPie,

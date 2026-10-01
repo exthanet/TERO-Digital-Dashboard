@@ -7,6 +7,7 @@ import { DashboardFooter } from "@/components/dashboard/sections/DashboardFooter
 import { DashboardSidebar } from "@/components/dashboard/sections/DashboardSidebar";
 import { DataSourceModal } from "@/components/dashboard/sections/DataSourceModal";
 import { DataStatus } from "@/components/dashboard/sections/DataStatus";
+import { GrowthSection } from "@/components/dashboard/sections/GrowthSection";
 import { ExecutiveAnalysis } from "@/components/dashboard/sections/ExecutiveAnalysis";
 import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts";
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
@@ -39,7 +40,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate" | "growth">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -151,8 +152,7 @@ export default function Dashboard() {
           onTabChange={setActiveTab}
         />
 
-        {activeTab === "overview" && (
-          <>
+        {(activeTab === "overview" || (activeTab === "growth" && isAdmin)) && (
             <DashboardFilters
               program={model.program}
               setProgram={model.setProgram}
@@ -174,6 +174,19 @@ export default function Dashboard() {
               applyDatePreset={model.applyDatePreset}
               dataFirstDate={model.dataFirstDate}
             />
+        )}
+
+        {activeTab === "growth" && isAdmin && (
+          <GrowthSection
+            rows={model.growthRows}
+            startDate={model.startDate}
+            endDate={model.endDate}
+            comparePeriod={model.comparePeriod}
+          />
+        )}
+
+        {activeTab === "overview" && (
+          <>
             <DataStatus
               sourceName={model.sourceName}
               message={model.message}

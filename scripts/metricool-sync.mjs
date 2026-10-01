@@ -53,6 +53,7 @@ import {
 } from "../lib/integrations/syncWriter.ts";
 import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts";
 import { invalidateDashboardCache, writeDashboardCache } from "../lib/integrations/dashboardCacheWriter.ts";
+import { buildGrowth, growthDayFor, writeGrowth } from "../lib/integrations/growthWriter.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
@@ -261,6 +262,9 @@ const viewGain = result.updated
 const snapshot = buildSnapshot(result);
 const snapshotChunks = chunkSnapshot(snapshot);
 const snapshotBytes = Buffer.byteLength(JSON.stringify(snapshot));
+// Daily growth: what each post gained since the previous run (lib/dashboard/growth.ts).
+const growthDay = growthDayFor(today);
+const growth = buildGrowth(result, growthDay);
 
 const summary = {
   window: { since, until, baseline: baselineFile },
@@ -286,6 +290,14 @@ const summary = {
     approxKB: Math.round(snapshotBytes / 1024),
     note: "rows = posts whose numbers changed or appeared today; unchanged posts are skipped",
   },
+  growth: {
+    day: growthDay,
+    posts: growth.entries.length,
+    views: growth.entries.reduce((a, e) => a + e[1], 0),
+    newPosts: growth.entries.filter((e) => e[5]).length,
+    drops: growth.entries.filter((e) => e[1] < 0).length,
+    latePostsLeftOut: growth.late,
+  },
   newRowsByPlatformProgram: newByProgram,
   baselineRowsNotReturnedByApi: missingFromApi,
   biggestViewUpdates: viewGain.slice(0, 10),
@@ -310,6 +322,7 @@ fs.writeFileSync(
 );
 console.log("\n" + JSON.stringify(summary.totals, null, 1));
 console.log("snapshot:", summary.snapshot);
+console.log("growth:", summary.growth);
 console.log("agreement:", summary.agreementWithTeamLabels);
 console.log(`report: ${outDir}/summary.json, new-rows.csv, needs-review.csv, updated-rows.csv`);
 
@@ -378,6 +391,14 @@ try {
     (tvRun.result ? ` · TV อัปเดต ${tvRun.result.updated.length} เทป ใหม่ ${tvRun.result.inserted.length}` : "");
   await writeCompetitors(fsdb, tvRun.competitors);
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
+  // Last, so a run that is rolled back never leaves gains behind (the next run
+  // would count them again). Analysis only: a failure here never fails the run.
+  try {
+    const g = await writeGrowth(fsdb, growthDay, today, runId, growth);
+    console.log(`growth: growthDaily/${growthDay} ${g.rows} posts (${Math.round(g.bytes / 1024)} KB)`);
+  } catch (e) {
+    console.error(`growth not written: ${e.message}`);
+  }
 } catch (e) {
   console.error(`write failed, restoring backup ${runId}: ${e.message}`);
   await restoreMasterData(fsdb, runId);

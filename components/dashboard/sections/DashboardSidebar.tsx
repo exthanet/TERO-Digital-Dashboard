@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Settings,
   Sparkles,
+  TrendingUp,
   Trophy,
   Tv,
   Upload,
@@ -29,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 
-type Tab = "overview" | "revenue" | "affiliate";
+type Tab = "overview" | "revenue" | "affiliate" | "growth";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -48,7 +49,7 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
 
 type NavItem = { id: string; label: string; icon: ReactNode; tab?: Tab };
 
-const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
+const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean }[] = [
   {
     id: "reports",
     label: "รายงาน",
@@ -72,6 +73,13 @@ const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
       { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
     ],
+  },
+  {
+    // Advanced mode: analysis pages, admins only while it is being tried out.
+    id: "advanced",
+    label: "วิเคราะห์เชิงลึก",
+    adminOnly: true,
+    items: [{ id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth" }],
   },
 ];
 const SECTION_IDS = GROUPS[0].items.map((i) => i.id).filter((id) => id !== "overview");
@@ -224,7 +232,7 @@ export function DashboardSidebar({
         </div>
 
         <div className="sidebar-scroll">
-          {GROUPS.map((g) => (
+          {GROUPS.filter((g) => !g.adminOnly || isAdmin).map((g) => (
             <div key={g.id} className="sidebar-group">
               <button type="button" className="sidebar-group-head" onClick={() => toggleGroup(g.id)} aria-expanded={!collapsed[g.id]}>
                 {g.label}
