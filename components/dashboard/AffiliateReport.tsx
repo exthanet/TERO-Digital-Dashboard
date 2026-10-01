@@ -91,6 +91,12 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
     loadData();
   }, []);
 
+  // Open on the latest year that has data ("ทั้งหมด" and other years stay selectable).
+  useEffect(() => {
+    const latest = Math.max(...(data?.summary || []).map((x) => Number(x.year)).filter(Number.isFinite));
+    if (Number.isFinite(latest)) setYear(String(latest));
+  }, [data]);
+
   const selected = useMemo(
     () =>
       data?.summary.filter((x) => year === "ALL" || x.year === Number(year)) ||
