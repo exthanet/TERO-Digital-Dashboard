@@ -100,7 +100,7 @@ export function RevenueImportModal({
 
       setFeedback({
         type: "success",
-        text: `อ่านไฟล์ "${file.name}" สำเร็จ! (${importMode === "overwrite" ? "แทนที่ข้อมูลทั้งหมดด้วย" : "ตรวจพบ"} ${parsedItems.length} เดือน)`,
+        text: `อ่านไฟล์ "${file.name}" สำเร็จ! (${importMode === "overwrite" ? "แทนที่ข้อมูลทั้งหมดด้วย" : "ตรวจพบ"} ${parsedItems.length} เดือน: ${parsedItems[0].monthLabel} – ${parsedItems[parsedItems.length - 1].monthLabel}) ตรวจเดือนให้ถูกก่อนบันทึก`,
       });
     } catch (err: unknown) {
       setFeedback({

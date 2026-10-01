@@ -73,62 +73,71 @@ const MONTH_NAMES: Record<string, string> = {
   "ธ.ค.": "12",
 };
 
-export function parseMonthYear(val: unknown): { month: string; monthLabel: string; year: number } {
-  if (!val) {
-    const now = new Date();
-    return {
-      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
-      monthLabel: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
-      year: now.getFullYear(),
-    };
-  }
+/** Thai month names: short with or without the final dot ("ก.ย.", "ก.ย") and long ("กันยายน"). */
+const THAI_MONTHS: [string[], string][] = [
+  [["ม.ค.", "มกราคม"], "01"], [["ก.พ.", "กุมภาพันธ์"], "02"], [["มี.ค.", "มีนาคม"], "03"],
+  [["เม.ย.", "เมษายน"], "04"], [["พ.ค.", "พฤษภาคม"], "05"], [["มิ.ย.", "มิถุนายน"], "06"],
+  [["ก.ค.", "กรกฎาคม"], "07"], [["ส.ค.", "สิงหาคม"], "08"], [["ก.ย.", "กันยายน"], "09"],
+  [["ต.ค.", "ตุลาคม"], "10"], [["พ.ย.", "พฤศจิกายน"], "11"], [["ธ.ค.", "ธันวาคม"], "12"],
+];
+
+function monthNumber(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  const noDot = (x: string) => x.replace(/\.$/, "");
+  for (const [names, num] of THAI_MONTHS) if (names.some((x) => noDot(x) === noDot(n))) return num;
+  return /^[a-z]{3,}$/.test(n) ? MONTH_NAMES[n.slice(0, 3)] || null : null;
+}
+
+const monthLabelOf = (y: number, m: string) =>
+  new Date(Date.UTC(y, Number(m) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+
+const fromBuddhist = (v: string) => {
+  const y = parseInt(v, 10);
+  return y > 2400 ? y - 543 : y;
+};
+
+const result = (y: number, m: string) =>
+  Number(m) >= 1 && Number(m) <= 12 ? { month: `${y}-${m}`, monthLabel: monthLabelOf(y, m), year: y } : null;
+
+/**
+ * A month cell as "YYYY-MM", or null when it cannot be read (the import then
+ * stops instead of saving a wrong month). Accepts Excel date cells, "Sep 2025",
+ * "ก.ย. 2568", "2025-09", "09/2025"; Buddhist years are converted.
+ */
+export function parseMonthYear(val: unknown): { month: string; monthLabel: string; year: number } | null {
+  if (val === null || val === undefined || val === "") return null;
 
   if (val instanceof Date) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, "0");
-    const mLabel = val.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-    return { month: `${y}-${m}`, monthLabel: mLabel, year: y };
+    if (Number.isNaN(val.getTime())) return null;
+    // Excel date cells can arrive a few seconds early (1 Jan 00:00 → 31 Dec 23:59:56
+    // in the Bangkok time zone): round to the nearest hour before reading the month.
+    const d = new Date(Math.round(val.getTime() / 3_600_000) * 3_600_000);
+    return result(d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"));
   }
 
   const str = String(val).replace(/[\r\n"']/g, "").trim();
 
-  // Pattern: "Sep 2025" or "Sep 2568"
+  // "Sep 2025", "September 2025", "ก.ย. 2568", "กันยายน 2568"
   const m1 = str.match(/^([A-Za-zก-๙.]+)\s+(\d{4})$/);
   if (m1) {
-    const mKey = m1[1].toLowerCase().slice(0, 3);
-    const mNum = MONTH_NAMES[mKey] || "01";
-    let y = parseInt(m1[2], 10);
-    if (y > 2400) y -= 543; // Buddhist year conversion
-    return { month: `${y}-${mNum}`, monthLabel: str, year: y };
+    const m = monthNumber(m1[1]);
+    return m ? result(fromBuddhist(m1[2]), m) : null;
   }
 
-  // Pattern: "2025-09" or "2025/09"
-  const m2 = str.match(/^(\d{4})[-/](\d{1,2})/);
-  if (m2) {
-    let y = parseInt(m2[1], 10);
-    if (y > 2400) y -= 543;
-    const mNum = m2[2].padStart(2, "0");
-    const dateObj = new Date(y, parseInt(mNum, 10) - 1, 1);
-    const mLabel = dateObj.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-    return { month: `${y}-${mNum}`, monthLabel: mLabel, year: y };
-  }
+  // "2025-09", "2025/09", "2025-09-01"
+  const m2 = str.match(/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?$/);
+  if (m2) return result(fromBuddhist(m2[1]), m2[2].padStart(2, "0"));
 
-  // Pattern: "09/2025"
-  const m3 = str.match(/^(\d{1,2})[-/](\d{4})/);
-  if (m3) {
-    let y = parseInt(m3[2], 10);
-    if (y > 2400) y -= 543;
-    const mNum = m3[1].padStart(2, "0");
-    const dateObj = new Date(y, parseInt(mNum, 10) - 1, 1);
-    const mLabel = dateObj.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-    return { month: `${y}-${mNum}`, monthLabel: mLabel, year: y };
-  }
+  // "09/2025", "9-2568"
+  const m3 = str.match(/^(\d{1,2})[-/](\d{4})$/);
+  if (m3) return result(fromBuddhist(m3[2]), m3[1].padStart(2, "0"));
 
-  return { month: str, monthLabel: str, year: new Date().getFullYear() };
+  return null;
 }
 
 export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): MonthlyRevenueItem[] {
   const map = new Map<string, MonthlyRevenueItem>();
+  const unreadable: string[] = [];
 
   rows.forEach((row) => {
     // Find key for Month/Monthly
@@ -141,11 +150,10 @@ export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): Monthl
       }
     }
     if (!rawMonth) return;
+    if (!(rawMonth instanceof Date) && !String(rawMonth).replace(/[\r\n"']/g, "").trim()) return;
 
-    const rawStr = String(rawMonth).replace(/[\r\n"']/g, "").trim();
-    if (!rawStr) return;
-
-    const { month, monthLabel, year } = parseMonthYear(rawStr);
+    // Date cells go in as dates: turning them into text first lost the month.
+    const parsedMonth = parseMonthYear(rawMonth);
     const estRevenue = numVal(row, "EST.Revenue", "EST. Revenue", "Estimated revenue", "Revenue", "รายได้รวม");
     const partnerAdRevenue = numVal(row, "Estimated partner ad revenue", "Partner ad revenue", "Watch Page ads", "รายได้จากโฆษณา");
     const youtubePremiumRevenue = numVal(row, "YouTube Premium", "Youtube Premium", "Premium", "พรีเมียม");
@@ -178,6 +186,11 @@ export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): Monthl
     if (estRevenue === 0 && calculatedTotal === 0) {
       return;
     }
+    if (!parsedMonth) {
+      unreadable.push(rawMonth instanceof Date ? rawMonth.toISOString() : String(rawMonth).trim());
+      return;
+    }
+    const { month, monthLabel, year } = parsedMonth;
 
     map.set(month, {
       month,
@@ -199,6 +212,11 @@ export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): Monthl
     });
   });
 
+  if (unreadable.length) {
+    throw new Error(
+      `อ่านเดือนไม่ได้ ${unreadable.length} แถว: ${unreadable.slice(0, 3).join(", ")} · ใช้รูปแบบเช่น "Sep 2026", "ก.ย. 2569", "2026-09" หรือเซลล์วันที่ (ยังไม่ได้บันทึกอะไร)`,
+    );
+  }
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
