@@ -13,6 +13,10 @@ export type RankGrain = "day" | "week";
 export const MAX_DAYS_FOR_PRIOR_BASELINE = 31;
 export type BaselineKind = "prior30" | "within";
 
+/** Clips under this many views are left out of "worst": almost always removed,
+ * private or not yet counted, not a verdict on the content. */
+export const MIN_VIEWS_FOR_WORST = 50;
+
 export interface Period {
   start: string;
   end: string;
@@ -114,9 +118,10 @@ export function rankClips(
     (b.index ?? -1) - (a.index ?? -1) || b.row.views - a.row.views;
   const best = [...ranked].sort(byIndexDesc).slice(0, size);
   const bestSet = new Set(best);
-  // Worst leaves out clips still collecting views and clips already listed as best.
+  // Worst leaves out clips still collecting views, clips already listed as
+  // best, and clips with almost no views (removed, private or not counted).
   const worst = ranked
-    .filter((x) => x.index !== null && !x.fresh && !bestSet.has(x))
+    .filter((x) => x.index !== null && !x.fresh && !bestSet.has(x) && x.row.views >= MIN_VIEWS_FOR_WORST)
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0) || a.row.views - b.row.views)
     .slice(0, size);
 

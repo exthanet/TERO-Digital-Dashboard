@@ -152,6 +152,10 @@ test("clips are ranked against the median of their own platform and format", () 
   assert.equal(r.best[0].index, 5);
   // Worst skips the clip published within 2 days of the latest data and anything already in best.
   assert.deepEqual(r.worst.map((x) => x.row.topic), ["yt-half"]);
+  // Clips with almost no views (removed, private, not counted) are never "worst".
+  const withZero = rankClips([...history, ...week, clip("2026-09-22", "YouTube", "YouTube Full Episode", 0, "yt-zero"), clip("2026-09-22", "Facebook", "Facebook Post", 49, "fb-49")], periodFor("2026-09-24", "week"), "2026-09-27", 2);
+  assert.ok(!withZero.worst.some((x) => ["yt-zero", "fb-49"].includes(x.row.topic)));
+  assert.deepEqual(withZero.worst.map((x) => x.row.topic), ["yt-half"]);
 });
 test("TV episodes sort by One31 rating and compare with the previous 4 weeks", () => {
   const ep = (date, rating) => ({ ...clip(date, "TV", "TV Episode", 0, date), ratingTotal: rating, program: "ถกไม่เถียง" });

@@ -61,7 +61,7 @@ function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst"
   );
 }
 
-const TV_EACH_END = 5;
+const TV_SHOWN = 5;
 
 export function RankingSection({
   rankingRows,
@@ -105,11 +105,8 @@ export function RankingSection({
 
   if (!period) return null;
   const atLatest = period.end >= dataLatestDate;
-  // Long lists: the top and bottom episodes, the rest on request.
-  const trimmed = !allEpisodes && episodes.length > TV_EACH_END * 2;
-  const shown = trimmed
-    ? [...episodes.slice(0, TV_EACH_END).map((x, i) => ({ x, i })), ...episodes.slice(-TV_EACH_END).map((x, i) => ({ x, i: episodes.length - TV_EACH_END + i }))]
-    : episodes.map((x, i) => ({ x, i }));
+  // The 5 best-rated episodes; the rest on request.
+  const shown = (allEpisodes ? episodes : episodes.slice(0, TV_SHOWN)).map((x, i) => ({ x, i }));
 
   return (
     <section className="panel ranking-panel" id="ranking">
@@ -172,10 +169,9 @@ export function RankingSection({
           </h3>
           {episodes.length ? (
             <ol className="ranking-list">
-              {shown.map(({ x, i }, k) => (
+              {shown.map(({ x, i }) => (
                 <li
                   key={`${x.row.date}-${x.row.program}`}
-                  data-gap={trimmed && k === TV_EACH_END ? "true" : undefined}
                   className={episodes.length > 1 && i === 0 ? "top" : episodes.length > 1 && i === episodes.length - 1 ? "bottom" : ""}
                 >
                   <b className="ranking-no">{i + 1}</b>
@@ -201,9 +197,9 @@ export function RankingSection({
           ) : (
             <p className="ranking-empty">ไม่มีเทปที่มีเรตติ้งในช่วงนี้</p>
           )}
-          {episodes.length > TV_EACH_END * 2 && (
+          {episodes.length > TV_SHOWN && (
             <button type="button" className="ranking-more" onClick={() => setAllEpisodes((v) => !v)}>
-              {allEpisodes ? `แสดงเฉพาะ ${TV_EACH_END} สูงสุด / ต่ำสุด` : `ดูทั้งหมด ${episodes.length} เทป`}
+              {allEpisodes ? `แสดงเฉพาะ ${TV_SHOWN} เทปสูงสุด` : `ดูทั้งหมด ${episodes.length} เทป`}
             </button>
           )}
         </article>
@@ -211,7 +207,7 @@ export function RankingSection({
       <p className="ai-note ranking-note">
         ค่าปกติ = ค่ามัธยฐานยอดวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกัน
         {clips.baselineKind === "within" ? "ภายในช่วงนี้ (ช่วงยาวกว่า 1 เดือน)" : "ใน 30 วันก่อนหน้า"} ·
-        “แย่ที่สุด” ไม่นับคลิปที่ลงไม่ถึง 2 วัน · ยอดวิวเป็นยอดสะสม ณ วันที่อัปเดตข้อมูลล่าสุด
+        “แย่ที่สุด” ไม่นับคลิปที่ลงไม่ถึง 2 วัน และคลิปที่วิวต่ำกว่า 50 · ยอดวิวเป็นยอดสะสม ณ วันที่อัปเดตข้อมูลล่าสุด
       </p>
     </section>
   );
