@@ -36,10 +36,27 @@ interface Props {
 
 function indexText(x: RankedQualityClip) {
   if (x.index === null) return "ข้อมูลไม่พอเทียบค่ากลาง";
-  return x.index >= 1 ? `${x.index.toFixed(1)}× ของค่ากลาง` : `${Math.round(x.index * 100)}% ของค่ากลาง`;
+  return x.index >= 1 ? `${x.index.toFixed(1)}× ค่ากลาง` : `${Math.round(x.index * 100)}% ของค่ากลาง`;
 }
 
-function QualityList({ items, metric, tone }: { items: RankedQualityClip[]; metric: QualityMetric; tone: "best" | "worst" }) {
+/**
+ * A value on a 0…max bar, with a tick at the median of its format. Above the
+ * median = green, below = orange, no median = blue. Values past max fill the
+ * bar (the number beside it stays the raw value).
+ */
+function ValueBar({ value, max, median, label }: { value: number; max: number; median?: number | null; label?: string }) {
+  const width = max > 0 ? Math.min(1, Math.max(0, value / max)) * 100 : 0;
+  const tone = median === null || median === undefined ? "plain" : value >= median ? "up" : "down";
+  const tick = median !== null && median !== undefined && max > 0 && median <= max ? (median / max) * 100 : null;
+  return (
+    <span className={`value-bar ${tone}`} title={label}>
+      <i style={{ width: `${width}%` }} />
+      {tick !== null && <b style={{ left: `${tick}%` }} />}
+    </span>
+  );
+}
+
+function QualityList({ items, metric, tone, max }: { items: RankedQualityClip[]; metric: QualityMetric; tone: "best" | "worst"; max: number }) {
   if (!items.length) return <p className="ranking-empty">ข้อมูลยังไม่พอ</p>;
   return (
     <ol className={`ranking-list ${tone}`}>
@@ -54,10 +71,21 @@ function QualityList({ items, metric, tone }: { items: RankedQualityClip[]; metr
               <span className="tag">{x.row.vdoType}</span> {compact(x.row.views)} วิว
               {metric === "watched" && ` · ยาว ${secs(x.row.videoLengthSec)}`}
             </small>
+            <div className="quality-bar-row">
+              <ValueBar
+                value={x.value}
+                max={max}
+                median={x.median}
+                label={x.median !== null ? `ค่ากลาง ${x.row.vdoType}: ${metric === "watched" ? pct1(x.median) : `${(x.median * 100).toFixed(2)}%`}` : undefined}
+              />
+              <small className={x.index === null ? "" : x.index < 1 ? "down" : "up"}>
+                {indexText(x)}
+                {metric === "watched" && x.value > 1 && <em className="quality-loop">ดูวนซ้ำ</em>}
+              </small>
+            </div>
           </div>
           <div className="ranking-metric">
             <strong>{metric === "watched" ? pct1(x.value) : `${(x.value * 100).toFixed(2)}%`}</strong>
-            <small className={x.index !== null && x.index < 1 ? "down" : "up"}>{indexText(x)}</small>
           </div>
         </li>
       ))}
@@ -82,6 +110,9 @@ export function QualitySection({ rows, allRows, startDate, endDate, comparePerio
   const platform = rankable.includes(pickedPlatform) ? pickedPlatform : rankable[0] || "";
   const ranking = useMemo(() => (platform ? rankQuality(digital, platform, metric) : null), [digital, platform, metric]);
 
+  // Share watched on 0–100%; ER has no ceiling, so 0 to the highest value shown.
+  const barMax =
+    metric === "watched" ? 1 : Math.max(0, ...(ranking?.best || []).map((x) => x.value), ...(ranking?.worst || []).map((x) => x.value));
   const change = (a: number | null, b: number | null | undefined) => (a !== null && b ? (a - b) / b : null);
   const compareText = comparePeriod ? `เทียบกับคลิปที่โพสต์ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
 
@@ -162,7 +193,12 @@ export function QualitySection({ rows, allRows, startDate, endDate, comparePerio
                     <tr key={f.vdoType}>
                       <td>{f.vdoType}</td>
                       <td className="num">{num(f.clips)}</td>
-                      <td className="num">{pct1(f.watched)}</td>
+                      <td className="num">
+                        <div className="quality-format-watch">
+                          {f.watched !== null && <ValueBar value={f.watched} max={1} median={c.watched} label={`ทั้ง ${c.platform}: ${pct1(c.watched)}`} />}
+                          <span>{pct1(f.watched)}</span>
+                        </div>
+                      </td>
                       <td className="num">{(f.er * 100).toFixed(2)}%</td>
                     </tr>
                   ))}
@@ -242,11 +278,11 @@ export function QualitySection({ rows, allRows, startDate, endDate, comparePerio
           <div className="quality-rank-grid">
             <div>
               <h4>สูงสุด</h4>
-              <QualityList items={ranking.best} metric={metric} tone="best" />
+              <QualityList items={ranking.best} metric={metric} tone="best" max={barMax} />
             </div>
             <div>
               <h4>ต่ำสุด</h4>
-              <QualityList items={ranking.worst} metric={metric} tone="worst" />
+              <QualityList items={ranking.worst} metric={metric} tone="worst" max={barMax} />
             </div>
           </div>
         </article>

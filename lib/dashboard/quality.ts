@@ -96,6 +96,8 @@ export interface RankedQualityClip {
   value: number;
   /** value ÷ the median of the same platform + format in these rows; null when too few to compare. */
   index: number | null;
+  /** That median (same unit as value); null when fewer than 5 clips of the format. */
+  median: number | null;
 }
 
 const median = (xs: number[]) => {
@@ -118,8 +120,8 @@ export function rankQuality(rows: RecordRow[], platform: string, metric: Quality
     medians.set(vt, group.length >= 5 ? median(group) : null);
   }
   const ranked: RankedQualityClip[] = clips.map((c) => {
-    const m = medians.get(c.row.vdoType);
-    return { ...c, index: m ? c.value / m : null };
+    const m = medians.get(c.row.vdoType) ?? null;
+    return { ...c, index: m ? c.value / m : null, median: m };
   });
   const sorted = [...ranked].sort((a, b) => b.value - a.value);
   return {

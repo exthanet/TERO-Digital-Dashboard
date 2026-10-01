@@ -401,3 +401,89 @@
   font-size: 11px;
   color: #334155;
 }
+
+/* Bars for share watched / ER with a tick at the format median (QualitySection) */
+.value-bar {
+  position: relative;
+  display: inline-block;
+  flex: 1;
+  min-width: 60px;
+  height: 8px;
+  border-radius: 99px;
+  background: #edf1f7;
+  vertical-align: middle;
+}
+
+.value-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: #3b82f6;
+}
+
+.value-bar.up i {
+  background: #22a35a;
+}
+
+.value-bar.down i {
+  background: #f08a3e;
+}
+
+.value-bar b {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #172139;
+}
+
+.quality-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.quality-bar-row small {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.quality-bar-row small.up {
+  color: #15803d;
+}
+
+.quality-bar-row small.down {
+  color: #c2410c;
+}
+
+.quality-loop {
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-style: normal;
+  font-size: 10px;
+}
+
+.quality-format-watch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.quality-format-watch .value-bar {
+  flex: 0 0 64px;
+  min-width: 0;
+  height: 6px;
+}
+
+.quality-format-watch span {
+  min-width: 42px;
+}
