@@ -197,3 +197,29 @@
     flex: 1;
   }
 }
+
+/* TV list trimmed to top / bottom: a dotted gap between the two groups. */
+.ranking-tv li[data-gap] {
+  margin-top: 14px;
+  position: relative;
+}
+.ranking-tv li[data-gap]::before {
+  content: "⋯";
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #94a3b8;
+  font-size: 12px;
+}
+.ranking-more {
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  color: #0757e8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}

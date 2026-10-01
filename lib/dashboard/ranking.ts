@@ -1,12 +1,17 @@
-// Best / worst ranking for a single day or week (brief: รายวัน / รายสัปดาห์).
+// Best / worst ranking for the report range, a day or a week.
 //
 // Clips are compared with what is normal for the same platform + VDO type,
 // otherwise "worst" would always be a Facebook post with a few hundred views
 // next to YouTube videos with millions. Normal = median views of that group
-// over the 30 days before the period.
+// over the 30 days before the period; for ranges longer than a month (90 or
+// 365 days, a year, all data) the median within the range itself.
 import type { RecordRow } from "@/lib/dashboard/types";
 
 export type RankGrain = "day" | "week";
+
+/** Longer periods compare clips with the median inside the period. */
+export const MAX_DAYS_FOR_PRIOR_BASELINE = 31;
+export type BaselineKind = "prior30" | "within";
 
 export interface Period {
   start: string;
@@ -63,10 +68,15 @@ export function rankClips(
   period: Period,
   latestDate: string,
   size = 5,
-): { best: RankedClip[]; worst: RankedClip[]; total: number } {
+): { best: RankedClip[]; worst: RankedClip[]; total: number; baselineKind: BaselineKind } {
   const digital = rows.filter((r) => !isTv(r) && r.date);
+  const days = Math.round((toDate(period.end).getTime() - toDate(period.start).getTime()) / DAY) + 1;
+  const baselineKind: BaselineKind = days > MAX_DAYS_FOR_PRIOR_BASELINE ? "within" : "prior30";
   const baseStart = addDays(period.start, -30);
-  const history = digital.filter((r) => r.date >= baseStart && r.date < period.start && r.views > 0);
+  const history =
+    baselineKind === "within"
+      ? digital.filter((r) => r.date >= period.start && r.date <= period.end && r.views > 0)
+      : digital.filter((r) => r.date >= baseStart && r.date < period.start && r.views > 0);
 
   const byGroup = new Map<string, number[]>();
   const byPlatform = new Map<string, number[]>();
@@ -110,7 +120,7 @@ export function rankClips(
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0) || a.row.views - b.row.views)
     .slice(0, size);
 
-  return { best, worst, total: ranked.length };
+  return { best, worst, total: ranked.length, baselineKind };
 }
 
 /** TV episodes in the period, best rating first, each against the previous 28 days. */

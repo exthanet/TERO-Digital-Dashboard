@@ -15,11 +15,15 @@ import {
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`));
 
-function periodLabel(start: string, end: string, grain: RankGrain) {
-  if (grain === "day") {
+/** "range" = the report range from the date filter at the top. */
+type Mode = "range" | RankGrain;
+
+function periodLabel(start: string, end: string, grain: Mode) {
+  if (grain === "day" || start === end) {
     return thDate(start, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   }
-  return `${thDate(start, { day: "numeric", month: "short" })} – ${thDate(end, { day: "numeric", month: "short", year: "numeric" })}`;
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  return `${thDate(start, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) })} – ${thDate(end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
 function indexText(x: RankedClip) {
@@ -57,13 +61,22 @@ function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst"
   );
 }
 
+const TV_EACH_END = 5;
+
 export function RankingSection({
   rankingRows,
   dataLatestDate,
+  startDate,
   endDate,
-}: Pick<DashboardModel, "rankingRows" | "dataLatestDate" | "endDate">) {
-  const [grain, setGrain] = useState<RankGrain>("week");
+}: Pick<DashboardModel, "rankingRows" | "dataLatestDate" | "startDate" | "endDate">) {
+  const [grain, setGrain] = useState<Mode>("range");
   const [anchor, setAnchor] = useState("");
+  const [allEpisodes, setAllEpisodes] = useState(false);
+  // A new report range at the top brings the card back to that range.
+  useEffect(() => {
+    setGrain("range");
+    setAllEpisodes(false);
+  }, [startDate, endDate]);
 
   // Clips and TV ratings arrive on different schedules, so start from the
   // newest day that has clips (else the newest data), capped by the date filter.
@@ -80,15 +93,23 @@ export function RankingSection({
   useEffect(() => setAnchor(defaultAnchor), [defaultAnchor]);
 
   const current = anchor || defaultAnchor;
-  const period = useMemo(() => (current ? periodFor(current, grain) : null), [current, grain]);
+  const period = useMemo(() => {
+    if (grain === "range") return startDate && endDate && startDate <= endDate ? { start: startDate, end: endDate } : null;
+    return current ? periodFor(current, grain) : null;
+  }, [current, grain, startDate, endDate]);
   const clips = useMemo(
-    () => (period ? rankClips(rankingRows, period, newest) : { best: [], worst: [], total: 0 }),
+    () => (period ? rankClips(rankingRows, period, newest) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
     [rankingRows, period, newest],
   );
   const episodes = useMemo(() => (period ? rankEpisodes(rankingRows, period) : []), [rankingRows, period]);
 
   if (!period) return null;
   const atLatest = period.end >= dataLatestDate;
+  // Long lists: the top and bottom episodes, the rest on request.
+  const trimmed = !allEpisodes && episodes.length > TV_EACH_END * 2;
+  const shown = trimmed
+    ? [...episodes.slice(0, TV_EACH_END).map((x, i) => ({ x, i })), ...episodes.slice(-TV_EACH_END).map((x, i) => ({ x, i: episodes.length - TV_EACH_END + i }))]
+    : episodes.map((x, i) => ({ x, i }));
 
   return (
     <section className="panel ranking-panel" id="ranking">
@@ -96,11 +117,14 @@ export function RankingSection({
         <div>
           <h2>Ranking: ดีที่สุด / แย่ที่สุด</h2>
           <p>
-            คลิปที่ลงใน{grain === "day" ? "วัน" : "สัปดาห์"}นี้ {num(clips.total)} ชิ้น · เทียบกับค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน
+            คลิปที่ลงใน{grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ {num(clips.total)} ชิ้น · เทียบกับค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน
           </p>
         </div>
         <div className="ranking-controls">
           <div className="segmented">
+            <button className={grain === "range" ? "active" : ""} onClick={() => setGrain("range")} title="ช่วงเดียวกับตัวกรองวันที่ด้านบน">
+              ตามช่วงรายงาน
+            </button>
             <button className={grain === "day" ? "active" : ""} onClick={() => setGrain("day")}>
               รายวัน
             </button>
@@ -109,18 +133,22 @@ export function RankingSection({
             </button>
           </div>
           <div className="ranking-nav">
-            <button type="button" aria-label="ช่วงก่อนหน้า" onClick={() => setAnchor(shiftPeriod(current, grain, -1))}>
-              <ChevronLeft size={16} />
-            </button>
+            {grain !== "range" && (
+              <button type="button" aria-label="ช่วงก่อนหน้า" onClick={() => setAnchor(shiftPeriod(current, grain, -1))}>
+                <ChevronLeft size={16} />
+              </button>
+            )}
             <span>{periodLabel(period.start, period.end, grain)}</span>
-            <button
-              type="button"
-              aria-label="ช่วงถัดไป"
-              disabled={atLatest}
-              onClick={() => setAnchor(shiftPeriod(current, grain, 1))}
-            >
-              <ChevronRight size={16} />
-            </button>
+            {grain !== "range" && (
+              <button
+                type="button"
+                aria-label="ช่วงถัดไป"
+                disabled={atLatest}
+                onClick={() => setAnchor(shiftPeriod(current, grain, 1))}
+              >
+                <ChevronRight size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -144,9 +172,10 @@ export function RankingSection({
           </h3>
           {episodes.length ? (
             <ol className="ranking-list">
-              {episodes.map((x, i) => (
+              {shown.map(({ x, i }, k) => (
                 <li
                   key={`${x.row.date}-${x.row.program}`}
+                  data-gap={trimmed && k === TV_EACH_END ? "true" : undefined}
                   className={episodes.length > 1 && i === 0 ? "top" : episodes.length > 1 && i === episodes.length - 1 ? "bottom" : ""}
                 >
                   <b className="ranking-no">{i + 1}</b>
@@ -172,10 +201,16 @@ export function RankingSection({
           ) : (
             <p className="ranking-empty">ไม่มีเทปที่มีเรตติ้งในช่วงนี้</p>
           )}
+          {episodes.length > TV_EACH_END * 2 && (
+            <button type="button" className="ranking-more" onClick={() => setAllEpisodes((v) => !v)}>
+              {allEpisodes ? `แสดงเฉพาะ ${TV_EACH_END} สูงสุด / ต่ำสุด` : `ดูทั้งหมด ${episodes.length} เทป`}
+            </button>
+          )}
         </article>
       </div>
       <p className="ai-note ranking-note">
-        ค่าปกติ = ค่ามัธยฐานยอดวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อนหน้า ·
+        ค่าปกติ = ค่ามัธยฐานยอดวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกัน
+        {clips.baselineKind === "within" ? "ภายในช่วงนี้ (ช่วงยาวกว่า 1 เดือน)" : "ใน 30 วันก่อนหน้า"} ·
         “แย่ที่สุด” ไม่นับคลิปที่ลงไม่ถึง 2 วัน · ยอดวิวเป็นยอดสะสม ณ วันที่อัปเดตข้อมูลล่าสุด
       </p>
     </section>

@@ -206,6 +206,7 @@ export default function Dashboard() {
             <RankingSection
               rankingRows={model.rankingRows}
               dataLatestDate={model.dataLatestDate}
+              startDate={model.startDate}
               endDate={model.endDate}
             />
             <ExecutiveCharts

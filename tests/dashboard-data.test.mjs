@@ -230,3 +230,19 @@ test("comparison: previous period, same period last year, custom, none", async (
   assert.equal(getCompareRange("2026-09-01", "2026-09-30", "CUSTOM", { start: "2026-06-30", end: "2026-06-01" }), null);
   assert.equal(getCompareRange("2026-09-01", "2026-09-30", "NONE"), null);
 });
+
+test("report ranges longer than a month rank against the median inside the range", () => {
+  // No history before the range (e.g. "ทั้งหมด"): the range itself is the baseline.
+  const rows = [];
+  for (let i = 1; i <= 9; i++) rows.push(clip(`2026-0${i}-10`, "YouTube", "YouTube Shorts", 1_000, `s-${i}`));
+  rows.push(clip("2026-05-20", "YouTube", "YouTube Shorts", 9_000, "star"));
+  rows.push(clip("2026-06-20", "YouTube", "YouTube Shorts", 100, "flop"));
+  const long = rankClips(rows, { start: "2026-01-01", end: "2026-09-30" }, "2026-09-30", 1);
+  assert.equal(long.baselineKind, "within");
+  assert.equal(long.best[0].row.topic, "star");
+  assert.equal(long.best[0].index, 9);
+  assert.equal(long.worst[0].row.topic, "flop");
+  // A 28-day range keeps the 30 days before as its baseline.
+  const short = rankClips(rows, { start: "2026-09-03", end: "2026-09-30" }, "2026-09-30", 1);
+  assert.equal(short.baselineKind, "prior30");
+});
