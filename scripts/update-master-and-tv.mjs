@@ -3,7 +3,7 @@ import fs from "node:fs";
 const masterCsvPath = "C:/Users/terodigitalOffice/Downloads/Master Data (01_01_2026 - 28_08_2026).xlsm - Master Data (4).csv";
 const oneTvCsvPath = "C:/Users/terodigitalOffice/Downloads/ถกไม่เถียงONE-คู่แข่ง - ถกไม่เถียงONE-คู่แข่ง.csv";
 const gmmTvCsvPath = "C:/Users/terodigitalOffice/Downloads/ถกไม่เถียงGMM25-คู่แข่ง - ถกไม่เถียงGMM25-คู่แข่ง.csv";
-const targetJsonPath = "public/master-data.json";
+const targetJsonPath = "data/master-data.json";
 
 function parseCsv(text) {
   const table = [];
@@ -59,7 +59,7 @@ function number(value) { const parsed = Number(String(value || "").replaceAll(",
 function fixed(value, digits = 3) { return value ? value.toFixed(digits).replace(/0+$/, "").replace(/\.$/, "") : ""; }
 function audience(rating) { return rating ? Math.round(rating * 700000) : 0; }
 
-console.log("1. Reading current public/master-data.json...");
+console.log("1. Reading current data/master-data.json...");
 const currentMaster = JSON.parse(fs.readFileSync(targetJsonPath, "utf8"));
 console.log(`Current master rows: ${currentMaster.length}`);
 

@@ -99,7 +99,11 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         }
       }
 
-      // Fallback to static asset
+      // Only the static (GitHub Pages) build reads a file; the live site uses Firestore only.
+      if (!isStaticHost) {
+        setData(null);
+        return;
+      }
       const res = await fetch(dashboardAsset("youtube-revenue.json"));
       if (res.ok) {
         const fileData = await res.json();

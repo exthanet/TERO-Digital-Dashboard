@@ -7,7 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 async function syncRevenue() {
-  const jsonPath = path.resolve("./public/youtube-revenue.json");
+  const jsonPath = path.resolve("./data/youtube-revenue.json");
   const raw = fs.readFileSync(jsonPath, "utf-8");
   const data = JSON.parse(raw);
 

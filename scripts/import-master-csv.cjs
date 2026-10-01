@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 
 const input = process.argv[2];
-const output = process.argv[3] || "public/master-data.json";
+const output = process.argv[3] || "data/master-data.json";
 if (!input) throw new Error("Usage: node scripts/import-master-csv.cjs <input.csv> [output.json]");
 
 const source = fs.readFileSync(input, "utf8").replace(/^\uFEFF/, "");

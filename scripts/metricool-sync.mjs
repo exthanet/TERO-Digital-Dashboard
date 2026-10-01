@@ -6,7 +6,7 @@
  * file, then write a report. Nothing is written to Firestore.
  *
  *   node scripts/metricool-sync.mjs --since=2026-08-01
- *   node scripts/metricool-sync.mjs --since=2026-08-01 --until=2026-09-29 --baseline=public/master-data.json
+ *   node scripts/metricool-sync.mjs --since=2026-08-01 --until=2026-09-29 --baseline=data/master-data.json
  *   node scripts/metricool-sync.mjs --since=2026-08-01 --baseline=firestore
  *
  * Write (production): backup masterData, write only if every safety check
@@ -80,7 +80,7 @@ const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
 const since = args.since || "2026-08-01";
 const until = args.until || today;
 const write = args.write === "true";
-const baselineFile = write ? "firestore" : args.baseline || "public/master-data.json";
+const baselineFile = write ? "firestore" : args.baseline || "data/master-data.json";
 const outDir = args.out || path.join("output", "metricool-test-run");
 
 // Same date rules as the dashboard: plain days, read as written.

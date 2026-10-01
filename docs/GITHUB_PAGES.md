@@ -10,7 +10,7 @@ The API Sync button is omitted from the static build.
 
 ## Publish
 
-Publishing makes the bundled `public/master-data.json` and `public/affiliate-data.json` accessible to visitors.
+The data files are no longer in the repository (they live in the local, git-ignored `data/` folder; the live site reads Firestore), so a Pages build has no data unless they are copied into `public/` for that build only. Anything placed in `public/` becomes accessible to visitors.
 A private repository does not make a standard GitHub Pages site private. Obtain approval for public access before publishing.
 Private-repository Pages requires an eligible GitHub plan; do not change repository visibility to bypass that requirement.
 

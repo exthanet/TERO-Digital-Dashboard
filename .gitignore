@@ -74,3 +74,10 @@ next-env.d.ts
 /football-output/
 /.firebase/
 *.tsbuildinfo
+
+# Company data files: kept on this machine only, never committed or published
+# (the dashboard reads them from Firestore behind sign-in).
+/data/
+/public/master-data.json
+/public/affiliate-data.json
+/public/youtube-revenue.json

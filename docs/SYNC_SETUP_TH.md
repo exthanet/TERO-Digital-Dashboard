@@ -126,7 +126,7 @@ node scripts/metricool-sync.mjs --since=2026-08-01
 
 รันแบบนี้เป็น test-run เสมอ: ดึงข้อมูลจริงและสรุปผลใน `output/metricool-test-run/` แต่ไม่เขียน Firestore
 
-ถ้าต้องการเทียบกับข้อมูลจริงใน Firestore (แทนไฟล์ `public/master-data.json`) ให้เก็บไฟล์ key ของ service account
+ถ้าต้องการเทียบกับข้อมูลจริงใน Firestore (แทนไฟล์ในเครื่อง `data/master-data.json`) ให้เก็บไฟล์ key ของ service account
 (จากข้อ 7) ไว้ที่ `.secrets/firebase-sync.json` ในโฟลเดอร์โปรเจกต์ โฟลเดอร์ `.secrets/` อยู่ใน `.gitignore`
 
 ## รันอัตโนมัติ (GitHub Actions: `data-sync.yml`)

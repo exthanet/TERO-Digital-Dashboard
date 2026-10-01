@@ -33,7 +33,7 @@
 | Affiliate, TV Map และการปรับขนาดรายงาน              | `styles/reports.css`                                                           |
 | Animation และ scrolling utilities                   | `styles/utilities.css`                                                         |
 | ลำดับโหลด CSS                                       | `app/globals.css`                                                              |
-| ข้อมูลเริ่มต้น                                      | `public/master-data.json`, `public/affiliate-data.json`                        |
+| ไฟล์ข้อมูลในเครื่อง (ไม่เข้า git ไม่ขึ้นเว็บ)        | `data/master-data.json`, `data/affiliate-data.json`, `data/youtube-revenue.json` |
 | API ฝั่งเซิร์ฟเวอร์                                 | `app/api/`                                                                     |
 
 ## หลักการแยกไฟล์

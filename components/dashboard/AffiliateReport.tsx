@@ -67,7 +67,11 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
         }
       }
 
-      // Fallback to static asset if no Firebase data or on static host
+      // Only the static (GitHub Pages) build reads a file; the live site uses Firestore only.
+      if (!isStaticHost) {
+        setData(null);
+        return;
+      }
       const res = await fetch(dashboardAsset("affiliate-data.json"));
       if (res.ok) {
         const fileData = await res.json();

@@ -143,7 +143,13 @@ export function useDashboard(enabled = true) {
           }
         }
 
-        // Fallback or static host: fetch master-data.json with last-modified header
+        // The live site shows Firestore data only: an old file must never stand
+        // in for it unnoticed. Only the static (GitHub Pages) build reads a file.
+        if (!isStaticHost) {
+          setMessage("โหลดข้อมูลจาก Cloud ไม่สำเร็จ กรุณารีเฟรชหน้า หากยังไม่ได้ให้แจ้งผู้ดูแลระบบ");
+          setLoading(false);
+          return;
+        }
         const res = await fetch(dashboardAsset("master-data.json"));
         const lastModifiedHeader = res.headers.get("last-modified");
         const data: RawRow[] = await res.json();

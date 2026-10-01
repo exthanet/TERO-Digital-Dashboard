@@ -39,7 +39,9 @@ Settings → Secrets and variables → Actions
 ## ⚠️ ความปลอดภัย
 
 - เว็บเปิดสาธารณะโดยไม่ใช้ Cloudflare Access ข้อมูลใน Firestore อ่านได้เฉพาะผู้ที่ login แล้ว (`firestore.rules`) แต่ไฟล์ใน `public/` ยังเปิดอยู่
-  `https://digital-dashboard.terodigital.com/master-data.json` และ `affiliate-data.json` (มี Revenue) ใครมี URL ก็โหลดได้
+  ไฟล์ข้อมูล `master-data.json`, `affiliate-data.json` และ `youtube-revenue.json` ไม่ได้ขึ้นเว็บแล้ว (ตั้งแต่ ต.ค. 2569):
+  หน้า Performance, Revenue และ Affiliate อ่านจาก Firestore เท่านั้น ไฟล์เก็บไว้ในเครื่องที่โฟลเดอร์ `data/` (อยู่ใน `.gitignore`)
+  และ `nginx.conf` ตอบ 404 ถ้ามีไฟล์ชื่อเหล่านี้หลุดเข้ามาใน build
 - repo `exthanet/TERO-Digital-Dashboard` เป็น Public ข้อมูลชุดเดียวกันอยู่ใน Git ด้วย
 - หน้า admin ของ Dokploy (`dokploy.terodigital.com`) เปิดสู่ internet ควรใช้รหัสแข็งแรงและเปิด 2FA
 

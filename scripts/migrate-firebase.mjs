@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const targetJsonPath = "public/master-data.json";
+const targetJsonPath = "data/master-data.json";
 const PROJECT_ID = "entertainment-dashboard-733e5";
 const CHUNK_SIZE = 500;
 

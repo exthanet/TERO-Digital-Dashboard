@@ -13,8 +13,8 @@
 - `lib/dashboard/` — ชนิดข้อมูล สูตรคำนวณ และการแปลงข้อมูล
 - `app/globals.css` — ลำดับนำเข้า CSS จาก `styles/`
 - `components/dashboard/` — แยกเป็น sections, shared, charts รวมถึง Affiliate และ TV Zone Map
-- `public/master-data.json` — ข้อมูล Performance หลัก
-- `public/affiliate-data.json` — ข้อมูล Affiliate ที่พร้อมใช้ในเว็บ
+- `data/` — ไฟล์ข้อมูลในเครื่อง (master-data, affiliate, youtube-revenue) อยู่ใน `.gitignore` ไม่ขึ้นเว็บ
+  เว็บอ่านข้อมูลจาก Firestore เท่านั้น; ข้อมูลใหม่นำเข้าผ่านปุ่มนำเข้าในหน้าเว็บ (admin)
 - `scripts/` — สคริปต์รวม/แปลงข้อมูล
 - `docs/` — คู่มือและ Data Dictionary
 

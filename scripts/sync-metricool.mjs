@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * CLI script to fetch posts and metrics from Metricool API
- * and synchronize with public/master-data.json.
+ * and synchronize with data/master-data.json.
  *
  * Usage:
  *   node scripts/sync-metricool.mjs --test
@@ -56,7 +56,7 @@ function parseArgs() {
     days: 7,
     from: "",
     to: "",
-    output: "public/master-data.json",
+    output: "data/master-data.json",
   };
 
   for (const arg of args) {
@@ -88,7 +88,7 @@ Options:
   --from=YYYY-MM-DD      Start date for range query
   --to=YYYY-MM-DD        End date for range query (defaults to today if --from is given)
   --dry-run              Fetch and calculate metrics without modifying files
-  --output=PATH          Output file path (default: public/master-data.json)
+  --output=PATH          Output file path (default: data/master-data.json)
   --help, -h             Show this help message
 
 Environment Variables (set in .env or system):

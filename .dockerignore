@@ -19,3 +19,9 @@ coverage
 .DS_Store
 Dockerfile
 .dockerignore
+
+# Secrets and local company data never go into an image.
+.secrets
+data
+output
+backups

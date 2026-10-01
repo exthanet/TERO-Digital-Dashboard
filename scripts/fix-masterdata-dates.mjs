@@ -130,8 +130,8 @@ for (const p of plan) {
 }
 add("C. วันที่ใหม่ตรงกับที่ dashboard แสดงอยู่ตอนนี้", shownSame === shownTotal, `${shownSame}/${shownTotal}`, shownSamples);
 
-// D. Matches the team's source sheet (public/master-data.json, dd/mm/yyyy) wherever the post is in both.
-const sheet = JSON.parse(fs.readFileSync("public/master-data.json", "utf8"));
+// D. Matches the team's source sheet (data/master-data.json, dd/mm/yyyy) wherever the post is in both.
+const sheet = JSON.parse(fs.readFileSync("data/master-data.json", "utf8"));
 const sheetDay = (d) => { const m = String(d || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : ""; };
 const key = (r) => `${r.Platform}|${String(r.URL || "")}|${String(r.Topic || "").slice(0, 40)}`;
 const sheetByKey = new Map();
