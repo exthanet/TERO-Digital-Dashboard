@@ -296,3 +296,54 @@
     min-width: 170px;
   }
 }
+
+/* YouTube Revenue + Affiliate reports on phones: one column, KPI cards two
+   per row, charts and tables full width (tables scroll sideways inside). */
+@media (max-width: 800px) {
+  .affiliate-report {
+    padding: 10px;
+  }
+  .affiliate-head {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .affiliate-head > div:last-child {
+    justify-content: flex-start;
+  }
+  .affiliate-head h2 {
+    font-size: 16px;
+  }
+  .affiliate-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .affiliate-kpis article {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px;
+    min-width: 0;
+  }
+  .affiliate-kpis svg {
+    display: none;
+  }
+  .affiliate-kpis strong {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .affiliate-kpis small {
+    grid-column: auto;
+  }
+  .affiliate-grid,
+  .affiliate-tables {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .affiliate-chart {
+    height: 220px;
+  }
+  .affiliate-tables .table-scroll {
+    max-height: 360px;
+  }
+  .affiliate-report .table-scroll td a {
+    max-width: 180px;
+  }
+}
