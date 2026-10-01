@@ -464,7 +464,10 @@
   overscroll-behavior: contain;
 }
 .auth-modal-header,
-.auth-modal-footer {
+.auth-modal-footer,
+/* Sections keep their own height (the user table has its own scroll box);
+   the body scrolls instead of squeezing them. */
+.auth-modal-body > * {
   flex-shrink: 0;
 }
 
