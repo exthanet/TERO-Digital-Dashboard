@@ -12,6 +12,7 @@ import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
+import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -38,7 +39,7 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
   const requestKey = `${startDate}|${endDate}|${comparePeriod?.start}|${comparePeriod?.end}`;
 
   useEffect(() => {
-    firstGrowthDay()
+    track(firstGrowthDay())
       .then(setFirstDay)
       .catch(() => setFirstDay(""));
   }, []);
@@ -50,7 +51,7 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
     let alive = true;
     setError("");
     const wanted = [...new Set([...rangeDays, ...(prevDays.length <= GROWTH_MAX_DAYS ? prevDays : [])])];
-    loadGrowthDays(wanted)
+    track(loadGrowthDays(wanted))
       .then((map) => alive && setDays({ key: requestKey, map }))
       .catch((e) => alive && setError(String(e?.message || e)));
     return () => {

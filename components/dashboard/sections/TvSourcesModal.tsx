@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Plus, Save, Trash2, Tv, X, XCircle } from "lucide-react";
 import { loadTvSources, saveTvSources, type SyncStatus, type TvSourceConfig } from "@/lib/sync/status";
+import { track } from "@/lib/loadingBar";
 
 const PROGRAMS = ["ถกไม่เถียง", "เงินทองของจริง"];
 
@@ -39,7 +40,7 @@ export function TvSourcesModal({
     setSources(null);
     setMessage("");
     setError("");
-    loadTvSources()
+    track(loadTvSources())
       .then(setSources)
       .catch(() => {
         setSources([]);

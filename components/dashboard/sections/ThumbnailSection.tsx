@@ -10,6 +10,7 @@ import { THUMB_FRESH_DAYS, earlyViews, rankThumbnails, type ThumbClip } from "@/
 import { loadGrowthDays } from "@/lib/growthData";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
+import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -90,7 +91,7 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
   const [stored, setStored] = useState<Map<string, string> | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    loadThumbnails()
+    track(loadThumbnails())
       .then(setStored)
       .catch((e) => setError(String(e?.message || e)));
   }, []);
@@ -102,7 +103,7 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
     const days = daysBetween(addDays(startDate, -1), addDays(endDate, 1));
     if (days.length > GROWTH_MAX_DAYS) return setGrowth(new Map());
     let alive = true;
-    loadGrowthDays(days)
+    track(loadGrowthDays(days))
       .then((m) => alive && setGrowth(m))
       .catch(() => alive && setGrowth(new Map()));
     return () => {

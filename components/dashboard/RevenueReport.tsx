@@ -42,6 +42,7 @@ import {
   Video,
   Wallet,
 } from "lucide-react";
+import { track } from "@/lib/loadingBar";
 
 // Format currency as USD
 const money = (v: number) =>
@@ -90,7 +91,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     setLoading(true);
     try {
       if (!isStaticHost) {
-        const cloudData = await loadRevenueDataFromFirebase();
+        const cloudData = await track(loadRevenueDataFromFirebase());
         if (cloudData && cloudData.monthly.length > 0) {
           setData(cloudData);
           setSourceType("firebase");

@@ -8,6 +8,7 @@ import {
   type NotifyMode,
   type SyncStatus,
 } from "@/lib/sync/status";
+import { track } from "@/lib/loadingBar";
 
 const MODES: { value: NotifyMode; label: string; hint: string }[] = [
   { value: "always", label: "ทุกรอบ (สรุปรายวัน)", hint: "ได้อีเมลทุกครั้งหลัง sync รู้ว่าระบบยังทำงานอยู่" },
@@ -46,7 +47,7 @@ export function NotificationsModal({
     setEmails(null);
     setMessage("");
     setError("");
-    loadNotificationConfig()
+    track(loadNotificationConfig())
       .then((c) => {
         setEmails(c.emails);
         setMode(c.mode);

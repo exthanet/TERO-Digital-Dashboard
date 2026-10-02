@@ -23,6 +23,7 @@ import {
   watchSession,
 } from "@/lib/auth/users";
 import { authErrorMessage } from "@/lib/auth/validation";
+import { track } from "@/lib/loadingBar";
 
 export interface AuthState {
   user: User | null;
@@ -62,7 +63,7 @@ export function useAuth(): AuthState {
   );
 
   const refreshUsers = useCallback(async () => {
-    setAllUsers(await listUsers());
+    setAllUsers(await track(listUsers()));
   }, []);
 
   const login = useCallback(async (creds: LoginCredentials): Promise<AuthResult> => {

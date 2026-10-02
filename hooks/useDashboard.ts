@@ -27,6 +27,7 @@ import type {
   RecordRow,
 } from "@/lib/dashboard/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/lib/loadingBar";
 
 /** KPI totals for a set of rows; the same rules as the `metrics` memo. */
 function summarize(source: RecordRow[], tvMode: boolean) {
@@ -122,7 +123,7 @@ export function useDashboard(enabled = true) {
       try {
         if (!isStaticHost) {
           // Compact copy / this browser when they match masterData, else masterData itself.
-          const cloudResult = await loadDashboardRows().catch(() => null);
+          const cloudResult = await track(loadDashboardRows()).catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
             setRawRows(cloudResult.rows);
             const nonPlain = countNonPlainDates(cloudResult.rows);

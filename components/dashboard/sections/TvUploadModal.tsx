@@ -10,6 +10,7 @@ import {
   type TvSourceConfig,
 } from "@/lib/sync/status";
 import type { RawRow } from "@/lib/dashboard/types";
+import { track } from "@/lib/loadingBar";
 
 type Result = { source: TvSourceConfig; parsed?: ParsedTvSheet; error?: string };
 
@@ -49,7 +50,7 @@ export function TvUploadModal({
     setFileName("");
     setMessage("");
     setError("");
-    Promise.all([loadTvSources(), loadTvUploadInfo()])
+    track(Promise.all([loadTvSources(), loadTvUploadInfo()]))
       .then(([s, p]) => {
         setSources(s.filter((x) => x.enabled));
         setPrevious(p);
@@ -126,7 +127,7 @@ export function TvUploadModal({
       setMessage(
         `บันทึกแล้ว ${ok.length} แท็บ · ข้อมูลจะขึ้นใน dashboard หลัง sync แบบเขียนจริงรอบถัดไป (ทุกวันประมาณ 05:17 น.) · ถ้าต้องการทันที กด "รันตอนนี้" แล้วเลือก mode = write (แบบ test-run จะไม่รวมข้อมูล)`,
       );
-      setPrevious(await loadTvUploadInfo());
+      setPrevious(await track(loadTvUploadInfo()));
     } catch (e) {
       const code = (e as { code?: string }).code || "";
       const text = String((e as Error)?.message || e);

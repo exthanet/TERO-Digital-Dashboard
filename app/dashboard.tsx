@@ -19,6 +19,7 @@ import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
 import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { LoadingOverlay } from "@/components/dashboard/sections/LoadingOverlay";
+import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
@@ -40,6 +41,7 @@ import "@/styles/auth.css";
 
 import RevenueReport from "@/components/dashboard/RevenueReport";
 import AffiliateReport from "@/components/dashboard/AffiliateReport";
+import { track } from "@/lib/loadingBar";
 
 // Same breakpoint as the mobile rules in styles/dashboard.css.
 const MOBILE_QUERY = "(max-width: 800px)";
@@ -111,7 +113,7 @@ export default function Dashboard() {
   // Admins get the latest sync result (one read) for the warning banner.
   useEffect(() => {
     if (!isAdmin) return;
-    loadSyncStatus()
+    track(loadSyncStatus())
       .then(setSyncStatus)
       .catch(() => setSyncStatus(undefined));
   }, [isAdmin]);
@@ -421,6 +423,7 @@ export default function Dashboard() {
         onClose={() => setUserManagementOpen(false)}
         auth={auth}
       />
+      <TopLoadingBar busy={model.loading} />
       <LoadingOverlay loading={model.loading} />
     </main>
   );

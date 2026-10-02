@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
+import { track } from "@/lib/loadingBar";
 
 const money = (v: number) =>
   new Intl.NumberFormat("th-TH", {
@@ -58,7 +59,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
     setLoading(true);
     try {
       if (!isStaticHost) {
-        const cloudData = await loadAffiliateDataFromFirebase();
+        const cloudData = await track(loadAffiliateDataFromFirebase());
         if (cloudData && cloudData.summary.length > 0) {
           setData(cloudData);
           setSourceType("firebase");

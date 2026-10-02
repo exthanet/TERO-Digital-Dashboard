@@ -9,6 +9,7 @@ import { TOPIC_COLORS } from "@/lib/dashboard/constants";
 import { OWN_KEY, competitorRanking, competitorTrend, outOfRange, type CompetitorMode } from "@/lib/dashboard/competitors";
 import { loadTvCompetitors, type CompetitorSource } from "@/lib/tvCompetitorData";
 import { Empty } from "@/components/dashboard/shared/Empty";
+import { track } from "@/lib/loadingBar";
 
 const OWN_COLOR = "#0757e8";
 
@@ -28,7 +29,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
   const [mode, setMode] = useState<CompetitorMode>("channel");
 
   useEffect(() => {
-    loadTvCompetitors()
+    track(loadTvCompetitors())
       .then(setSources)
       .catch((e) => setError(String(e?.message || e)));
   }, []);

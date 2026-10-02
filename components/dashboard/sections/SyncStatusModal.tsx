@@ -11,6 +11,7 @@ import {
   type SyncState,
   type SyncStatus,
 } from "@/lib/sync/status";
+import { track } from "@/lib/loadingBar";
 
 const thTime = (iso?: string) =>
   iso
@@ -54,7 +55,7 @@ export function SyncStatusModal({
   const refresh = () => {
     setRuns(null);
     setError("");
-    loadSyncRuns(30)
+    track(loadSyncRuns(30))
       .then(setRuns)
       .catch(() => {
         setRuns([]);
