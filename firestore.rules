@@ -65,6 +65,12 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if false;
     }
+    // Tokens the sync uses (e.g. TikTok refresh tokens). No signed-in user may
+    // read or write them, admins included: only the sync's service account,
+    // which is not bound by these rules, touches them.
+    match /syncSecrets/{doc} {
+      allow read, write: if false;
+    }
     // Cover-image links per platform for the thumbnail page (written by the sync only).
     match /thumbnails/{doc} {
       allow read: if isActive();

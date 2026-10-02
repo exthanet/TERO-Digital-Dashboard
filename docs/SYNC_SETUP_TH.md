@@ -118,6 +118,27 @@ node scripts/metricool-sync.mjs --since=2026-09-01 --baseline=firestore --tv-fil
 
 หมายเหตุ: Gmail ส่วนตัวส่งได้ประมาณ 100 ผู้รับต่อวัน (เกินพอสำหรับวันละ 1 ฉบับ) · ถ้าส่งไม่สำเร็จ sync ยังทำงานตามปกติ
 
+## ส่วนที่ 9: TikTok API (แทน Metricool สำหรับบัญชีที่อนุญาตแล้ว)
+
+ตัวเลข TikTok ของ Metricool ค้างได้หลายวัน บัญชีที่เจ้าของกดอนุญาตแล้วจึงดึงจาก TikTok API ตรง
+(Display API: `video/list` ได้วิดีโอทั้งหมดของบัญชีโดยไม่ต้องรู้รหัสโพสต์) บัญชีอื่นยังใช้ Metricool
+
+1. **แอป:** TikTok for Developers ของบริษัท (Login Kit, scope `user.info.basic`, `video.list`)
+   redirect URI (Web) = `https://digital-dashboard.terodigital.com/` · ถ้าเป็น sandbox ต้องเพิ่มบัญชีเป็น Target user
+2. **GitHub Secrets:** `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` (และใส่ใน `.env.local` ของเครื่องที่ใช้กดอนุญาต)
+3. **กดอนุญาตบัญชี (ทำครั้งเดียวต่อบัญชี บนเครื่องนี้):**
+   - `node scripts/tiktok-auth.mjs url` → เจ้าของบัญชีเปิดลิงก์และกดอนุญาต
+   - คัดลอก URL จากแถบที่อยู่หลังอนุญาต ใส่ `.env.local` บรรทัด `TIKTOK_AUTH_REDIRECT=` (ภายในไม่กี่นาที)
+   - `node scripts/tiktok-auth.mjs exchange` → ได้ refresh token ใน `.env.local`
+   - `node scripts/tiktok-auth.mjs save --brand="TERO Digital"` → ย้าย token ไป Firestore `syncSecrets/tiktok_*`
+     (`firestore.rules` ไม่ให้ผู้ใช้คนไหนอ่าน มีแค่ sync) แล้วลบออกจาก `.env.local`
+4. **ทุกรอบ sync:** ต่ออายุ token (ถ้า TikTok ออกชุดใหม่จะบันทึกกลับเอง) ดึงวิดีโอในช่วง 90 วัน เทียบกับ Metricool
+   แล้วใช้ตัวเลขจาก API ถ้าได้คลิปอย่างน้อย 80% ของ Metricool
+   - **รอบแรกของแต่ละบัญชี:** ไม่บันทึกยอดการเติบโตของ TikTok (ตัวเลขแรกเป็นจุดเริ่ม)
+   - **API ใช้ไม่ได้ / ได้คลิปน้อยผิดปกติ:** ตัวเลข TikTok เดิมคงไว้ Metricool เพิ่มเฉพาะคลิปใหม่
+     สถานะ TikTok ขึ้นสีแดงพร้อมเหตุผล และเตือนเมื่อสิทธิ์จะหมดอายุภายใน 30 วัน (token อายุ 1 ปี)
+5. **ทดสอบเทียบตัวเลข (อ่านอย่างเดียว):** `node scripts/tiktok-api-test.mjs --since=2026-07-01` (ใช้ token จาก `.env.local`)
+
 ## ทดสอบในเครื่อง (test-run)
 
 ```bash

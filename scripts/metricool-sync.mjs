@@ -55,6 +55,7 @@ import { validateMerge, validateTv } from "../lib/integrations/syncValidation.ts
 import { invalidateDashboardCache, writeDashboardCache } from "../lib/integrations/dashboardCacheWriter.ts";
 import { buildGrowth, growthDayFor, writeGrowth } from "../lib/integrations/growthWriter.ts";
 import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts";
+import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
@@ -128,6 +129,13 @@ if (args["restore-backup"]) {
 }
 
 const fetchStats = [];
+// TikTok accounts read through the TikTok API instead of Metricool (lib/integrations/tiktokApi.ts).
+let tiktokAccounts = [];
+// Posts of accounts on their first API run: their first numbers set the starting point, so no growth is filed for them.
+const tiktokBaselineKeys = new Set();
+// Metricool TikTok rows used because the API failed: they may add posts, never
+// overwrite numbers (Metricool's lag behind the API, so they would go down).
+const tiktokAddOnlyKeys = new Set();
 // Cover-image links per post key, for the thumbnail page (kept out of masterData).
 const thumbs = new Map();
 const incoming = [];
@@ -142,8 +150,18 @@ const youtube = process.env.YOUTUBE_API_KEY ? new YouTubeDataApi(process.env.YOU
 const brands = JSON.parse(fs.readFileSync("config/metricool-brands.json", "utf8")).filter((b) => b.enabled);
 
 console.log(`Metricool ${write ? "WRITE" : "test"} run ${since} → ${until} · brands: ${brands.map((b) => b.label).join(", ")}`);
+if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
+  try {
+    tiktokAccounts = await loadAccounts(await firestore());
+    if (tiktokAccounts.length) console.log(`TikTok API: ${tiktokAccounts.map((a) => `${a.brand} (${a.displayName})`).join(", ")}`);
+  } catch (e) {
+    console.log(`TikTok API accounts not read (${e.message}); TikTok comes from Metricool`);
+  }
+}
 for (const brand of brands) {
   const brandYouTube = [];
+  const brandTikTok = [];
+  const tiktokAccount = tiktokAccounts.find((a) => a.brand === brand.label);
   for (const network of NETWORKS) {
     // YouTube counts views inside the range only, so ask from `since` to today
     // for lifetime numbers, then keep the videos published in the window.
@@ -164,12 +182,14 @@ for (const brand of brands) {
       const d = toIso(row.Date);
       if (d < since || d > until) { outside++; continue; }
       if (network === "youtube") brandYouTube.push(row);
+      else if (network === "tiktok" && tiktokAccount) brandTikTok.push(row);
       else incoming.push(row);
       mapped++;
     }
     fetchStats.push({ brand: brand.label, network, fetched: posts.length, mapped, skipped, outside, error });
     console.log(`  ${brand.label.padEnd(12)} ${network.padEnd(9)} fetched=${String(posts.length).padStart(5)} kept=${String(mapped).padStart(4)} skipped=${skipped} outside=${outside}${error ? ` ERROR ${error}` : ""}`);
   }
+  if (tiktokAccount) incoming.push(...(await tiktokStep(brand, tiktokAccount, brandTikTok)));
   // YouTube Data API: every upload with live lifetime counts, merged over Metricool.
   if (youtube && brand.youtubeChannelId) {
     let error = "";
@@ -220,8 +240,12 @@ const baseline = dedupe.rows;
 if (dedupe.removed.length) console.log(`duplicates: ${dedupe.removed.length} extra rows in ${dedupe.groups} posts will be removed (backup: removed-duplicates.json)`);
 // --update-only: refresh numbers of rows already in masterData, add nothing new.
 const baselineKeys = new Set(baseline.map((r) => rowKey(r)).filter(Boolean));
-const toMerge = args["update-only"] === "true" ? incoming.filter((r) => baselineKeys.has(rowKey(r))) : incoming;
-if (toMerge.length !== incoming.length) console.log(`update-only: ${incoming.length - toMerge.length} posts not in masterData are left out`);
+const toMerge = (args["update-only"] === "true" ? incoming.filter((r) => baselineKeys.has(rowKey(r))) : incoming)
+  // TikTok from Metricool after an API failure: new posts only (see tiktokAddOnlyKeys).
+  .filter((r) => !(tiktokAddOnlyKeys.has(rowKey(r)) && baselineKeys.has(rowKey(r))));
+const keptTikTok = incoming.filter((r) => tiktokAddOnlyKeys.has(rowKey(r)) && baselineKeys.has(rowKey(r))).length;
+if (keptTikTok) console.log(`TikTok fallback: ${keptTikTok} existing TikTok posts keep their numbers (Metricool adds new posts only)`);
+if (args["update-only"] === "true" && toMerge.length + keptTikTok !== incoming.length) console.log(`update-only: ${incoming.length - toMerge.length - keptTikTok} posts not in masterData are left out`);
 const result = mergeIntoMaster(baseline, toMerge);
 
 // How well does automatic detection agree with what the team labelled?
@@ -270,6 +294,9 @@ const snapshotBytes = Buffer.byteLength(JSON.stringify(snapshot));
 // Daily growth: what each post gained since the previous run (lib/dashboard/growth.ts).
 const growthDay = growthDayFor(today);
 const growth = buildGrowth(result, growthDay);
+// An account's first TikTok API run sets the starting point: its posts file no growth that day.
+const baselineSkipped = growth.entries.filter((e) => tiktokBaselineKeys.has(e[0])).length;
+growth.entries = growth.entries.filter((e) => !tiktokBaselineKeys.has(e[0]));
 // Only the normal daily window (about 90 days) measures one day's gain. A wider
 // run (backfill) also refreshes old posts not updated for months; their whole
 // change would land on one day, so such runs write no growth.
@@ -307,6 +334,7 @@ const summary = {
     newPosts: growth.entries.filter((e) => e[5]).length,
     drops: growth.entries.filter((e) => e[1] < 0).length,
     latePostsLeftOut: growth.late,
+    tiktokFirstApiRunLeftOut: baselineSkipped,
     written: growthEnabled ? "yes" : `no: window starts ${since}, before ${growthWindowStart} (backfill)`,
   },
   newRowsByPlatformProgram: newByProgram,
@@ -401,6 +429,12 @@ try {
   report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}` +
     (tvRun.result ? ` · TV อัปเดต ${tvRun.result.updated.length} เทป ใหม่ ${tvRun.result.inserted.length}` : "");
   await writeCompetitors(fsdb, tvRun.competitors);
+  // Accounts whose first API run is now written count growth from the next run.
+  for (const a of tiktokAccounts) {
+    if (a.baselineDone || !fetchStats.some((s) => s.network === "tiktok-api" && s.brand === a.brand && s.source === "api")) continue;
+    a.baselineDone = true;
+    await saveAccount(fsdb, a).catch((e) => console.error(`TikTok baseline flag not saved for ${a.brand}: ${e.message}`));
+  }
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
   // Last, so a run that is rolled back never leaves gains behind (the next run
   // would count them again). Analysis only: a failure here never fails the run.
@@ -431,6 +465,47 @@ await notifyRun(finish(report));
 await writeRunReport(fsdb, report);
 const removed = await cleanupOld(fsdb);
 console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
+}
+
+// TikTok through the TikTok API for an authorised account; Metricool's rows
+// (already fetched) are the fallback and the comparison. Returns the rows to use.
+async function tiktokStep(brand, account, metricoolRows) {
+  const stat = { brand: brand.label, network: "tiktok-api", account: account.displayName, fetched: 0, mapped: 0, source: "metricool", error: "" };
+  let rows = metricoolRows;
+  try {
+    const token = await refreshAccessToken(process.env.TIKTOK_CLIENT_KEY, process.env.TIKTOK_CLIENT_SECRET, account.refreshToken);
+    if (token.refreshToken !== account.refreshToken) {
+      // A new refresh token replaces the old one: save it even on a test run, or it is lost.
+      account.refreshToken = token.refreshToken;
+      account.refreshExpiresAt = token.refreshExpiresAt;
+      await saveAccount(await firestore(), account);
+      console.log(`  ${brand.label.padEnd(12)} tiktok-api new refresh token saved`);
+    }
+    const sinceSec = Date.parse(`${since}T00:00:00+07:00`) / 1000;
+    const videos = await listVideos(token.accessToken, sinceSec, (s) => console.log(s));
+    const apiRows = videos
+      .map((v) => mapTikTokVideo(v, brand))
+      .filter((r) => r && toIso(r.Date) >= since && toIso(r.Date) <= until);
+    const cmp = compareSources(apiRows, metricoolRows);
+    Object.assign(stat, { fetched: videos.length, compare: cmp });
+    if (apiCoversAccount(cmp)) {
+      rows = apiRows;
+      stat.source = "api";
+      stat.mapped = apiRows.length;
+      if (!account.baselineDone) for (const r of apiRows) tiktokBaselineKeys.add(rowKey(r));
+    } else {
+      stat.error = `TikTok API ได้ ${cmp.apiVideos} คลิป น้อยกว่า Metricool ${cmp.metricoolPosts} คลิป (สิทธิ์อาจหลุด): เพิ่มเฉพาะคลิปใหม่จาก Metricool ตัวเลขเดิมคงไว้`;
+    }
+  } catch (e) {
+    stat.error = `TikTok API ใช้ไม่ได้ (${String(e.message || e).slice(0, 140)}): เพิ่มเฉพาะคลิปใหม่จาก Metricool ตัวเลขเดิมคงไว้ ให้เจ้าของบัญชีกดอนุญาตใหม่`;
+  }
+  if (stat.source === "metricool") for (const r of metricoolRows) tiktokAddOnlyKeys.add(rowKey(r));
+  const daysLeft = account.refreshExpiresAt ? Math.floor((Date.parse(account.refreshExpiresAt) - Date.now()) / 86400000) : null;
+  if (!stat.error && daysLeft !== null && daysLeft < 30) stat.error = `สิทธิ์ TikTok API ของ ${account.displayName} หมดอายุใน ${daysLeft} วัน: ให้เจ้าของบัญชีกดอนุญาตใหม่`;
+  const c = stat.compare;
+  console.log(`  ${brand.label.padEnd(12)} tiktok-api fetched=${String(stat.fetched).padStart(5)} source=${stat.source}${c ? ` matched=${c.matched}/${c.metricoolPosts} medianDiff=${c.medianViewDiff === null ? "-" : (c.medianViewDiff * 100).toFixed(1) + "%"} onlyApi=${c.onlyApi} onlyMetricool=${c.onlyMetricool}` : ""}${stat.error ? ` ⚠ ${stat.error}` : ""}`);
+  fetchStats.push(stat);
+  return rows;
 }
 
 // TV: read each enabled workbook tab, parse episodes and competitors, merge.
@@ -559,7 +634,7 @@ async function writeCompetitors(fsdb, list) {
 
 // Per-platform health for the status line: fetched without error, newest post day.
 function platformStatus() {
-  const map = { facebook: "Facebook", fbreels: "Facebook", instagram: "Instagram", reels: "Instagram", tiktok: "TikTok", youtube: "YouTube", "youtube-data-api": "YouTube" };
+  const map = { facebook: "Facebook", fbreels: "Facebook", instagram: "Instagram", reels: "Instagram", tiktok: "TikTok", "tiktok-api": "TikTok", youtube: "YouTube", "youtube-data-api": "YouTube" };
   const out = {};
   for (const st of fetchStats) {
     const p = map[st.network];
