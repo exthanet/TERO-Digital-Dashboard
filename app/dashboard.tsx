@@ -18,7 +18,6 @@ import { ExecutiveAnalysis } from "@/components/dashboard/sections/ExecutiveAnal
 import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts";
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
 import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
-import { LoadingOverlay } from "@/components/dashboard/sections/LoadingOverlay";
 import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
@@ -134,7 +133,7 @@ export default function Dashboard() {
   }
 
   if (auth.isLoading) {
-    return <LoadingOverlay loading={true} stage="auth" />;
+    return <TopLoadingBar busy />;
   }
 
   if (!auth.isAuthenticated) {
@@ -184,21 +183,21 @@ export default function Dashboard() {
 
         {(activeTab === "overview" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "advice") && isAdmin)) && (
             <DashboardFilters
-              program={model.program}
+              program={model.filterInputs.program}
               setProgram={model.setProgram}
-              platform={model.platform}
+              platform={model.filterInputs.platform}
               setPlatform={model.setPlatform}
-              vdoType={model.vdoType}
+              vdoType={model.filterInputs.vdoType}
               setVdoType={model.setVdoType}
-              topicType={model.topicType}
+              topicType={model.filterInputs.topicType}
               setTopicType={model.setTopicType}
-              search={model.search}
+              search={model.filterInputs.search}
               setSearch={model.setSearch}
-              startDate={model.startDate}
+              startDate={model.filterInputs.startDate}
               setStartDate={model.setStartDate}
-              endDate={model.endDate}
+              endDate={model.filterInputs.endDate}
               setEndDate={model.setEndDate}
-              datePreset={model.datePreset}
+              datePreset={model.filterInputs.datePreset}
               setDatePreset={model.setDatePreset}
               options={model.options}
               applyDatePreset={model.applyDatePreset}
@@ -269,11 +268,11 @@ export default function Dashboard() {
               types={model.types}
               growth={model.growth}
               comparePeriod={model.comparePeriod}
-              compareMode={model.compareMode}
+              compareMode={model.filterInputs.compareMode}
               setCompareMode={model.setCompareMode}
-              compareStart={model.compareStart}
+              compareStart={model.filterInputs.compareStart}
               setCompareStart={model.setCompareStart}
-              compareEnd={model.compareEnd}
+              compareEnd={model.filterInputs.compareEnd}
               setCompareEnd={model.setCompareEnd}
               dataFirstDate={model.dataFirstDate}
             />
@@ -423,8 +422,7 @@ export default function Dashboard() {
         onClose={() => setUserManagementOpen(false)}
         auth={auth}
       />
-      <TopLoadingBar busy={model.loading} />
-      <LoadingOverlay loading={model.loading} stage={model.loadingStage} />
+      <TopLoadingBar busy={model.loading || model.filtering} />
     </main>
   );
 }

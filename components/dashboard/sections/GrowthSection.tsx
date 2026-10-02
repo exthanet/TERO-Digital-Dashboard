@@ -13,7 +13,6 @@ import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { track } from "@/lib/loadingBar";
-import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -99,7 +98,7 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
 
       {tooLong && <p className="growth-notice warn">ช่วงวันที่ยาวเกิน {GROWTH_MAX_DAYS} วัน กรุณาเลือกช่วงที่สั้นลง (เช่น 28 หรือ 90 วันล่าสุด)</p>}
       {error && <p className="growth-notice warn">โหลดข้อมูลไม่สำเร็จ: {error}</p>}
-      {!tooLong && !error && !ready && <p className="growth-notice">กำลังโหลดข้อมูลรายวัน…<LoadingLine /></p>}
+      {!tooLong && !error && !ready && <p className="growth-notice">กำลังโหลดข้อมูลรายวัน…</p>}
 
       {s && s.daysWithData === 0 && (
         <p className="growth-notice warn">ยังไม่มีข้อมูลรายวันในช่วงวันที่ที่เลือก</p>

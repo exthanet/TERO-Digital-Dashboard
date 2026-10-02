@@ -11,7 +11,6 @@ import { loadGrowthDays } from "@/lib/growthData";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { track } from "@/lib/loadingBar";
-import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -166,7 +165,7 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
         </p>
       )}
 
-      {!stored && !error && <p className="growth-notice">กำลังโหลดรูปปก…<LoadingLine /></p>}
+      {!stored && !error && <p className="growth-notice">กำลังโหลดรูปปก…</p>}
       {stored && (
         <>
           {list.length ? (

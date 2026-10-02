@@ -17,7 +17,6 @@ import {
 import type { AuthState } from "@/hooks/useAuth";
 import type { LoginEvent, UserRole } from "@/lib/auth/types";
 import { inviteMessage, isValidEmail } from "@/lib/auth/validation";
-import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -385,14 +384,9 @@ export function UserManagementModal({
           {tab === "usage" && (
             <>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "#334155" }}>
-                {events === null ? (
-                  <>
-                    กำลังโหลด...
-                    <LoadingLine />
-                  </>
-                ) : (
-                  `เข้าใช้แล้ว ${usedCount} จาก ${activeCount} คน ตั้งแต่วันที่ 1 ของเดือนนี้`
-                )}
+                {events === null
+                  ? "กำลังโหลด..."
+                  : `เข้าใช้แล้ว ${usedCount} จาก ${activeCount} คน ตั้งแต่วันที่ 1 ของเดือนนี้`}
               </p>
               <div className="auth-users-table-wrap" style={{ maxHeight: 360 }}>
                 <table className="auth-users-table">

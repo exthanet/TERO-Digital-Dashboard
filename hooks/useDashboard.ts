@@ -26,20 +26,9 @@ import type {
   RawRow,
   RecordRow,
 } from "@/lib/dashboard/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/loadingBar";
 
-export type LoadingStage = "auth" | "fetch" | "process";
-
-/**
- * Lets the browser draw the new loading step before heavy work blocks it.
- * Hidden tabs never fire animation frames, so a timer resolves it there.
- */
-const nextPaint = () =>
-  new Promise<void>((r) => {
-    requestAnimationFrame(() => setTimeout(r, 0));
-    setTimeout(r, 100);
-  });
 
 /** KPI totals for a set of rows; the same rules as the `metrics` memo. */
 function summarize(source: RecordRow[], tvMode: boolean) {
@@ -99,25 +88,49 @@ export function useDashboard(enabled = true) {
       total: number;
     } | null>(null),
     [loading, setLoading] = useState(true),
-    // Step shown on the opening load: fetching from Firestore, then preparing rows. null = other loads (file, sheet).
-    [loadingStage, setLoadingStage] = useState<LoadingStage | null>("fetch"),
     [menuOpen, setMenuOpen] = useState(false),
     [sourceOpen, setSourceOpen] = useState(false),
     [sheetUrl, setSheetUrl] = useState(""),
     [sourceName, setSourceName] = useState("Firebase Firestore"),
     [uploadedAt, setUploadedAt] = useState(""),
     [message, setMessage] = useState("");
-  const [program, setProgram] = useState("ถกไม่เถียง"),
-    [platform, setPlatform] = useState("ALL"),
-    [vdoType, setVdoType] = useState("ALL"),
-    [topicType, setTopicType] = useState("ALL"),
-    [search, setSearch] = useState(""),
-    [startDate, setStartDate] = useState(""),
-    [endDate, setEndDate] = useState(""),
-    [datePreset, setDatePreset] = useState<DatePreset>("LAST_28_DAYS"),
-    [compareMode, setCompareModeState] = useState<ComparePreset>("PREVIOUS"),
-    [compareStart, setCompareStart] = useState(""),
-    [compareEnd, setCompareEnd] = useState("");
+  // Filters: the controls show a choice at once (…Input); the report is worked out
+  // from deferred copies, so the page stays responsive and the top loading bar
+  // runs while it recalculates (`filtering`).
+  const [programInput, setProgram] = useState("ถกไม่เถียง"),
+    [platformInput, setPlatform] = useState("ALL"),
+    [vdoTypeInput, setVdoType] = useState("ALL"),
+    [topicTypeInput, setTopicType] = useState("ALL"),
+    [searchInput, setSearch] = useState(""),
+    [startDateInput, setStartDate] = useState(""),
+    [endDateInput, setEndDate] = useState(""),
+    [datePresetInput, setDatePreset] = useState<DatePreset>("LAST_28_DAYS"),
+    [compareModeInput, setCompareModeState] = useState<ComparePreset>("PREVIOUS"),
+    [compareStartInput, setCompareStart] = useState(""),
+    [compareEndInput, setCompareEnd] = useState("");
+  const program = useDeferredValue(programInput),
+    platform = useDeferredValue(platformInput),
+    vdoType = useDeferredValue(vdoTypeInput),
+    topicType = useDeferredValue(topicTypeInput),
+    search = useDeferredValue(searchInput),
+    startDate = useDeferredValue(startDateInput),
+    endDate = useDeferredValue(endDateInput),
+    datePreset = useDeferredValue(datePresetInput),
+    compareMode = useDeferredValue(compareModeInput),
+    compareStart = useDeferredValue(compareStartInput),
+    compareEnd = useDeferredValue(compareEndInput);
+  const filtering =
+    program !== programInput ||
+    platform !== platformInput ||
+    vdoType !== vdoTypeInput ||
+    topicType !== topicTypeInput ||
+    search !== searchInput ||
+    startDate !== startDateInput ||
+    endDate !== endDateInput ||
+    datePreset !== datePresetInput ||
+    compareMode !== compareModeInput ||
+    compareStart !== compareStartInput ||
+    compareEnd !== compareEndInput;
   const [topTopicType, setTopTopicType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
@@ -134,14 +147,11 @@ export function useDashboard(enabled = true) {
     if (!enabled) return;
     async function initDashboardData() {
       setLoading(true);
-      setLoadingStage("fetch");
       try {
         if (!isStaticHost) {
           // Compact copy / this browser when they match masterData, else masterData itself.
           const cloudResult = await track(loadDashboardRows()).catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
-            setLoadingStage("process");
-            await nextPaint();
             setRawRows(cloudResult.rows);
             const nonPlain = countNonPlainDates(cloudResult.rows);
             if (nonPlain) {
@@ -1121,7 +1131,6 @@ export function useDashboard(enabled = true) {
     }
   }
   async function loadSheet(): Promise<{ success: boolean; message: string }> {
-    setLoadingStage(null);
     setLoading(true);
     setMessage("");
     try {
@@ -1150,7 +1159,6 @@ export function useDashboard(enabled = true) {
   }
   async function onFile(file?: File): Promise<{ success: boolean; message: string }> {
     if (!file) return { success: false, message: "ไม่ได้เลือกไฟล์" };
-    setLoadingStage(null);
     setLoading(true);
     setMessage("");
     try {
@@ -1200,8 +1208,8 @@ export function useDashboard(enabled = true) {
   }
   /** Custom comparison starts from the previous period, so its dates are never empty. */
   function setCompareMode(mode: ComparePreset) {
-    if (mode === "CUSTOM" && (!compareStart || !compareEnd)) {
-      const prev = getCompareRange(startDate, endDate, "PREVIOUS");
+    if (mode === "CUSTOM" && (!compareStartInput || !compareEndInput)) {
+      const prev = getCompareRange(startDateInput, endDateInput, "PREVIOUS");
       if (prev) {
         setCompareStart(prev.start);
         setCompareEnd(prev.end);
@@ -1267,7 +1275,20 @@ export function useDashboard(enabled = true) {
     rows,
     setRows,
     loading,
-    loadingStage,
+    filtering,
+    filterInputs: {
+      program: programInput,
+      platform: platformInput,
+      vdoType: vdoTypeInput,
+      topicType: topicTypeInput,
+      search: searchInput,
+      startDate: startDateInput,
+      endDate: endDateInput,
+      datePreset: datePresetInput,
+      compareMode: compareModeInput,
+      compareStart: compareStartInput,
+      compareEnd: compareEndInput,
+    },
     setLoading,
     menuOpen,
     setMenuOpen,

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Plus, Save, Trash2, Tv, X, XCircle } from "lucide-react";
 import { loadTvSources, saveTvSources, type SyncStatus, type TvSourceConfig } from "@/lib/sync/status";
 import { track } from "@/lib/loadingBar";
-import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const PROGRAMS = ["ถกไม่เถียง", "เงินทองของจริง"];
 
@@ -101,7 +100,7 @@ export function TvSourcesModal({
         </p>
 
         {error && <p className="sync-error">{error}</p>}
-        {sources === null && <p className="sync-muted">กำลังโหลด...<LoadingLine /></p>}
+        {sources === null && <p className="sync-muted">กำลังโหลด...</p>}
         {sources?.length === 0 && <p className="sync-muted">ยังไม่มีแหล่งข้อมูล กด "เพิ่มแหล่งข้อมูล"</p>}
 
         {sources?.map((s) => {
