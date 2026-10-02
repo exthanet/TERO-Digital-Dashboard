@@ -861,3 +861,31 @@ footer {
 .main-grid > .panel.full {
   grid-column: 1 / -1;
 }
+
+/* TV Audience (wider) beside the TV rating table. */
+.main-grid > .tv-pair {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 10px;
+}
+
+.tv-pair > .panel {
+  min-width: 0;
+}
+
+.tv-rating-breakdown .table-scroll th,
+.tv-rating-breakdown .table-scroll td {
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .main-grid > .tv-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Five short columns: fit the box instead of the 780 px other tables use. */
+.tv-rating-breakdown .table-scroll table {
+  min-width: 420px;
+}

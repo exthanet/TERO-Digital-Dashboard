@@ -355,61 +355,64 @@ export function PerformanceSections({
           </div>
         </article>
         <TvRatingChoropleth data={provinceRating} />
-        <article className="panel wide tv-rating-breakdown">
-          <div className="panel-head">
-            <div>
-              <h2>TV Rating แยกตามรายการและช่อง</h2>
-              <p>เงินทองของจริง / ถกไม่เถียง · One31 / GMM25</p>
+        {/* TV Audience (wider) beside the rating table, 3 : 2 */}
+        <div className="tv-pair">
+          <article className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>TV Audience</h2>
+                <p>จำนวนผู้ชมจริง · Hover เพื่อดู Topic</p>
+              </div>
             </div>
-          </div>
-          <div className="table-scroll">
-            <table>
-              <thead><tr><th>รายการ</th><th>ช่อง</th><th>Rating เฉลี่ย</th><th>TV Audience</th><th>จำนวนตอน</th></tr></thead>
-              <tbody>{tvRatingBreakdown.map((x) => <tr key={x.program + "-" + x.channel}><td>{x.program}</td><td>{x.channel}</td><td>{x.rating.toFixed(3)}</td><td>{compact(x.audience)}</td><td>{num(x.episodes)}</td></tr>)}</tbody>
-            </table>
-          </div>
-        </article>
-        <article className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>TV Audience</h2>
-              <p>จำนวนผู้ชมจริง · Hover เพื่อดู Topic</p>
+            <div className="chart-lg">
+              {tvAudience.length ? (
+                <ResponsiveContainer>
+                  <LineChart data={tvAudience}>
+                    <CartesianGrid vertical={false} stroke="#e8edf5" />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={dateLabel}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} />
+                    <Tooltip content={<TvAudienceTooltip />} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="ONE31"
+                      stroke="#1261dc"
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="GMM25"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <Empty text="ไม่มีข้อมูล TV Audience ในช่วงที่เลือก" />
+              )}
             </div>
-          </div>
-          <div className="chart-lg">
-            {tvAudience.length ? (
-              <ResponsiveContainer>
-                <LineChart data={tvAudience}>
-                  <CartesianGrid vertical={false} stroke="#e8edf5" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={dateLabel}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} />
-                  <Tooltip content={<TvAudienceTooltip />} />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="ONE31"
-                    stroke="#1261dc"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="GMM25"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty text="ไม่มีข้อมูล TV Audience ในช่วงที่เลือก" />
-            )}
-          </div>
-        </article>
+          </article>
+          <article className="panel tv-rating-breakdown">
+            <div className="panel-head">
+              <div>
+                <h2>TV Rating แยกตามรายการและช่อง</h2>
+                <p>เงินทองของจริง / ถกไม่เถียง · One31 / GMM25</p>
+              </div>
+            </div>
+            <div className="table-scroll">
+              <table>
+                <thead><tr><th>รายการ</th><th>ช่อง</th><th>Rating เฉลี่ย</th><th>TV Audience</th><th>จำนวนตอน</th></tr></thead>
+                <tbody>{tvRatingBreakdown.map((x) => <tr key={x.program + "-" + x.channel}><td>{x.program}</td><td>{x.channel}</td><td>{x.rating.toFixed(3)}</td><td>{compact(x.audience)}</td><td>{num(x.episodes)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </article>
+        </div>
         <article className="panel">
           <div className="panel-head">
             <div>
