@@ -1,6 +1,6 @@
 "use client";
 // Advanced → Thumbnail: covers of the strongest and weakest clips side by side,
-// each clip's views against the median of its format (same platform, same range).
+// ranked by raw views, most first (same platform, same range).
 import { useEffect, useMemo, useState } from "react";
 import { ImageOff } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
@@ -13,7 +13,6 @@ import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
-const times = (x: number) => (x >= 1 ? `${x.toFixed(1)}×` : `${Math.round(x * 100)}%`);
 
 interface Props {
   /** Clips posted in the report range that pass the filters. */
@@ -37,7 +36,7 @@ function Cover({ src, alt }: { src: string; alt: string }) {
   return <img className="thumb-img" src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
 }
 
-function Card({ clip, src }: { clip: ThumbClip; src: string }) {
+function Card({ clip, rank, src }: { clip: ThumbClip; rank: number; src: string }) {
   const r = clip.row;
   const er = r.views > 0 ? r.engagement / r.views : 0;
   return (
@@ -57,9 +56,9 @@ function Card({ clip, src }: { clip: ThumbClip; src: string }) {
             <b>{compact(r.views)}</b>
             <span>วิว</span>
           </div>
-          <div className={clip.index === null ? "" : clip.index >= 1 ? "up" : "down"}>
-            <b>{clip.index === null ? "-" : times(clip.index)}</b>
-            <span>ของค่ากลาง</span>
+          <div>
+            <b>#{num(rank)}</b>
+            <span>อันดับวิว</span>
           </div>
           <div>
             <b>{(er * 100).toFixed(1)}%</b>
@@ -68,7 +67,7 @@ function Card({ clip, src }: { clip: ThumbClip; src: string }) {
         </div>
         {clip.early !== null && (
           <p className="thumb-early">
-            2 วันแรก {compact(clip.early)} วิว{clip.earlyIndex !== null && ` (${times(clip.earlyIndex)} ของค่ากลาง)`}
+            2 วันแรก {compact(clip.early)} วิว
           </p>
         )}
       </div>
@@ -113,23 +112,13 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
   const early = useMemo(() => earlyViews(growth), [growth]);
 
   const ranked = useMemo(() => (platform ? rankThumbnails(digital, platform, latestDate || endDate, early) : null), [digital, platform, latestDate, endDate, early]);
+  // Each clip keeps its rank by views (1 = most views), also when listed from the bottom.
   const list = useMemo(() => {
     if (!ranked) return [];
-    const withIndex = ranked.clips.filter((c) => c.index !== null);
-    return side === "best" ? ranked.clips.slice(0, limit) : [...withIndex].reverse().slice(0, limit);
+    const all = ranked.clips.map((c, i) => ({ c, rank: i + 1 }));
+    return (side === "best" ? all : [...all].reverse()).slice(0, limit);
   }, [ranked, side, limit]);
-
-  const medians = useMemo(() => {
-    const m = new Map<string, { median: number; n: number }>();
-    for (const c of ranked?.clips || []) {
-      if (c.median === null) continue;
-      const x = m.get(c.row.vdoType) || { median: c.median, n: 0 };
-      x.n++;
-      m.set(c.row.vdoType, x);
-    }
-    return [...m.entries()];
-  }, [ranked]);
-  const missing = stored ? list.filter((c) => !thumbnailFor(c.key, stored)).length : 0;
+  const missing = stored ? list.filter(({ c }) => !thumbnailFor(c.key, stored)).length : 0;
 
   return (
     <section className="panel growth-panel" id="thumbnail">
@@ -138,8 +127,8 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
           <h2>Thumbnail: ภาพปกของคลิปที่ดึงคนดูได้ดีและไม่ดี<HelpLink topic="thumbnail" /></h2>
           <p className="growth-sub">
             คลิปที่โพสต์ในช่วง {thDate(startDate, { day: "numeric", month: "short", year: "numeric" })} –{" "}
-            {thDate(endDate, { day: "numeric", month: "short", year: "numeric" })} · เทียบวิวกับค่ากลางของคลิปรูปแบบเดียวกัน
-            (เช่น Shorts เทียบกับ Shorts) เพื่อดูว่าภาพปก + ชื่อคลิปแบบไหนดึงคนได้
+            {thDate(endDate, { day: "numeric", month: "short", year: "numeric" })} · เรียงตามยอดวิวจริง มากไปน้อย
+            เพื่อดูว่าภาพปก + ชื่อคลิปแบบไหนดึงคนได้
           </p>
         </div>
         <div className="ranking-controls">
@@ -162,10 +151,11 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
       </div>
 
       {error && <p className="growth-notice warn">โหลดลิงก์รูปปกไม่สำเร็จ: {error}</p>}
-      {medians.length > 0 && (
+      {ranked && ranked.clips.length > 0 && (
         <p className="growth-notice">
-          ค่ากลางวิวของ {platform}: {medians.map(([vt, x]) => `${vt} ${compact(x.median)} (${num(x.n)} คลิป)`).join(" · ")}
-          {ranked && ranked.fresh > 0 && ` · ไม่นับ ${num(ranked.fresh)} คลิปที่โพสต์ไม่ถึง ${THUMB_FRESH_DAYS} วัน (ยอดยังเพิ่มอยู่)`}
+          {platform} {num(ranked.clips.length)} คลิป
+          {ranked.fresh > 0 && ` · ไม่นับ ${num(ranked.fresh)} คลิปที่โพสต์ไม่ถึง ${THUMB_FRESH_DAYS} วัน (ยอดยังเพิ่มอยู่)`}
+          {" "}· คลิปที่โพสต์ช่วงต้นของช่วงที่เลือกมีเวลาสะสมวิวนานกว่า
         </p>
       )}
       {(platform === "Facebook" || platform === "Instagram") && (
@@ -179,12 +169,12 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
         <>
           {list.length ? (
             <div className="thumb-grid">
-              {list.map((c) => (
-                <Card key={c.key} clip={c} src={thumbnailFor(c.key, stored)} />
+              {list.map(({ c, rank }) => (
+                <Card key={c.key} clip={c} rank={rank} src={thumbnailFor(c.key, stored)} />
               ))}
             </div>
           ) : (
-            <p className="ranking-empty">ไม่มีคลิปให้เทียบในช่วงนี้ (ต้องมีอย่างน้อย 5 คลิปรูปแบบเดียวกัน)</p>
+            <p className="ranking-empty">ไม่มีคลิปในช่วงนี้</p>
           )}
           {ranked && list.length >= limit && limit < 48 && (
             <button type="button" className="ranking-more" onClick={() => setLimit(48)}>
@@ -196,7 +186,7 @@ export function ThumbnailSection({ rows, startDate, endDate, latestDate }: Props
       )}
 
       <p className="ai-note growth-note">
-        ค่ากลาง = มัธยฐานวิวของคลิปรูปแบบเดียวกันใน platform เดียวกันที่โพสต์ในช่วงนี้ (ต้องมีอย่างน้อย 5 คลิป) · วิวเป็นค่าดิบจาก API ·
+        เรียงตามยอดวิวดิบจาก API มากไปน้อย ไม่ได้คำนวณจากวิวหรือ ER · “ต่ำสุด” เรียงจากวิวน้อยไปมาก ·
         "2 วันแรก" นับจากข้อมูลรายวัน (หน้าการเติบโต) จึงมีเฉพาะคลิปที่โพสต์หลังเริ่มเก็บข้อมูลรายวัน · CTR จริงของภาพปก
         (เห็นกี่ครั้ง กดกี่ครั้ง) ต้องใช้ YouTube Analytics ของบัญชีเจ้าของช่อง ซึ่งยังไม่ได้เชื่อม
       </p>

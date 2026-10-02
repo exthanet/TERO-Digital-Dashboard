@@ -43,19 +43,17 @@ test("first-two-day views need both days on file", () => {
   assert.equal(gap.has("YouTube|c"), false);
 });
 
-test("clips are ranked against their own format's median; fresh clips wait", () => {
+test("clips are ranked by raw views, most first; fresh and zero-view clips wait", () => {
   const yt = (id, views, vdo, date = "2026-09-20") =>
     normalize({ Date: date, Program: "ถกไม่เถียง", Topic: id, Platform: "YouTube", VDO_Type: vdo, URL: `https://www.youtube.com/watch?v=${id.padEnd(11, "x")}`, Views: String(views) });
   const rows = [
-    ...[100, 200, 300, 400, 500].map((v, i) => yt(`short${i}`, v, "Shorts")),
-    ...[10000, 20000, 30000, 40000, 50000].map((v, i) => yt(`full${i}`, v, "Video Episode")),
+    ...[100, 200, 300].map((v, i) => yt(`short${i}`, v, "Shorts")),
+    ...[10000, 20000].map((v, i) => yt(`full${i}`, v, "Video Episode")),
+    yt("zero", 0, "Shorts"),
     yt("newclip", 999999, "Shorts", "2026-09-30"),
   ];
   const { clips, fresh } = rankThumbnails(rows, "YouTube", "2026-09-30");
   assert.equal(fresh, 1);
-  assert.equal(clips.length, 10);
-  // short4 (500 vs median 300) and full4 (50000 vs 30000) are both 1.67× their own median.
-  assert.deepEqual(clips.slice(0, 2).map((c) => c.row.topic).sort(), ["full4", "short4"]);
-  assert.ok(Math.abs(clips[0].index - 500 / 300) < 1e-9);
-  assert.deepEqual(clips.slice(-2).map((c) => c.row.topic).sort(), ["full0", "short0"]);
+  assert.deepEqual(clips.map((c) => c.row.topic), ["full1", "full0", "short2", "short1", "short0"]);
+  assert.equal(clips[0].row.views, 20000);
 });
