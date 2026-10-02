@@ -150,13 +150,14 @@ const youtube = process.env.YOUTUBE_API_KEY ? new YouTubeDataApi(process.env.YOU
 const brands = JSON.parse(fs.readFileSync("config/metricool-brands.json", "utf8")).filter((b) => b.enabled);
 
 console.log(`Metricool ${write ? "WRITE" : "test"} run ${since} → ${until} · brands: ${brands.map((b) => b.label).join(", ")}`);
-if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
-  try {
-    tiktokAccounts = await loadAccounts(await firestore());
-    if (tiktokAccounts.length) console.log(`TikTok API: ${tiktokAccounts.map((a) => `${a.brand} (${a.displayName})`).join(", ")}`);
-  } catch (e) {
-    console.log(`TikTok API accounts not read (${e.message}); TikTok comes from Metricool`);
-  }
+// Accounts are read even without the app's key/secret: an account already on
+// the API must then fall back to add-only (keep its numbers), not let
+// Metricool's older numbers overwrite them and stop the whole run at check 7.
+try {
+  tiktokAccounts = await loadAccounts(await firestore());
+  if (tiktokAccounts.length) console.log(`TikTok API: ${tiktokAccounts.map((a) => `${a.brand} (${a.displayName})`).join(", ")}`);
+} catch (e) {
+  console.log(`TikTok API accounts not read (${e.message}); TikTok comes from Metricool`);
 }
 for (const brand of brands) {
   const brandYouTube = [];
@@ -473,6 +474,7 @@ async function tiktokStep(brand, account, metricoolRows) {
   const stat = { brand: brand.label, network: "tiktok-api", account: account.displayName, fetched: 0, mapped: 0, source: "metricool", error: "" };
   let rows = metricoolRows;
   try {
+    if (!process.env.TIKTOK_CLIENT_KEY || !process.env.TIKTOK_CLIENT_SECRET) throw new Error("ยังไม่ได้ตั้ง TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET");
     const token = await refreshAccessToken(process.env.TIKTOK_CLIENT_KEY, process.env.TIKTOK_CLIENT_SECRET, account.refreshToken);
     if (token.refreshToken !== account.refreshToken) {
       // A new refresh token replaces the old one: save it even on a test run, or it is lost.
@@ -497,7 +499,9 @@ async function tiktokStep(brand, account, metricoolRows) {
       stat.error = `TikTok API ได้ ${cmp.apiVideos} คลิป น้อยกว่า Metricool ${cmp.metricoolPosts} คลิป (สิทธิ์อาจหลุด): เพิ่มเฉพาะคลิปใหม่จาก Metricool ตัวเลขเดิมคงไว้`;
     }
   } catch (e) {
-    stat.error = `TikTok API ใช้ไม่ได้ (${String(e.message || e).slice(0, 140)}): เพิ่มเฉพาะคลิปใหม่จาก Metricool ตัวเลขเดิมคงไว้ ให้เจ้าของบัญชีกดอนุญาตใหม่`;
+    const msg = String(e.message || e);
+    const fix = /TIKTOK_CLIENT/.test(msg) ? "ตั้ง GitHub Secrets ให้ครบ" : /invalid_grant|expired|revoked/i.test(msg) ? "ให้เจ้าของบัญชีกดอนุญาตใหม่" : "ระบบจะลองใหม่รอบหน้า";
+    stat.error = `TikTok API ใช้ไม่ได้ (${msg.slice(0, 140)}): เพิ่มเฉพาะคลิปใหม่จาก Metricool ตัวเลขเดิมคงไว้ · ${fix}`;
   }
   if (stat.source === "metricool") for (const r of metricoolRows) tiktokAddOnlyKeys.add(rowKey(r));
   const daysLeft = account.refreshExpiresAt ? Math.floor((Date.parse(account.refreshExpiresAt) - Date.now()) / 86400000) : null;
