@@ -196,3 +196,16 @@ test("watch-time columns are refreshed on existing rows like the other numbers",
   assert.deepEqual(result.updated[0].after, { Avg_Watch_Sec: "34.039", Video_Length_Sec: "57" });
   assert.equal(result.merged[0].Program, "ถกไม่เถียง"); // team columns untouched
 });
+
+test("Facebook post clicks and impressions are kept raw for CTR; other networks leave them blank", () => {
+  const fb = mapPost("facebook", {
+    postId: "330339053719456_1069294735733466", link: "https://www.facebook.com/330339053719456/posts/1069294735733466",
+    text: "x", type: "photo", timestamp: 1790670955000, impressions: 13984, clicks: 155, linkclicks: 3,
+  }, TERO);
+  assert.deepEqual([fb.Clicks, fb.Link_Clicks, fb.Impressions], ["155", "3", "13984"]);
+  const reel = mapPost("fbreels", {
+    reelId: "1049539704083857", reelUrl: "https://www.facebook.com/reel/1049539704083857/", description: "x",
+    created: { dateTime: "2026-06-30T13:01:41", timezone: "Europe/Madrid" }, blueReelsPlayCount: 10,
+  }, TERO);
+  assert.deepEqual([reel.Clicks, reel.Link_Clicks, reel.Impressions], ["", "", ""]);
+});

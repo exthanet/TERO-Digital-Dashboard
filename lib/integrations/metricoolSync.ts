@@ -211,6 +211,10 @@ export interface MappedRow extends MasterRowOutput {
   Video_Length_Sec: string;
   /** Instagram Reels only: % of plays skipped in the first seconds. */
   Skip_Rate: string;
+  /** Facebook posts only, as Metricool reports them: clicks on the post, link clicks, impressions (for CTR). "" elsewhere. */
+  Clicks: string;
+  Link_Clicks: string;
+  Impressions: string;
   /** Program could not be detected; the team should fill it in. */
   _review: boolean;
   _brand: string;
@@ -234,6 +238,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
   // Raw value as the API sends it ("" when the field is missing), up to 3 decimals.
   const raw = (k: string) => (post[k] === undefined || post[k] === null || post[k] === "" ? "" : String(Math.round(n(k) * 1000) / 1000));
   let watch = { avg: "", length: "", skip: "" };
+  let clicks = { clicks: "", link: "", impressions: "" };
   let platform: string, url: string, id: string, text: string, when: unknown;
   let views: number, likes: number, comments: number, shares: number, durationSec: number;
   let videoViews = -1; // -1 = not a Facebook post
@@ -249,6 +254,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
       // Watched-video counts are kept separately in Video_Views.
       views = n("impressions") || n("videoViews");
       videoViews = n("videoViews");
+      clicks = { clicks: raw("clicks"), link: raw("linkclicks"), impressions: raw("impressions") };
       likes = n("reactions");
       comments = n("comments");
       shares = n("shares");
@@ -343,6 +349,9 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     Avg_Watch_Sec: watch.avg,
     Video_Length_Sec: watch.avg ? watch.length : "",
     Skip_Rate: watch.skip,
+    Clicks: clicks.clicks,
+    Link_Clicks: clicks.link,
+    Impressions: clicks.impressions,
     ...EMPTY_TV,
     Best_of_Month: "",
     Upload_Count: "1",
@@ -359,6 +368,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
 export const METRIC_COLUMNS = [
   "Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate", "Video_Views",
   "Avg_Watch_Sec", "Video_Length_Sec", "Skip_Rate",
+  "Clicks", "Link_Clicks", "Impressions",
 ] as const;
 
 export interface MergeResult {

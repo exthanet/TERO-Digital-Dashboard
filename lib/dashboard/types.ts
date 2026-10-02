@@ -38,6 +38,12 @@ export type RecordRow = {
   videoLengthSec: number;
   /** Instagram Reels: % of plays skipped at the start; null = not reported. */
   skipRate: number | null;
+  /** Facebook posts: clicks on the post; null = not reported (other platforms, older rows). */
+  clicks: number | null;
+  /** Facebook posts: link clicks; null = not reported. */
+  linkClicks: number | null;
+  /** Facebook posts: impressions as reported with the clicks; 0 = not reported. */
+  impressions: number;
 };
 
 export type CompareRow = {

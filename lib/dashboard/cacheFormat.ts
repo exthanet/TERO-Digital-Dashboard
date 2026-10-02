@@ -35,6 +35,7 @@ export const DASHBOARD_COLUMNS = [
   "Revenue", "Estimated revenue (THB)",
   "Avg_Watch_Sec", "Video_Length_Sec", "Skip_Rate",
   "Publish_Time",
+  "Clicks", "Link_Clicks", "Impressions",
 ] as const;
 
 const KEEP = new Set<string>(DASHBOARD_COLUMNS);

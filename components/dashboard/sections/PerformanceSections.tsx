@@ -52,7 +52,8 @@ export function PerformanceSections({
   tvAudience,
   tvRatingBreakdown,
   download,
-}: Pick<
+  audienceReport,
+}: { audienceReport?: React.ReactNode } & Pick<
   DashboardModel,
   | "vdoType"
   | "topTopicType"
@@ -413,6 +414,7 @@ export function PerformanceSections({
             </div>
           </article>
         </div>
+        {audienceReport}
         <article className="panel">
           <div className="panel-head">
             <div>

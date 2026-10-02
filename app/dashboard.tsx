@@ -12,6 +12,7 @@ import { QualitySection } from "@/components/dashboard/sections/QualitySection";
 import { ThumbnailSection } from "@/components/dashboard/sections/ThumbnailSection";
 import { AdviceSection } from "@/components/dashboard/sections/AdviceSection";
 import { HelpSection } from "@/components/dashboard/sections/HelpSection";
+import { AudienceReport } from "@/components/dashboard/sections/AudienceReport";
 import { ExecutiveAnalysis } from "@/components/dashboard/sections/ExecutiveAnalysis";
 import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts";
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
@@ -326,6 +327,18 @@ export default function Dashboard() {
               tvRatingBreakdown={model.tvRatingBreakdown}
               tvAudience={model.tvAudience}
               download={model.download}
+              audienceReport={
+                <AudienceReport
+                  rows={model.filtered}
+                  prevRows={
+                    model.comparePeriod
+                      ? model.rankingRows.filter((r) => r.date >= model.comparePeriod!.start && r.date <= model.comparePeriod!.end)
+                      : []
+                  }
+                  grain={model.executiveGrain}
+                  compareText={model.comparePeriod ? `เทียบกับ ${model.comparePeriod.start} – ${model.comparePeriod.end}` : ""}
+                />
+              }
             />
             <CompareTable
               comparePage={model.comparePage}

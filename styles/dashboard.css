@@ -889,3 +889,106 @@ footer {
 .tv-rating-breakdown .table-scroll table {
   min-width: 420px;
 }
+
+/* Audience Report (components/dashboard/sections/AudienceReport.tsx) */
+.main-grid > .audience-report {
+  grid-column: 1 / -1;
+}
+
+.audience-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 10px;
+}
+
+.audience-box {
+  min-width: 0;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f4;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.audience-box-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.audience-box-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #172139;
+}
+
+.audience-box-head p,
+.audience-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.audience-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.audience-pair > .audience-box {
+  margin-bottom: 0;
+}
+
+.chart-md {
+  height: 220px;
+}
+
+.audience-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.audience-chips i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+
+.audience-top {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.audience-top li {
+  margin-bottom: 4px;
+}
+
+.audience-top a {
+  display: block;
+  overflow: hidden;
+  color: #172139;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.audience-top small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .audience-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -181,6 +181,9 @@ export function normalize(r: RawRow): RecordRow {
     avgWatchSec: n(pick(r, "Avg_Watch_Sec")),
     videoLengthSec: n(pick(r, "Video_Length_Sec")),
     skipRate: s(pick(r, "Skip_Rate")) === "" ? null : n(pick(r, "Skip_Rate")),
+    clicks: s(pick(r, "Clicks")) === "" ? null : n(pick(r, "Clicks")),
+    linkClicks: s(pick(r, "Link_Clicks")) === "" ? null : n(pick(r, "Link_Clicks")),
+    impressions: n(pick(r, "Impressions")),
   };
 }
 
