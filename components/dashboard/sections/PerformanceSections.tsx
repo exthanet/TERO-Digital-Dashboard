@@ -1,13 +1,10 @@
 "use client";
-import { PerformanceTooltip } from "@/components/dashboard/charts/PerformanceTooltip";
 import { TvAudienceTooltip } from "@/components/dashboard/charts/TvAudienceTooltip";
 import { Empty } from "@/components/dashboard/shared/Empty";
 import TvRatingChoropleth from "@/components/dashboard/TvRatingChoropleth";
 import type { DashboardModel } from "@/hooks/useDashboard";
-import { sumBy } from "@/lib/dashboard/analytics";
 import {
   TOPIC_COLORS,
-  TYPE_COLORS,
 } from "@/lib/dashboard/constants";
 import { compact, dateLabel, num, pct } from "@/lib/dashboard/format";
 import { Download } from "lucide-react";
@@ -27,24 +24,15 @@ import {
   YAxis,
 } from "recharts";
 export function PerformanceSections({
-  vdoType,
   topTopicType,
   setTopTopicType,
   topicType,
-  grain,
-  setGrain,
   options,
-  digitalFiltered,
   tvMode,
   performanceValue,
   metrics,
-  chartGrain,
-  daily,
-  types,
   topics,
-  programs,
   top,
-  best,
   provinceRating,
   rating,
   ratingGrain,
@@ -56,26 +44,17 @@ export function PerformanceSections({
   tvCompetitors,
 }: { audienceReport?: React.ReactNode; tvCompetitors?: React.ReactNode } & Pick<
   DashboardModel,
-  | "vdoType"
   | "topTopicType"
   | "setTopTopicType"
   | "topicType"
-  | "grain"
-  | "setGrain"
   | "ratingGrain"
   | "setRatingGrain"
   | "options"
-  | "digitalFiltered"
   | "tvMode"
   | "performanceValue"
   | "metrics"
-  | "chartGrain"
-  | "daily"
-  | "types"
   | "topics"
-  | "programs"
   | "top"
-  | "best"
   | "provinceRating"
   | "rating"
   | "tvAudience"
@@ -202,77 +181,6 @@ export function PerformanceSections({
                   ))}
                 </div>
               </>
-            ) : (
-              <Empty />
-            )}
-          </div>
-        </article>
-        <article className="panel full" id="daily">
-          <div className="panel-head">
-            <div>
-              <h2>
-                {tvMode ? "TV Audience ตามช่วงเวลา" : "ยอดวิวรวมตามช่วงเวลา"}
-              </h2>
-              <p>
-                {tvMode
-                  ? "ONE31 + GMM25 Audience · Hover เพื่อดู Topic"
-                  : "แยกตาม VDO Type"}
-              </p>
-            </div>
-            {tvMode ? (
-              <span className="auto-grain">
-                อัตโนมัติ: {chartGrain === "day" ? "รายวัน" : "รายเดือน"}
-              </span>
-            ) : (
-              <div className="segmented">
-                {(["day", "month", "year"] as const).map((x) => (
-                  <button
-                    key={x}
-                    className={grain === x ? "active" : ""}
-                    onClick={() => setGrain(x)}
-                  >
-                    {x === "day"
-                      ? "รายวัน"
-                      : x === "month"
-                        ? "รายเดือน"
-                        : "รายปี"}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="chart-lg">
-            {daily.length ? (
-              <ResponsiveContainer>
-                <BarChart data={daily}>
-                  <CartesianGrid vertical={false} stroke="#e8edf5" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(v) =>
-                      chartGrain === "day" ? dateLabel(v) : v
-                    }
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    content={
-                      <PerformanceTooltip
-                        tvMode={tvMode}
-                        chartGrain={chartGrain}
-                      />
-                    }
-                  />
-                  <Legend />
-                  {types.map((x) => (
-                    <Bar
-                      key={x.name}
-                      dataKey={x.name}
-                      stackId="a"
-                      fill={TYPE_COLORS[x.name] || "#94a3b8"}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
             ) : (
               <Empty />
             )}
@@ -426,135 +334,6 @@ export function PerformanceSections({
           </div>
         </section>
         {audienceReport}
-        <article className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Performance by VDO Type</h2>
-              <p>สัดส่วนยอดวิว</p>
-            </div>
-          </div>
-          <div className="donut-wrap small">
-            {types.length ? (
-              <>
-                <ResponsiveContainer width="52%" height={230}>
-                  <PieChart>
-                    <Pie
-                      data={types}
-                      dataKey="total"
-                      nameKey="name"
-                      innerRadius={55}
-                      outerRadius={86}
-                    >
-                      {types.map((x, i) => (
-                        <Cell
-                          key={i}
-                          fill={TYPE_COLORS[x.name] || TOPIC_COLORS[i]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => num(Number(v))} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="legend-list">
-                  {types.map((x) => (
-                    <div key={x.name}>
-                      <i
-                        style={{ background: TYPE_COLORS[x.name] || "#64748b" }}
-                      />
-                      <span>{x.name}</span>
-                      <b>
-                        {metrics.views
-                          ? ((x.total / metrics.views) * 100).toFixed(1)
-                          : 0}
-                        %
-                      </b>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <Empty />
-            )}
-          </div>
-        </article>
-        <article className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Engagement Rate by Topic Type</h2>
-              <p>Top 5 · Digital Only</p>
-            </div>
-          </div>
-          <div className="horizontal-bars">
-            {sumBy(
-              digitalFiltered.filter((r) => r.views > 0),
-              (r) => r.topicType,
-              (r) => r.engagement,
-            )
-              .map((x) => ({
-                ...x,
-                views: digitalFiltered
-                  .filter((r) => r.topicType === x.name)
-                  .reduce((a, r) => a + r.views, 0),
-              }))
-              .map((x) => ({ ...x, rate: x.views ? x.total / x.views : 0 }))
-              .sort((a, b) => b.rate - a.rate)
-              .slice(0, 5)
-              .map((x) => (
-                <div key={x.name}>
-                  <span>{x.name}</span>
-                  <div>
-                    <i style={{ width: `${Math.min(100, x.rate * 500)}%` }} />
-                  </div>
-                  <b>{pct(x.rate)}</b>
-                </div>
-              ))}
-          </div>
-        </article>
-        {/* Best of Month repeats the first 5 rows of Top 10, so phones skip it */}
-        <article className="panel best-panel mobile-hide">
-          <div className="panel-head">
-            <div>
-              <h2>🏆 Best of Month</h2>
-              <p>Top 5</p>
-            </div>
-          </div>
-          <ol>
-            {best.map((r, i) => (
-              <li key={`${r.contentId}-${i}`}>
-                <b>{i + 1}</b>
-                <span>{r.topic}</span>
-                <strong>{compact(performanceValue(r))}</strong>
-              </li>
-            ))}
-          </ol>
-        </article>
-        {/* A single selected program is one bar, which phones skip */}
-        <article
-          className={`panel${programs.length <= 1 ? " mobile-hide" : ""}`}
-          id="programs"
-        >
-          <div className="panel-head">
-            <div>
-              <h2>รายการ (Program) Performance</h2>
-              <p>ยอดวิวรวมช่วงที่เลือก</p>
-            </div>
-          </div>
-          <div className="horizontal-bars programs">
-            {programs.map((x) => (
-              <div key={x.name}>
-                <span>{x.name}</span>
-                <div>
-                  <i
-                    style={{
-                      width: `${programs[0]?.total ? (x.total / programs[0].total) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <b>{compact(x.total)}</b>
-              </div>
-            ))}
-          </div>
-        </article>
       </section>
     </>
   );

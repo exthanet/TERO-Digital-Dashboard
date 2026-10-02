@@ -4,7 +4,6 @@ import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User as AuthUser } from "@/lib/auth/types";
 import { isStale, type SyncStatus } from "@/lib/sync/status";
 import {
-  Activity,
   BadgeDollarSign,
   BarChart3,
   Bell,
@@ -21,7 +20,6 @@ import {
   ListChecks,
   ListOrdered,
   LogOut,
-  MonitorPlay,
   RefreshCw,
   Settings,
   Sparkles,
@@ -62,12 +60,10 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "overview", label: "ภาพรวม", icon: <LayoutDashboard /> },
       { id: "ranking", label: "Ranking ดี/แย่", icon: <ListOrdered /> },
       { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
-      { id: "daily", label: "ประสิทธิภาพรายวัน", icon: <Activity /> },
-      { id: "programs", label: "รายการ", icon: <MonitorPlay /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
       { id: "topics", label: "ประเภทเนื้อหา", icon: <Sparkles /> },
       { id: "rating", label: "TV Rating", icon: <Tv /> },
-      { id: "best", label: "Best of Month", icon: <Trophy /> },
+      { id: "best", label: "Top 10 ประเด็น", icon: <Trophy /> },
       { id: "compare", label: "ผลงานรายเทป", icon: <FileSpreadsheet /> },
     ],
   },

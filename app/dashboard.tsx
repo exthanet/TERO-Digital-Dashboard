@@ -303,24 +303,15 @@ export default function Dashboard() {
               q4Plan={model.q4Plan}
             />
             <PerformanceSections
-              vdoType={model.vdoType}
               topTopicType={model.topTopicType}
               setTopTopicType={model.setTopTopicType}
               topicType={model.topicType}
-              grain={model.grain}
-              setGrain={model.setGrain}
               options={model.options}
-              digitalFiltered={model.digitalFiltered}
               tvMode={model.tvMode}
               performanceValue={model.performanceValue}
               metrics={model.metrics}
-              chartGrain={model.chartGrain}
-              daily={model.daily}
-              types={model.types}
               topics={model.topics}
-              programs={model.programs}
               top={model.top}
-              best={model.best}
               provinceRating={model.provinceRating}
               rating={model.rating}
               ratingGrain={model.ratingGrain}

@@ -165,14 +165,15 @@ export function ExecutiveCharts({
         </div>
       </article>
       <div className="mobile-hide executive-side">
-        <ViewPie title="VDO Type" subtitle="สัดส่วนยอดวิวตามรูปแบบวิดีโอ" data={vdoTypePie} />
+        <ViewPie title="สัดส่วน VDO Type" subtitle="สัดส่วนยอดวิวตามรูปแบบวิดีโอ" data={vdoTypePie} />
       </div>
 
       {/* Views by account / page (left) beside views by program (right), same size. */}
       <div className="executive-pair-row">
-        <ViewPie title="ยอดวิวตามบัญชี/เพจ" subtitle="เฉพาะออนไลน์ · ทุกแพลตฟอร์ม" data={accountPie} />
-        <div className="mobile-hide executive-side">
-          <ViewPie title="รายการทั้งหมด" subtitle="สัดส่วนยอดวิวตาม Program" data={programPie} />
+        <ViewPie title="สัดส่วนยอดวิวตามบัญชี/เพจ" subtitle="เฉพาะออนไลน์ · ทุกแพลตฟอร์ม" data={accountPie} />
+        {/* Shown on phones too: the Program panel further down was removed. */}
+        <div className="executive-side">
+          <ViewPie title="สัดส่วนรายการทั้งหมด" subtitle="สัดส่วนยอดวิวตาม Program" data={programPie} />
         </div>
       </div>
     </section>

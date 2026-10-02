@@ -63,6 +63,8 @@ function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst"
 }
 
 const TV_SHOWN = 5;
+/** Best and worst clips listed. */
+const CLIPS_SHOWN = 15;
 
 export function RankingSection({
   rankingRows,
@@ -99,7 +101,7 @@ export function RankingSection({
     return current ? periodFor(current, grain) : null;
   }, [current, grain, startDate, endDate]);
   const clips = useMemo(
-    () => (period ? rankClips(rankingRows, period, newest) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
+    () => (period ? rankClips(rankingRows, period, newest, CLIPS_SHOWN) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
     [rankingRows, period, newest],
   );
   const episodes = useMemo(() => (period ? rankEpisodes(rankingRows, period) : []), [rankingRows, period]);
