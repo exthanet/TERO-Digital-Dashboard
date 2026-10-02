@@ -6,7 +6,6 @@ import TvRatingChoropleth from "@/components/dashboard/TvRatingChoropleth";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { sumBy } from "@/lib/dashboard/analytics";
 import {
-  PLATFORM_COLORS,
   TOPIC_COLORS,
   TYPE_COLORS,
 } from "@/lib/dashboard/constants";
@@ -42,8 +41,6 @@ export function PerformanceSections({
   daily,
   types,
   topics,
-  platforms,
-  platformTotal,
   programs,
   top,
   best,
@@ -72,8 +69,6 @@ export function PerformanceSections({
   | "daily"
   | "types"
   | "topics"
-  | "platforms"
-  | "platformTotal"
   | "programs"
   | "top"
   | "best"
@@ -155,43 +150,6 @@ export function PerformanceSections({
             ) : (
               <Empty />
             )}
-          </div>
-        </article>
-        <article className="panel" id="platforms">
-          <div className="panel-head">
-            <div>
-              <h2>ยอดวิวตามแพลตฟอร์ม</h2>
-              <p>รวมทุก Content Type</p>
-            </div>
-          </div>
-          <div className="platform-bars">
-            {platforms.map((x) => (
-              <div key={x.name}>
-                <span
-                  className="platform-dot"
-                  style={{ background: PLATFORM_COLORS[x.name] || "#64748b" }}
-                >
-                  {x.name[0]}
-                </span>
-                <strong>{x.name}</strong>
-                <div>
-                  <i
-                    style={{
-                      width: `${platforms[0]?.total ? (x.total / platforms[0].total) * 100 : 0}%`,
-                      background: PLATFORM_COLORS[x.name] || "#2563eb",
-                    }}
-                  />
-                </div>
-                <b>{compact(x.total)}</b>
-                <small>
-                  {platformTotal
-                    ? ((x.total / platformTotal) * 100).toFixed(1)
-                    : 0}
-                  %
-                </small>
-              </div>
-            ))}
-            {!platforms.length && <Empty />}
           </div>
         </article>
         <article className="panel" id="topics">

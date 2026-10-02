@@ -287,6 +287,7 @@ export default function Dashboard() {
               digitalVsTv={model.digitalVsTv}
               digitalPlatforms={model.digitalPlatforms}
               vdoTypeTrend={model.vdoTypeTrend}
+              platforms={model.platforms}
               programPie={model.programPie}
               platformPie={model.platformPie}
               vdoTypePie={model.vdoTypePie}
@@ -314,8 +315,6 @@ export default function Dashboard() {
               daily={model.daily}
               types={model.types}
               topics={model.topics}
-              platforms={model.platforms}
-              platformTotal={model.platformTotal}
               programs={model.programs}
               top={model.top}
               best={model.best}

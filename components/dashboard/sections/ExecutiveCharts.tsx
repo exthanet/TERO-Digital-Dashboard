@@ -88,6 +88,7 @@ export function ExecutiveCharts({
   digitalVsTv,
   digitalPlatforms,
   vdoTypeTrend,
+  platforms,
   programPie,
   platformPie,
   vdoTypePie,
@@ -99,6 +100,7 @@ export function ExecutiveCharts({
   | "digitalVsTv"
   | "digitalPlatforms"
   | "vdoTypeTrend"
+  | "platforms"
   | "programPie"
   | "platformPie"
   | "vdoTypePie"
@@ -165,8 +167,18 @@ export function ExecutiveCharts({
         <ViewPie title="VDO Type" subtitle="สัดส่วนยอดวิวตามรูปแบบวิดีโอ" data={vdoTypePie} />
       </div>
 
-      <div className="mobile-hide executive-side">
-        <ViewPie title="รายการทั้งหมด" subtitle="สัดส่วนยอดวิวตาม Program" data={programPie} />
+      {/* Views by platform (left) beside views by program (right), same size. */}
+      <div className="executive-pair-row">
+        <ViewPie
+          id="platforms"
+          title="ยอดวิวตามแพลตฟอร์ม"
+          subtitle="รวมทุก Content Type"
+          data={platforms}
+          colors={{ ...PLATFORM_COLORS, TV: TV_COLOR }}
+        />
+        <div className="mobile-hide executive-side">
+          <ViewPie title="รายการทั้งหมด" subtitle="สัดส่วนยอดวิวตาม Program" data={programPie} />
+        </div>
       </div>
     </section>
   );

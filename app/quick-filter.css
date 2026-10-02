@@ -471,3 +471,25 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Row 3: views by platform and by program, side by side at equal width. */
+.executive-pair-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.executive-pair-row > .executive-side {
+  display: flex;
+}
+
+.executive-pair-row > .executive-side > .executive-pie {
+  flex: 1;
+}
+
+@media (max-width: 800px) {
+  .executive-pair-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
