@@ -62,9 +62,9 @@ function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst"
   );
 }
 
-const TV_SHOWN = 5;
+const TV_SHOWN = 20;
 /** Best and worst clips listed. */
-const CLIPS_SHOWN = 15;
+const CLIPS_SHOWN = 20;
 
 export function RankingSection({
   rankingRows,
@@ -108,7 +108,7 @@ export function RankingSection({
 
   if (!period) return null;
   const atLatest = period.end >= dataLatestDate;
-  // The 5 best-rated episodes; the rest on request.
+  // Up to 20 best-rated episodes (fewer if the range has fewer); the rest on request.
   const shown = (allEpisodes ? episodes : episodes.slice(0, TV_SHOWN)).map((x, i) => ({ x, i }));
 
   return (
