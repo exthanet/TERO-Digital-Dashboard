@@ -71,3 +71,33 @@ test("listVideos pages until the window starts and waits out rate limits", async
     globalThis.fetch = realFetch;
   }
 });
+
+test("TikTok's temporary errors are retried before giving up", async () => {
+  const responses = [
+    { ok: true, status: 200, body: { data: { videos: [{ id: "a", create_time: 300 }], has_more: true, cursor: 1 }, error: { code: "ok" } } },
+    { ok: false, status: 500, body: { error: { code: "internal_error", message: "Something went wrong" } } },
+    { throws: true },
+    { ok: true, status: 200, body: { data: { videos: [{ id: "b", create_time: 200 }], has_more: false }, error: { code: "ok" } } },
+  ];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const r = responses.shift();
+    if (r.throws) throw new Error("socket hang up");
+    return { ok: r.ok, status: r.status, json: async () => r.body };
+  };
+  const waits = [];
+  try {
+    const videos = await listVideos("token", 100, () => undefined, async (ms) => waits.push(ms));
+    assert.deepEqual(videos.map((v) => v.id), ["a", "b"]);
+    assert.deepEqual(waits, [1000, 5000, 10000]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  // Still failing after 5 retries: give up (the sync then falls back to keeping the numbers).
+  globalThis.fetch = async () => ({ ok: false, status: 500, json: async () => ({ error: { code: "internal_error", message: "x" } }) });
+  try {
+    await assert.rejects(listVideos("token", 100, () => undefined, async () => undefined), /internal_error/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

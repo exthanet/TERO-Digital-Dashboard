@@ -96,9 +96,17 @@ export function TvUploadModal({
     if (!ok.length) return;
     setSaving(true);
     setError("");
+    const uploadedAt = new Date().toISOString();
+    let current = "";
+    let saved = 0;
     try {
-      const uploadedAt = new Date().toISOString();
       for (const r of ok) {
+        current = r.source.name;
+        // Firestore stores at most 1 MiB per document: say so before trying.
+        const size = new Blob([JSON.stringify({ episodes: r.parsed!.episodes, competitors: r.parsed!.competitors })]).size;
+        if (size > 1_000_000) {
+          throw new Error(`ข้อมูลแท็บนี้ใหญ่ ${Math.round(size / 1024)} KB เกินขีดจำกัด 1 MB ของระบบ (ส่วนใหญ่เป็นตารางคู่แข่ง) แจ้งผู้ดูแลระบบ`);
+        }
         await saveTvUpload({
           sourceId: r.source.id,
           name: r.source.name,
@@ -113,11 +121,26 @@ export function TvUploadModal({
           pending: r.parsed!.pending,
           cancelled: r.parsed!.cancelled,
         });
+        saved++;
       }
-      setMessage(`บันทึกแล้ว ${ok.length} แท็บ · จะรวมเข้า masterData ในรอบ sync ถัดไป (ประมาณ 05:17 น.) หรือกด "รันตอนนี้"`);
+      setMessage(
+        `บันทึกแล้ว ${ok.length} แท็บ · ข้อมูลจะขึ้นใน dashboard หลัง sync แบบเขียนจริงรอบถัดไป (ทุกวันประมาณ 05:17 น.) · ถ้าต้องการทันที กด "รันตอนนี้" แล้วเลือก mode = write (แบบ test-run จะไม่รวมข้อมูล)`,
+      );
       setPrevious(await loadTvUploadInfo());
-    } catch {
-      setError("บันทึกไม่สำเร็จ (ต้องเป็น admin)");
+    } catch (e) {
+      const code = (e as { code?: string }).code || "";
+      const text = String((e as Error)?.message || e);
+      setError(
+        `บันทึก${current ? ` "${current}"` : ""}ไม่สำเร็จ: ${
+          code === "permission-denied"
+            ? "ไม่มีสิทธิ์ หรือข้อมูลไม่ผ่านเงื่อนไขของระบบ (ต้องเป็น admin และไม่เกิน 2,000 เทปต่อแท็บ)"
+            : /maximum|exceeds|too large|size/i.test(text)
+              ? "ข้อมูลใหญ่เกินขีดจำกัด 1 MB ของระบบ แจ้งผู้ดูแลระบบ"
+              : code === "unavailable"
+                ? "เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่"
+                : text.slice(0, 160)
+        }${saved ? ` · ${saved} แท็บก่อนหน้าบันทึกแล้ว` : ""}`,
+      );
     } finally {
       setSaving(false);
     }
@@ -217,7 +240,7 @@ export function TvUploadModal({
         <div className="tv-actions">
           {message && <span className="tv-ok">{message}</span>}
           <a className="tv-add" href={SYNC_WORKFLOW_URL} target="_blank" rel="noreferrer">
-            รันตอนนี้ (GitHub Actions) <ExternalLink size={13} />
+            รันตอนนี้ (GitHub Actions · เลือก write) <ExternalLink size={13} />
           </a>
           <button className="sync-run-link" onClick={save} disabled={!ok.length || saving || reading}>
             <Save size={14} /> {saving ? "กำลังบันทึก..." : "บันทึก"}

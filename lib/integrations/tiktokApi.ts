@@ -98,18 +98,31 @@ export async function listVideos(
   for (let page = 1; page <= 500; page++) {
     let body: { data?: { videos?: TikTokVideo[]; has_more?: boolean; cursor?: number }; error?: { code?: string; message?: string } } = {};
     for (let attempt = 1; ; attempt++) {
-      const res = await fetch(`https://open.tiktokapis.com/v2/video/list/?fields=${FIELDS}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(cursor ? { max_count: 20, cursor } : { max_count: 20 }),
-      });
-      body = await res.json();
-      if (body.error?.code === "rate_limit_exceeded" && attempt <= 6) {
+      let res: Response | null = null;
+      try {
+        res = await fetch(`https://open.tiktokapis.com/v2/video/list/?fields=${FIELDS}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify(cursor ? { max_count: 20, cursor } : { max_count: 20 }),
+        });
+        body = await res.json().catch(() => ({ error: { code: "internal_error", message: `HTTP ${res?.status}` } }));
+      } catch (e) {
+        // Dropped connection: treat like a temporary server error.
+        body = { error: { code: "internal_error", message: String((e as Error).message || e) } };
+      }
+      const code = body.error?.code;
+      if (code === "rate_limit_exceeded" && attempt <= 6) {
         log(`    TikTok rate limit on page ${page}, waiting ${15 * attempt}s`);
         await wait(15_000 * attempt);
         continue;
       }
-      if (!res.ok || body.error?.code !== "ok") throw new Error(`video/list page ${page}: ${body.error?.code || res.status} ${body.error?.message || ""}`.trim());
+      // TikTok's own temporary failures ("internal_error", 5xx) usually pass on a retry.
+      if ((code === "internal_error" || (res && res.status >= 500)) && attempt <= 5) {
+        log(`    TikTok temporary error on page ${page} (${code || res?.status}), retry in ${5 * attempt}s`);
+        await wait(5_000 * attempt);
+        continue;
+      }
+      if (!res || !res.ok || code !== "ok") throw new Error(`video/list page ${page}: ${code || res?.status} ${body.error?.message || ""}`.trim());
       break;
     }
     const batch = body.data?.videos || [];
