@@ -6,6 +6,7 @@ import { compact, num } from "@/lib/dashboard/format";
 import {
   periodFor,
   rankClips,
+  type ClipOrder,
   rankEpisodes,
   shiftPeriod,
   type RankGrain,
@@ -34,7 +35,7 @@ function indexText(x: RankedClip) {
     : `${Math.round(x.index * 100)}% ของค่าปกติ`;
 }
 
-function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst" }) {
+function ClipList({ items, tone, order }: { items: RankedClip[]; tone: "best" | "worst"; order: ClipOrder }) {
   if (!items.length) {
     return <p className="ranking-empty">ไม่มีคลิปในช่วงนี้</p>;
   }
@@ -54,7 +55,7 @@ function ClipList({ items, tone }: { items: RankedClip[]; tone: "best" | "worst"
           </div>
           <div className="ranking-metric">
             <strong>{compact(x.row.views)}</strong>
-            <small className={x.index !== null && x.index < 1 ? "down" : "up"}>{indexText(x)}</small>
+            {order === "index" && <small className={x.index !== null && x.index < 1 ? "down" : "up"}>{indexText(x)}</small>}
           </div>
         </li>
       ))}
@@ -75,6 +76,8 @@ export function RankingSection({
   const [grain, setGrain] = useState<Mode>("range");
   const [anchor, setAnchor] = useState("");
   const [allEpisodes, setAllEpisodes] = useState(false);
+  // Raw views by default: by ranking a clip can sit above one with more views.
+  const [order, setOrder] = useState<ClipOrder>("views");
   // A new report range at the top brings the card back to that range.
   useEffect(() => {
     setGrain("range");
@@ -101,8 +104,8 @@ export function RankingSection({
     return current ? periodFor(current, grain) : null;
   }, [current, grain, startDate, endDate]);
   const clips = useMemo(
-    () => (period ? rankClips(rankingRows, period, newest, CLIPS_SHOWN) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
-    [rankingRows, period, newest],
+    () => (period ? rankClips(rankingRows, period, newest, CLIPS_SHOWN, order) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
+    [rankingRows, period, newest, order],
   );
   const episodes = useMemo(() => (period ? rankEpisodes(rankingRows, period) : []), [rankingRows, period]);
 
@@ -117,10 +120,19 @@ export function RankingSection({
         <div>
           <h2>Ranking: ดีที่สุด / แย่ที่สุด<HelpLink topic="ranking" /></h2>
           <p>
-            คลิปที่ลงใน{grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ {num(clips.total)} ชิ้น · เทียบกับค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน
+            คลิปที่ลงใน{grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ {num(clips.total)} ชิ้น ·{" "}
+            {order === "views" ? "เรียงตามยอดวิวจริง" : "เรียงตามวิวเทียบค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน"}
           </p>
         </div>
         <div className="ranking-controls">
+          <div className="segmented" aria-label="เรียงคลิปตาม">
+            <button className={order === "views" ? "active" : ""} onClick={() => setOrder("views")} title="ยอดวิวจริง มากไปน้อย (แย่ที่สุด = น้อยไปมาก)">
+              ยอดวิว
+            </button>
+            <button className={order === "index" ? "active" : ""} onClick={() => setOrder("index")} title="วิวเทียบค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน">
+              เทียบค่าปกติ
+            </button>
+          </div>
           <div className="segmented">
             <button className={grain === "range" ? "active" : ""} onClick={() => setGrain("range")} title="ช่วงเดียวกับตัวกรองวันที่ด้านบน">
               ตามช่วงรายงาน
@@ -158,13 +170,13 @@ export function RankingSection({
           <h3>
             <Trophy size={16} /> คลิปดีที่สุด
           </h3>
-          <ClipList items={clips.best} tone="best" />
+          <ClipList items={clips.best} tone="best" order={order} />
         </article>
         <article>
           <h3>
             <ThumbsDown size={16} /> คลิปแย่ที่สุด
           </h3>
-          <ClipList items={clips.worst} tone="worst" />
+          <ClipList items={clips.worst} tone="worst" order={order} />
         </article>
         <article className="ranking-tv">
           <h3>

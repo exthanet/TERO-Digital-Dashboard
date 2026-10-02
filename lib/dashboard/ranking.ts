@@ -5,9 +5,12 @@
 // next to YouTube videos with millions. Normal = median views of that group
 // over the 30 days before the period; for ranges longer than a month (90 or
 // 365 days, a year, all data) the median within the range itself.
+// The card can also list clips by raw views instead ("views").
 import type { RecordRow } from "@/lib/dashboard/types";
 
 export type RankGrain = "day" | "week";
+/** "index": against what is normal for the same platform + VDO type; "views": raw views. */
+export type ClipOrder = "index" | "views";
 
 /** Longer periods compare clips with the median inside the period. */
 export const MAX_DAYS_FOR_PRIOR_BASELINE = 31;
@@ -72,6 +75,7 @@ export function rankClips(
   period: Period,
   latestDate: string,
   size = 5,
+  order: ClipOrder = "index",
 ): { best: RankedClip[]; worst: RankedClip[]; total: number; baselineKind: BaselineKind } {
   const digital = rows.filter((r) => !isTv(r) && r.date);
   const days = Math.round((toDate(period.end).getTime() - toDate(period.start).getTime()) / DAY) + 1;
@@ -114,15 +118,22 @@ export function rankClips(
       };
     });
 
-  const byIndexDesc = (a: RankedClip, b: RankedClip) =>
-    (b.index ?? -1) - (a.index ?? -1) || b.row.views - a.row.views;
-  const best = [...ranked].sort(byIndexDesc).slice(0, size);
+  const byViews = order === "views";
+  const bestFirst = byViews
+    ? (a: RankedClip, b: RankedClip) => b.row.views - a.row.views || (b.index ?? -1) - (a.index ?? -1)
+    : (a: RankedClip, b: RankedClip) => (b.index ?? -1) - (a.index ?? -1) || b.row.views - a.row.views;
+  const best = [...ranked].sort(bestFirst).slice(0, size);
   const bestSet = new Set(best);
   // Worst leaves out clips still collecting views, clips already listed as
   // best, and clips with almost no views (removed, private or not counted).
+  // By ranking it also needs a baseline to compare with.
   const worst = ranked
-    .filter((x) => x.index !== null && !x.fresh && !bestSet.has(x) && x.row.views >= MIN_VIEWS_FOR_WORST)
-    .sort((a, b) => (a.index ?? 0) - (b.index ?? 0) || a.row.views - b.row.views)
+    .filter((x) => (byViews || x.index !== null) && !x.fresh && !bestSet.has(x) && x.row.views >= MIN_VIEWS_FOR_WORST)
+    .sort(
+      byViews
+        ? (a, b) => a.row.views - b.row.views || (a.index ?? 0) - (b.index ?? 0)
+        : (a, b) => (a.index ?? 0) - (b.index ?? 0) || a.row.views - b.row.views,
+    )
     .slice(0, size);
 
   return { best, worst, total: ranked.length, baselineKind };
