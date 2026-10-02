@@ -11,6 +11,7 @@ import {
 } from "@/lib/sync/status";
 import type { RawRow } from "@/lib/dashboard/types";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 type Result = { source: TvSourceConfig; parsed?: ParsedTvSheet; error?: string };
 
@@ -164,7 +165,7 @@ export function TvUploadModal({
         </div>
 
         {error && <p className="sync-error">{error}</p>}
-        {sources === null && <p className="sync-muted">กำลังโหลด...</p>}
+        {sources === null && <p className="sync-muted">กำลังโหลด...<LoadingLine /></p>}
         {sources?.length === 0 && <p className="sync-error">ยังไม่มีแหล่งข้อมูล TV ที่เปิดใช้ ตั้งค่าที่ เครื่องมือ admin → แหล่งข้อมูล TV ก่อน</p>}
 
         {!!sources?.length && (

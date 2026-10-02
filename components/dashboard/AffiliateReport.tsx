@@ -28,6 +28,7 @@ import {
   Upload,
 } from "lucide-react";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const money = (v: number) =>
   new Intl.NumberFormat("th-TH", {
@@ -271,7 +272,8 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
         >
           <BadgeDollarSign size={36} color="#94a3b8" />
           <span style={{ color: "#64748b", fontWeight: 600 }}>
-            {loading ? "กำลังโหลดข้อมูล Affiliate จาก Firebase..." : "ยังไม่มีข้อมูล Affiliate ในระบบ"}
+            {loading ? "กำลังโหลดข้อมูล Affiliate จากระบบ..." : "ยังไม่มีข้อมูล Affiliate ในระบบ"}
+            {loading && <LoadingLine />}
           </span>
           {isAdmin && (
             <button

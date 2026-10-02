@@ -9,6 +9,7 @@ import {
   type SyncStatus,
 } from "@/lib/sync/status";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const MODES: { value: NotifyMode; label: string; hint: string }[] = [
   { value: "always", label: "ทุกรอบ (สรุปรายวัน)", hint: "ได้อีเมลทุกครั้งหลัง sync รู้ว่าระบบยังทำงานอยู่" },
@@ -102,7 +103,7 @@ export function NotificationsModal({
 
         {error && <p className="sync-error">{error}</p>}
         {emails === null ? (
-          <p className="sync-muted">กำลังโหลด...</p>
+          <p className="sync-muted">กำลังโหลด...<LoadingLine /></p>
         ) : (
           <>
             <h3>ผู้รับ (สูงสุด 10)</h3>

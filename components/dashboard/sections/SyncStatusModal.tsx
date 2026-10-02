@@ -12,6 +12,7 @@ import {
   type SyncStatus,
 } from "@/lib/sync/status";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const thTime = (iso?: string) =>
   iso
@@ -92,7 +93,7 @@ export function SyncStatusModal({
         </div>
 
         {error && <p className="sync-error">{error}</p>}
-        {runs === null && <p className="sync-muted">กำลังโหลด...</p>}
+        {runs === null && <p className="sync-muted">กำลังโหลด...<LoadingLine /></p>}
         {runs !== null && !latest && !error && <p className="sync-muted">ยังไม่มีการ sync ครั้งแรก</p>}
 
         {latest && state && (

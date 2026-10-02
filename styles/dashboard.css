@@ -663,6 +663,101 @@ body {
     opacity: 0.7;
   }
 }
+/* Opening load card (LoadingOverlay) and the small bar under "กำลังโหลด…" (LoadingLine). */
+.loading-card {
+  display: grid;
+  gap: 14px;
+  min-width: 240px;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #dbe5f3;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px #0f2a5c1f;
+}
+.loading-run,
+.loading-line {
+  position: relative;
+  overflow: hidden;
+  height: 4px;
+  border-radius: 4px;
+  background: #dbe8ff;
+}
+.loading-line {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: 3px;
+  margin-top: 8px;
+}
+.empty-state .loading-line {
+  margin: 8px auto 0;
+}
+.loading-run i,
+.loading-line i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #0757e8, #4f8cff);
+  animation: top-loading-run 1.1s ease-in-out infinite;
+}
+.loading-title {
+  text-align: center;
+}
+.loading-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.loading-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loading-steps li.active {
+  color: #0757e8;
+}
+.loading-steps li.done {
+  color: #334155;
+}
+.loading-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-size: 11px;
+}
+.loading-steps li.active .loading-dot {
+  animation: loading-pulse 1.2s ease-in-out infinite;
+}
+.loading-steps li.done .loading-dot {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+}
+@keyframes loading-pulse {
+  50% {
+    box-shadow: 0 0 0 5px #0757e826;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-run i,
+  .loading-line i {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+  .loading-steps li.active .loading-dot {
+    animation: none;
+  }
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);

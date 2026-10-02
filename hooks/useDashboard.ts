@@ -29,6 +29,18 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/loadingBar";
 
+export type LoadingStage = "auth" | "fetch" | "process";
+
+/**
+ * Lets the browser draw the new loading step before heavy work blocks it.
+ * Hidden tabs never fire animation frames, so a timer resolves it there.
+ */
+const nextPaint = () =>
+  new Promise<void>((r) => {
+    requestAnimationFrame(() => setTimeout(r, 0));
+    setTimeout(r, 100);
+  });
+
 /** KPI totals for a set of rows; the same rules as the `metrics` memo. */
 function summarize(source: RecordRow[], tvMode: boolean) {
   const digital = source.filter((r) => r.platform !== "TV");
@@ -87,6 +99,8 @@ export function useDashboard(enabled = true) {
       total: number;
     } | null>(null),
     [loading, setLoading] = useState(true),
+    // Step shown on the opening load: fetching from Firestore, then preparing rows. null = other loads (file, sheet).
+    [loadingStage, setLoadingStage] = useState<LoadingStage | null>("fetch"),
     [menuOpen, setMenuOpen] = useState(false),
     [sourceOpen, setSourceOpen] = useState(false),
     [sheetUrl, setSheetUrl] = useState(""),
@@ -120,11 +134,14 @@ export function useDashboard(enabled = true) {
     if (!enabled) return;
     async function initDashboardData() {
       setLoading(true);
+      setLoadingStage("fetch");
       try {
         if (!isStaticHost) {
           // Compact copy / this browser when they match masterData, else masterData itself.
           const cloudResult = await track(loadDashboardRows()).catch(() => null);
           if (cloudResult && cloudResult.rows.length > 0) {
+            setLoadingStage("process");
+            await nextPaint();
             setRawRows(cloudResult.rows);
             const nonPlain = countNonPlainDates(cloudResult.rows);
             if (nonPlain) {
@@ -1104,6 +1121,7 @@ export function useDashboard(enabled = true) {
     }
   }
   async function loadSheet(): Promise<{ success: boolean; message: string }> {
+    setLoadingStage(null);
     setLoading(true);
     setMessage("");
     try {
@@ -1132,6 +1150,7 @@ export function useDashboard(enabled = true) {
   }
   async function onFile(file?: File): Promise<{ success: boolean; message: string }> {
     if (!file) return { success: false, message: "ไม่ได้เลือกไฟล์" };
+    setLoadingStage(null);
     setLoading(true);
     setMessage("");
     try {
@@ -1248,6 +1267,7 @@ export function useDashboard(enabled = true) {
     rows,
     setRows,
     loading,
+    loadingStage,
     setLoading,
     menuOpen,
     setMenuOpen,

@@ -43,6 +43,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 // Format currency as USD
 const money = (v: number) =>
@@ -427,6 +428,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
           <BadgeDollarSign size={36} color="#94a3b8" />
           <span style={{ color: "#64748b", fontWeight: 600, display: "block", marginTop: 8 }}>
             {loading ? "กำลังโหลดข้อมูล Revenue จากระบบ..." : "ยังไม่มีข้อมูล YouTube Revenue ในระบบ"}
+            {loading && <LoadingLine />}
           </span>
           {isAdmin && (
             <button

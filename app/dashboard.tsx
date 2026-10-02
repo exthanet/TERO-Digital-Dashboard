@@ -134,7 +134,7 @@ export default function Dashboard() {
   }
 
   if (auth.isLoading) {
-    return <LoadingOverlay loading={true} />;
+    return <LoadingOverlay loading={true} stage="auth" />;
   }
 
   if (!auth.isAuthenticated) {
@@ -424,7 +424,7 @@ export default function Dashboard() {
         auth={auth}
       />
       <TopLoadingBar busy={model.loading} />
-      <LoadingOverlay loading={model.loading} />
+      <LoadingOverlay loading={model.loading} stage={model.loadingStage} />
     </main>
   );
 }

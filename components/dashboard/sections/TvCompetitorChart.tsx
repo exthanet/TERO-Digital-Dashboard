@@ -10,6 +10,7 @@ import { OWN_KEY, competitorRanking, competitorTrend, outOfRange, type Competito
 import { loadTvCompetitors, type CompetitorSource } from "@/lib/tvCompetitorData";
 import { Empty } from "@/components/dashboard/shared/Empty";
 import { track } from "@/lib/loadingBar";
+import { LoadingLine } from "@/components/dashboard/shared/LoadingLine";
 
 const OWN_COLOR = "#0757e8";
 
@@ -98,7 +99,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
       </div>
 
       {error && <p className="growth-notice warn">โหลดข้อมูลคู่แข่งไม่สำเร็จ: {error}</p>}
-      {!sources && !error && <p className="growth-notice">กำลังโหลดข้อมูลคู่แข่ง…</p>}
+      {!sources && !error && <p className="growth-notice">กำลังโหลดข้อมูลคู่แข่ง…<LoadingLine /></p>}
       {sources && !sources.length && <p className="growth-notice">ยังไม่มีข้อมูลคู่แข่ง · อัปโหลดไฟล์ TV แล้ว sync แบบเขียนจริงก่อน</p>}
       {otherProgram && <p className="growth-notice">มีข้อมูลคู่แข่งเฉพาะ{source?.program} · เลือกรายการ “{source?.program}” หรือ “ทั้งหมด” ในตัวกรองด้านบน</p>}
 
