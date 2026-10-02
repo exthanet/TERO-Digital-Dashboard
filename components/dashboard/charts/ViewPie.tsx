@@ -7,11 +7,15 @@ export function ViewPie({
   title,
   subtitle,
   data,
+  colors,
 }: {
   title: string;
   subtitle: string;
   data: Array<{ name: string; total: number }>;
+  /** Fixed colour per name (e.g. platform colours); others use the palette by position. */
+  colors?: Record<string, string>;
 }) {
+  const colorOf = (name: string, i: number) => colors?.[name] || TOPIC_COLORS[i % TOPIC_COLORS.length];
   const total = data.reduce((a, x) => a + x.total, 0);
   return (
     <article className="panel executive-pie">
@@ -32,8 +36,8 @@ export function ViewPie({
                 innerRadius={45}
                 outerRadius={76}
               >
-                {data.map((_, i) => (
-                  <Cell key={i} fill={TOPIC_COLORS[i % TOPIC_COLORS.length]} />
+                {data.map((x, i) => (
+                  <Cell key={i} fill={colorOf(x.name, i)} />
                 ))}
               </Pie>
               <Tooltip formatter={(v) => num(Number(v))} />
@@ -42,9 +46,7 @@ export function ViewPie({
           <div className="legend-list">
             {data.map((x, i) => (
               <div key={x.name}>
-                <i
-                  style={{ background: TOPIC_COLORS[i % TOPIC_COLORS.length] }}
-                />
+                <i style={{ background: colorOf(x.name, i) }} />
                 <span>{x.name}</span>
                 <b>
                   {total ? `${((x.total / total) * 100).toFixed(1)}%` : "0%"}

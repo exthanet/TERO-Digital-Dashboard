@@ -244,22 +244,52 @@ export function useDashboard(enabled = true) {
         : "month",
     [startDate, endDate],
   );
+  // Per period: views of each digital platform (own key, e.g. "YouTube"), their
+  // total ("Digital Views") and "TV Audience". Same rows and rules as before.
   const digitalVsTv = useMemo(() => {
-    const m = new Map<
-      string,
-      { date: string; "Digital Views": number; "TV Audience": number }
-    >();
+    const m = new Map<string, Record<string, number | string>>();
     executiveRows.forEach((r) => {
       const key = executiveGrain === "day" ? r.date : r.date.slice(0, 7),
         x = m.get(key) || { date: key, "Digital Views": 0, "TV Audience": 0 };
-      if (r.platform === "TV")
-        x["TV Audience"] += r.audienceTotal + r.gmmAudience;
-      else x["Digital Views"] += r.views;
+      if (r.platform === "TV") {
+        x["TV Audience"] = Number(x["TV Audience"]) + r.audienceTotal + r.gmmAudience;
+      } else {
+        x["Digital Views"] = Number(x["Digital Views"]) + r.views;
+        x[r.platform] = Number(x[r.platform] || 0) + r.views;
+      }
       m.set(key, x);
     });
     return [...m.values()]
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
       .slice(executiveGrain === "day" ? -31 : -24);
+  }, [executiveRows, executiveGrain]);
+  /** Digital platforms in that chart, biggest first. */
+  const digitalPlatforms = useMemo(() => {
+    const t = new Map<string, number>();
+    executiveRows.forEach((r) => r.platform !== "TV" && t.set(r.platform, (t.get(r.platform) || 0) + r.views));
+    return [...t.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([p]) => p);
+  }, [executiveRows]);
+  // Views per period by VDO type (TV rows count audience, as in the VDO Type pie).
+  // The 6 biggest types get their own series; the rest add up to "อื่นๆ".
+  const vdoTypeTrend = useMemo(() => {
+    const value = (r: RecordRow) => (r.platform === "TV" ? r.audienceTotal + r.gmmAudience : r.views);
+    const totals = new Map<string, number>();
+    executiveRows.forEach((r) => totals.set(r.vdoType || "ไม่ระบุ", (totals.get(r.vdoType || "ไม่ระบุ") || 0) + value(r)));
+    const ranked = [...totals.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([t]) => t);
+    const top = new Set(ranked.slice(0, 6));
+    const keys = [...ranked.slice(0, 6), ...(ranked.length > 6 ? ["อื่นๆ"] : [])];
+    const m = new Map<string, Record<string, number | string>>();
+    executiveRows.forEach((r) => {
+      const key = executiveGrain === "day" ? r.date : r.date.slice(0, 7);
+      const t = top.has(r.vdoType || "ไม่ระบุ") ? r.vdoType || "ไม่ระบุ" : "อื่นๆ";
+      const x = m.get(key) || { date: key };
+      x[t] = Number(x[t] || 0) + value(r);
+      m.set(key, x);
+    });
+    const data = [...m.values()]
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .slice(executiveGrain === "day" ? -31 : -24);
+    return { data, keys };
   }, [executiveRows, executiveGrain]);
   const programPie = useMemo(
     () =>
@@ -1263,6 +1293,8 @@ export function useDashboard(enabled = true) {
     growthRows,
     executiveGrain,
     digitalVsTv,
+    digitalPlatforms,
+    vdoTypeTrend,
     programPie,
     platformPie,
     vdoTypePie,

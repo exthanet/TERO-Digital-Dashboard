@@ -285,6 +285,8 @@ export default function Dashboard() {
               setExecutiveChartType={model.setExecutiveChartType}
               executiveGrain={model.executiveGrain}
               digitalVsTv={model.digitalVsTv}
+              digitalPlatforms={model.digitalPlatforms}
+              vdoTypeTrend={model.vdoTypeTrend}
               programPie={model.programPie}
               platformPie={model.platformPie}
               vdoTypePie={model.vdoTypePie}

@@ -450,3 +450,24 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Trend chart (2/3) beside its pie (1/3): platforms + Cross Platform, VDO type + VDO Type pie. */
+.executive-paired {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.executive-paired .executive-side {
+  display: flex;
+  min-width: 0;
+}
+
+.executive-paired .executive-side > .executive-pie {
+  flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .executive-paired {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
