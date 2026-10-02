@@ -103,7 +103,7 @@ export function useDashboard(enabled = true) {
     [compareMode, setCompareModeState] = useState<ComparePreset>("PREVIOUS"),
     [compareStart, setCompareStart] = useState(""),
     [compareEnd, setCompareEnd] = useState("");
-  const [topVdoType, setTopVdoType] = useState("ALL");
+  const [topTopicType, setTopTopicType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -237,9 +237,10 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, platform, vdoType, topicType, search],
   );
+  // Daily up to 31 days (e.g. "28 วันล่าสุด", which spans two months); monthly beyond.
   const executiveGrain = useMemo<"day" | "month">(
     () =>
-      startDate && endDate && startDate.slice(0, 7) === endDate.slice(0, 7)
+      startDate && endDate && (Date.parse(endDate) - Date.parse(startDate)) / 86400000 + 1 <= 31
         ? "day"
         : "month",
     [startDate, endDate],
@@ -310,6 +311,18 @@ export function useDashboard(enabled = true) {
         (r) => r.platform,
         (r) =>
           r.platform === "TV" ? r.audienceTotal + r.gmmAudience : r.views,
+      )
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8),
+    [executiveRows],
+  );
+  // Digital views by account / page (Channel), same rows as the other pies here.
+  const accountPie = useMemo(
+    () =>
+      sumBy(
+        executiveRows.filter((r) => r.platform !== "TV"),
+        (r) => (r.channel && r.channel.trim() !== "-" ? r.channel.trim() : "ไม่ระบุ"),
+        (r) => r.views,
       )
         .sort((a, b) => b.total - a.total)
         .slice(0, 8),
@@ -534,10 +547,10 @@ export function useDashboard(enabled = true) {
   );
   const topSource = useMemo(
     () =>
-      vdoType === "ALL" && topVdoType !== "ALL"
-        ? performanceFiltered.filter((r) => r.vdoType === topVdoType)
+      topicType === "ALL" && topTopicType !== "ALL"
+        ? performanceFiltered.filter((r) => r.topicType === topTopicType)
         : performanceFiltered,
-    [performanceFiltered, vdoType, topVdoType],
+    [performanceFiltered, topicType, topTopicType],
   );
   const top = useMemo(
     () =>
@@ -1270,8 +1283,8 @@ export function useDashboard(enabled = true) {
     setCompareEnd,
     dataFirstDate,
     setDatePreset,
-    topVdoType,
-    setTopVdoType,
+    topTopicType,
+    setTopTopicType,
     grain,
     setGrain,
     ratingGrain,
@@ -1298,6 +1311,7 @@ export function useDashboard(enabled = true) {
     programPie,
     platformPie,
     vdoTypePie,
+    accountPie,
     digitalFiltered,
     tvMode,
     performanceFiltered,

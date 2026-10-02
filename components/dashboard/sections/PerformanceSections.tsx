@@ -28,8 +28,9 @@ import {
 } from "recharts";
 export function PerformanceSections({
   vdoType,
-  topVdoType,
-  setTopVdoType,
+  topTopicType,
+  setTopTopicType,
+  topicType,
   grain,
   setGrain,
   options,
@@ -54,8 +55,9 @@ export function PerformanceSections({
 }: Pick<
   DashboardModel,
   | "vdoType"
-  | "topVdoType"
-  | "setTopVdoType"
+  | "topTopicType"
+  | "setTopTopicType"
+  | "topicType"
   | "grain"
   | "setGrain"
   | "ratingGrain"
@@ -80,8 +82,130 @@ export function PerformanceSections({
 >) {
   return (
     <>
-      <section className="main-grid" id="daily">
-        <article className="panel wide">
+      <section className="main-grid">
+        <article className="panel table-panel" id="best">
+          <div className="panel-head">
+            <div>
+              <h2>Top 10 ประเด็น</h2>
+              <p>
+                เรียงตาม{tvMode ? " TV Audience" : "ยอดวิว"}สูงสุด
+                {topicType === "ALL" && topTopicType !== "ALL"
+                  ? ` · ${topTopicType}`
+                  : ""}
+              </p>
+            </div>
+            <div className="top-table-actions">
+              {topicType === "ALL" && (
+                <label>
+                  <span>Topic Type</span>
+                  <select
+                    value={topTopicType}
+                    onChange={(e) => setTopTopicType(e.target.value)}
+                  >
+                    <option value="ALL">ทั้งหมด</option>
+                    {options.topicTypes.map((x) => (
+                      <option key={x}>{x}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button onClick={download}>
+                <Download />
+                ดาวน์โหลด
+              </button>
+            </div>
+          </div>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>ประเด็น</th>
+                  <th className="mobile-hide">รายการ</th>
+                  <th className="mobile-hide">VDO Type</th>
+                  <th className="mobile-hide">Topic Type</th>
+                  <th>{tvMode ? "TV Audience" : "ยอดวิว"}</th>
+                  <th>Engagement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {top.map((r, i) => (
+                  <tr key={`${r.contentId}-${i}`}>
+                    <td>{i + 1}</td>
+                    <td>
+                      <a href={r.url || undefined} target="_blank">
+                        {r.topic || "ไม่ระบุประเด็น"}
+                      </a>
+                    </td>
+                    <td className="mobile-hide">{r.program}</td>
+                    <td className="mobile-hide">
+                      <span className="tag">{r.vdoType}</span>
+                    </td>
+                    <td className="mobile-hide">{r.topicType}</td>
+                    <td>
+                      <div className="metric-bar">
+                        <i
+                          style={{
+                            width: `${top[0] && performanceValue(top[0]) ? Math.max(5, (performanceValue(r) / performanceValue(top[0])) * 100) : 0}%`,
+                          }}
+                        />
+                        <b>{compact(performanceValue(r))}</b>
+                      </div>
+                    </td>
+                    <td>{tvMode ? "-" : pct(r.engagementRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article className="panel" id="topics">
+          <div className="panel-head">
+            <div>
+              <h2>สัดส่วนยอดวิวตาม Topic Type</h2>
+              <p>ช่วงเวลาที่เลือก</p>
+            </div>
+          </div>
+          <div className="donut-wrap">
+            {topics.length ? (
+              <>
+                <ResponsiveContainer width="52%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={topics}
+                      dataKey="total"
+                      nameKey="name"
+                      innerRadius={62}
+                      outerRadius={94}
+                    >
+                      {topics.map((_, i) => (
+                        <Cell key={i} fill={TOPIC_COLORS[i % 10]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => num(Number(v))} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="legend-list">
+                  {topics.map((x, i) => (
+                    <div key={x.name}>
+                      <i style={{ background: TOPIC_COLORS[i % 10] }} />
+                      <span>{x.name}</span>
+                      <b>
+                        {metrics.views
+                          ? ((x.total / metrics.views) * 100).toFixed(1)
+                          : 0}
+                        %
+                      </b>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <Empty />
+            )}
+          </div>
+        </article>
+        <article className="panel full" id="daily">
           <div className="panel-head">
             <div>
               <h2>
@@ -152,129 +276,6 @@ export function PerformanceSections({
             )}
           </div>
         </article>
-        <article className="panel" id="topics">
-          <div className="panel-head">
-            <div>
-              <h2>สัดส่วนยอดวิวตาม Topic Type</h2>
-              <p>ช่วงเวลาที่เลือก</p>
-            </div>
-          </div>
-          <div className="donut-wrap">
-            {topics.length ? (
-              <>
-                <ResponsiveContainer width="52%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={topics}
-                      dataKey="total"
-                      nameKey="name"
-                      innerRadius={62}
-                      outerRadius={94}
-                    >
-                      {topics.map((_, i) => (
-                        <Cell key={i} fill={TOPIC_COLORS[i % 10]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => num(Number(v))} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="legend-list">
-                  {topics.map((x, i) => (
-                    <div key={x.name}>
-                      <i style={{ background: TOPIC_COLORS[i % 10] }} />
-                      <span>{x.name}</span>
-                      <b>
-                        {metrics.views
-                          ? ((x.total / metrics.views) * 100).toFixed(1)
-                          : 0}
-                        %
-                      </b>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <Empty />
-            )}
-          </div>
-        </article>
-        <article className="panel table-panel" id="best">
-          <div className="panel-head">
-            <div>
-              <h2>Top 10 ประเด็น</h2>
-              <p>
-                เรียงตาม{tvMode ? " TV Audience" : "ยอดวิว"}สูงสุด
-                {vdoType === "ALL" && topVdoType !== "ALL"
-                  ? ` · ${topVdoType}`
-                  : ""}
-              </p>
-            </div>
-            <div className="top-table-actions">
-              {vdoType === "ALL" && (
-                <label>
-                  <span>VDO Type</span>
-                  <select
-                    value={topVdoType}
-                    onChange={(e) => setTopVdoType(e.target.value)}
-                  >
-                    <option value="ALL">ทั้งหมด</option>
-                    {options.vdoTypes.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <button onClick={download}>
-                <Download />
-                ดาวน์โหลด
-              </button>
-            </div>
-          </div>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>ประเด็น</th>
-                  <th className="mobile-hide">รายการ</th>
-                  <th className="mobile-hide">VDO Type</th>
-                  <th className="mobile-hide">Topic Type</th>
-                  <th>{tvMode ? "TV Audience" : "ยอดวิว"}</th>
-                  <th>Engagement</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top.map((r, i) => (
-                  <tr key={`${r.contentId}-${i}`}>
-                    <td>{i + 1}</td>
-                    <td>
-                      <a href={r.url || undefined} target="_blank">
-                        {r.topic || "ไม่ระบุประเด็น"}
-                      </a>
-                    </td>
-                    <td className="mobile-hide">{r.program}</td>
-                    <td className="mobile-hide">
-                      <span className="tag">{r.vdoType}</span>
-                    </td>
-                    <td className="mobile-hide">{r.topicType}</td>
-                    <td>
-                      <div className="metric-bar">
-                        <i
-                          style={{
-                            width: `${top[0] && performanceValue(top[0]) ? Math.max(5, (performanceValue(r) / performanceValue(top[0])) * 100) : 0}%`,
-                          }}
-                        />
-                        <b>{compact(performanceValue(r))}</b>
-                      </div>
-                    </td>
-                    <td>{tvMode ? "-" : pct(r.engagementRate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-        <TvRatingChoropleth data={provinceRating} />
         <article className="panel wide" id="rating">
           <div className="panel-head">
             <div>
@@ -353,6 +354,7 @@ export function PerformanceSections({
             )}
           </div>
         </article>
+        <TvRatingChoropleth data={provinceRating} />
         <article className="panel wide tv-rating-breakdown">
           <div className="panel-head">
             <div>

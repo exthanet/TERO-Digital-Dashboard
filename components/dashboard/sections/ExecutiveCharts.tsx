@@ -88,7 +88,7 @@ export function ExecutiveCharts({
   digitalVsTv,
   digitalPlatforms,
   vdoTypeTrend,
-  platforms,
+  accountPie,
   programPie,
   platformPie,
   vdoTypePie,
@@ -100,7 +100,7 @@ export function ExecutiveCharts({
   | "digitalVsTv"
   | "digitalPlatforms"
   | "vdoTypeTrend"
-  | "platforms"
+  | "accountPie"
   | "programPie"
   | "platformPie"
   | "vdoTypePie"
@@ -132,7 +132,7 @@ export function ExecutiveCharts({
       <article className="panel executive-line">
         <div className="panel-head">
           <div>
-            <h2>Digital Platform Views vs TV Audience</h2>
+            <h2>Cross Platform</h2>
             <p>แยกแต่ละแพลตฟอร์มเทียบผู้ชมทีวี · {grainText} · ไม่คูณ TV Rating</p>
           </div>
           {toggle}
@@ -144,7 +144,8 @@ export function ExecutiveCharts({
       {/* Phones skip the pies: each repeats a panel further down */}
       <div className="mobile-hide executive-side">
         <ViewPie
-          title="Cross Platform"
+          id="platforms"
+          title="สัดส่วน Cross Platform"
           subtitle="สัดส่วน Views / TV Audience"
           data={platformPie}
           colors={{ ...PLATFORM_COLORS, TV: TV_COLOR }}
@@ -167,15 +168,9 @@ export function ExecutiveCharts({
         <ViewPie title="VDO Type" subtitle="สัดส่วนยอดวิวตามรูปแบบวิดีโอ" data={vdoTypePie} />
       </div>
 
-      {/* Views by platform (left) beside views by program (right), same size. */}
+      {/* Views by account / page (left) beside views by program (right), same size. */}
       <div className="executive-pair-row">
-        <ViewPie
-          id="platforms"
-          title="ยอดวิวตามแพลตฟอร์ม"
-          subtitle="รวมทุก Content Type"
-          data={platforms}
-          colors={{ ...PLATFORM_COLORS, TV: TV_COLOR }}
-        />
+        <ViewPie title="ยอดวิวตามบัญชี/เพจ" subtitle="เฉพาะออนไลน์ · ทุกแพลตฟอร์ม" data={accountPie} />
         <div className="mobile-hide executive-side">
           <ViewPie title="รายการทั้งหมด" subtitle="สัดส่วนยอดวิวตาม Program" data={programPie} />
         </div>

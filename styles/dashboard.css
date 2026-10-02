@@ -856,3 +856,8 @@ footer {
   color: #94a3b8;
   padding: 24px;
 }
+
+/* A panel across the whole grid row (e.g. views over time). */
+.main-grid > .panel.full {
+  grid-column: 1 / -1;
+}

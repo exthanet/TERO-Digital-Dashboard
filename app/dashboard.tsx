@@ -287,7 +287,7 @@ export default function Dashboard() {
               digitalVsTv={model.digitalVsTv}
               digitalPlatforms={model.digitalPlatforms}
               vdoTypeTrend={model.vdoTypeTrend}
-              platforms={model.platforms}
+              accountPie={model.accountPie}
               programPie={model.programPie}
               platformPie={model.platformPie}
               vdoTypePie={model.vdoTypePie}
@@ -302,8 +302,9 @@ export default function Dashboard() {
             />
             <PerformanceSections
               vdoType={model.vdoType}
-              topVdoType={model.topVdoType}
-              setTopVdoType={model.setTopVdoType}
+              topTopicType={model.topTopicType}
+              setTopTopicType={model.setTopTopicType}
+              topicType={model.topicType}
               grain={model.grain}
               setGrain={model.setGrain}
               options={model.options}
