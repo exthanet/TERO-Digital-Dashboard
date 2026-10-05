@@ -137,6 +137,20 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
+    id: "youtube-deep-dive",
+    title: "YouTube Deep Dive (วิเคราะห์เชิงลึก)",
+    admin: true,
+    lead: "ข้อมูลจาก YouTube Analytics ของช่อง terodigital (ผ่าน CMS) สำหรับคลิป YouTube ตามตัวกรองด้านบน",
+    points: [
+      "Retention & Hook: Hook rate ของ Shorts = คนที่ดูต่อ ÷ คนที่เห็น (ไม่ปัดทิ้ง) · ดูเฉลี่ยเกิน 100% = มีคนดูวนซ้ำ · กราฟการดูต่อของคลิปเด่น เทียบคลิปความยาวใกล้กันบน YouTube (0.5 = ค่ากลาง)",
+      "แบ่ง Shorts 4 กลุ่มตาม Hook × ดูต่อ เทียบค่ากลางของ Shorts ในช่วงนี้ บอกว่าควรปรับตรงไหน",
+      "Engagement: ER, Comment / Share / ผู้ติดตามเพิ่ม ต่อ 1,000 วิว แยกตาม VDO Type",
+      "SEO & Keyword: คนเจอคลิปจากที่ไหน · คำค้นที่พาคนมา · “ตรงกับชื่อ” = สัดส่วนวิวจากคำค้นที่อยู่ในชื่อคลิป · คำที่คนค้นแต่ยังไม่มีคลิปชื่อตรง",
+      "Revenue: รายได้และ RPM (รายได้ต่อ 1,000 วิว) แยก Shorts / วิดีโอ / Live, VDO Type, Topic Type · เป็นค่าประมาณ USD จาก YouTube",
+      "ยอดเป็นยอดตลอดอายุคลิป อัปเดตทุกวันพร้อม sync · Thumbnail CTR จะมาหลังได้รายงานจาก YouTube",
+    ],
+  },
+  {
     id: "advice",
     title: "คำแนะนำ (วิเคราะห์เชิงลึก)",
     admin: true,

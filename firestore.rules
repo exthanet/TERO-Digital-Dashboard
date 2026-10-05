@@ -68,6 +68,11 @@ service cloud.firestore {
     // Tokens the sync uses (e.g. TikTok refresh tokens). No signed-in user may
     // read or write them, admins included: only the sync's service account,
     // which is not bound by these rules, touches them.
+    // YouTube Deep Dive (watch time, revenue, search terms) from the sync: admins read, nobody writes from a browser.
+    match /ytAnalytics/{doc} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
     match /syncSecrets/{doc} {
       allow read, write: if false;
     }

@@ -40,7 +40,9 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
-import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount, videoStats } from "../lib/integrations/youtubeAnalytics.ts";
+import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
+import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
+import { postId } from "../lib/dashboard/postKey.ts";
 import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 import {
   backupMasterData,
@@ -143,6 +145,8 @@ const incoming = [];
 const tvStatus = [];
 // Optional sources beside the platforms; a problem here is reported and e-mailed, never fails the run.
 const integrations = {};
+// YouTube Deep Dive data collected with the enrichment, written after masterData (write mode).
+let ytDeepDive = null;
 
 async function main() {
 const api = new MetricoolApi({
@@ -234,8 +238,14 @@ for (const brand of brands) {
       let enriched = 0, aError = "";
       try {
         const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
-        const ids = [...new Set(rows.filter((r) => r.Platform === "YouTube").map((r) => String(r.Content_ID)))];
-        enriched = applyVideoStats(rows, await videoStats(token, ytCms.ownerId, ids, today));
+        const ids = [...new Set(rows.filter((r) => r.Platform === "YouTube").map((r) => postId("YouTube", r.URL) || postId("YouTube", r.Content_ID)).filter(Boolean))];
+        // One collection serves both: watch time / shares for the rows, the rest for the Deep Dive page.
+        // Counted from the window's first day = each video's lifetime (they were all posted in it).
+        const startedAt = Date.now();
+        ytDeepDive = await collectYtAnalytics(token, ytCms.ownerId, brand.youtubeChannelId, ids, today, since);
+        console.log(`  ${brand.label.padEnd(12)} yt-deepdive videos=${ytDeepDive.videos.length} retention=${ytDeepDive.retention.length} search=${Object.keys(ytDeepDive.search).length} in ${Math.round((Date.now() - startedAt) / 1000)}s`);
+        const stats = new Map(ytDeepDive.videos.map((v) => [v.id, { views: v.views, averageViewDuration: v.avgViewSec, averageViewPercentage: v.avgViewPct, subscribersGained: v.subs, shares: v.shares }]));
+        enriched = applyVideoStats(rows, stats);
       } catch (e) {
         aError = e.message;
       }
@@ -483,6 +493,17 @@ try {
     console.log(`thumbnails: ${JSON.stringify(counts)}`);
   } catch (e) {
     console.error(`thumbnails not written: ${e.message}`);
+  }
+  // YouTube Deep Dive (admins only); analysis, never fails the run.
+  if (ytDeepDive) {
+    try {
+      const parts = await writeYtAnalytics(fsdb, ytDeepDive);
+      console.log(`youtube deep dive: ${ytDeepDive.videos.length} videos in ${parts} part(s)`);
+    } catch (e) {
+      console.error(`youtube deep dive not written: ${e.message}`);
+      const yta = integrations["YouTube Analytics"];
+      if (yta) Object.assign(yta, { ok: false, error: analyticsProblem(`deep dive not written: ${e.message}`) });
+    }
   }
   if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);
   else try {

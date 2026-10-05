@@ -63,6 +63,81 @@ export async function accessTokenFor(refreshToken: string, clientId: string, cli
 
 const METRICS = ["views", "averageViewDuration", "averageViewPercentage", "subscribersGained", "shares"] as const;
 
+export type Wait = (ms: number) => Promise<void>;
+const sleep: Wait = (ms) => new Promise((r) => setTimeout(r, ms));
+export type Report = { cols: string[]; rows: (string | number)[][] };
+
+/**
+ * One YouTube Analytics report through the content owner. Google's "internal
+ * error" / 5xx / network hiccups are retried (4 tries); anything else is real.
+ * A thrown error carries `transient` when it was the retryable kind.
+ */
+export async function analyticsQuery(
+  accessToken: string,
+  ownerId: string,
+  params: Record<string, string>,
+  wait: Wait = sleep,
+  fetcher: typeof fetch = fetch,
+): Promise<Report> {
+  type Body = { rows?: (string | number)[][]; columnHeaders?: { name: string }[]; error?: { message?: string } };
+  const q = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
+  q.search = new URLSearchParams({ ids: `contentOwner==${ownerId}`, ...params }).toString();
+  for (let attempt = 1; ; attempt++) {
+    let res: Response | null = null;
+    let body: Body = {};
+    try {
+      // A request that hangs (Google sometimes holds one for minutes) is retried like a network error.
+      res = await fetcher(q, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(60_000) });
+      body = (await res.json()) as Body;
+    } catch (e) {
+      if (attempt >= 4) throw new Error(`YouTube Analytics: ${e instanceof Error ? e.message : String(e)}`);
+      await wait(5000 * attempt);
+      continue;
+    }
+    if (res.ok) return { cols: (body.columnHeaders || []).map((h) => h.name), rows: body.rows || [] };
+    const transient = res.status >= 500 || /internal error|backend error/i.test(body.error?.message || "");
+    if (!transient || attempt >= 4) {
+      const err = new Error(`YouTube Analytics: ${body.error?.message || res.status}`) as Error & { transient?: boolean };
+      err.transient = transient;
+      throw err;
+    }
+    await wait(5000 * attempt);
+  }
+}
+
+/**
+ * A per-video report over many ids: `size` ids per request; a batch that keeps
+ * failing with an internal error is split in four and tried again.
+ */
+export async function batchedQuery(
+  ids: string[],
+  size: number,
+  run: (batch: string[]) => Promise<Report>,
+): Promise<Report> {
+  const out: Report = { cols: [], rows: [] };
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) batches.push(ids.slice(i, i + size));
+  while (batches.length) {
+    const batch = batches.shift()!;
+    let r: Report;
+    try {
+      r = await run(batch);
+    } catch (e) {
+      if ((e as { transient?: boolean }).transient && batch.length > Math.min(50, size / 4)) {
+        const part = Math.ceil(batch.length / 4);
+        const parts: string[][] = [];
+        for (let i = 0; i < batch.length; i += part) parts.push(batch.slice(i, i + part));
+        batches.unshift(...parts);
+        continue;
+      }
+      throw e;
+    }
+    if (r.cols.length) out.cols = r.cols;
+    out.rows.push(...r.rows);
+  }
+  return out;
+}
+
 /**
  * Lifetime numbers per video (200 ids per request) through the content owner.
  * `endDate` is today: Analytics lags a day or two, so the last days may still grow.
@@ -72,64 +147,21 @@ export async function videoStats(
   ownerId: string,
   ids: string[],
   endDate: string,
-  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  wait: Wait = sleep,
   fetcher: typeof fetch = fetch,
 ): Promise<Map<string, VideoStats>> {
   const out = new Map<string, VideoStats>();
-  type Body = { rows?: (string | number)[][]; columnHeaders?: { name: string }[]; error?: { message?: string } };
-  const query = async (batch: string[]): Promise<Body> => {
-    const q = new URL("https://youtubeanalytics.googleapis.com/v2/reports");
-    q.search = new URLSearchParams({
-      ids: `contentOwner==${ownerId}`,
-      startDate: "2015-01-01",
-      endDate,
-      metrics: METRICS.join(","),
-      dimensions: "video",
-      filters: `video==${batch.join(",")}`,
-      maxResults: "200",
-    }).toString();
-    // Google's "internal error" / 5xx / network hiccups pass on a retry; anything else is real.
-    for (let attempt = 1; ; attempt++) {
-      let res: Response | null = null;
-      let body: Body = {};
-      try {
-        res = await fetcher(q, { headers: { Authorization: `Bearer ${accessToken}` } });
-        body = (await res.json()) as Body;
-      } catch (e) {
-        if (attempt >= 4) throw new Error(`YouTube Analytics: ${e instanceof Error ? e.message : String(e)}`);
-        await wait(5000 * attempt);
-        continue;
-      }
-      if (res.ok) return body;
-      const transient = res.status >= 500 || /internal error|backend error/i.test(body.error?.message || "");
-      if (!transient || attempt >= 4) {
-        const err = new Error(`YouTube Analytics: ${body.error?.message || res.status}`) as Error & { transient?: boolean };
-        err.transient = transient;
-        throw err;
-      }
-      await wait(5000 * attempt);
-    }
-  };
-  // 200 videos per request; a batch that keeps failing with an internal error is split in four.
-  const batches: string[][] = [];
-  for (let i = 0; i < ids.length; i += 200) batches.push(ids.slice(i, i + 200));
-  while (batches.length) {
-    const batch = batches.shift()!;
-    let body: Body;
-    try {
-      body = await query(batch);
-    } catch (e) {
-      if ((e as { transient?: boolean }).transient && batch.length > 50) {
-        const size = Math.ceil(batch.length / 4);
-        const parts: string[][] = [];
-        for (let i = 0; i < batch.length; i += size) parts.push(batch.slice(i, i + size));
-        batches.unshift(...parts);
-        continue;
-      }
-      throw e;
-    }
-    const cols = (body.columnHeaders || []).map((h) => h.name);
-    for (const row of body.rows || []) {
+  const { cols, rows } = await batchedQuery(ids, 200, (batch) =>
+    analyticsQuery(
+      accessToken,
+      ownerId,
+      { startDate: "2015-01-01", endDate, metrics: METRICS.join(","), dimensions: "video", filters: `video==${batch.join(",")}`, maxResults: "200" },
+      wait,
+      fetcher,
+    ),
+  );
+  {
+    for (const row of rows) {
       const get = (name: string) => Number(row[cols.indexOf(name)]) || 0;
       out.set(String(row[cols.indexOf("video")]), {
         views: get("views"),
