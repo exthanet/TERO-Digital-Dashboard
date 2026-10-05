@@ -3,6 +3,8 @@
  * Handles communication with Metricool API for Facebook, Instagram, TikTok, and YouTube analytics.
  */
 
+import { classifyTopic } from "../dashboard/topicRules.ts";
+
 export interface MetricoolConfig {
   userId?: string;
   blogId?: string;
@@ -131,19 +133,14 @@ export function inferProgram(content: unknown): string {
   return "ไม่ระบุ";
 }
 
-export function inferTopicType(content: unknown): string {
-  const text = String(content || "").toLowerCase();
-  if (/ลูกค้า|โฆษณา|สปอนเซอร์|branded|promotion|โปรโมชัน/.test(text)) return "งานลูกค้า / งานขอ / Branded Content";
-  if (/กัมพูชา|เขมร|ฮุน เซน|ฮุนเซน|ชายแดนไทย/.test(text)) return "ข่าวไทย–กัมพูชา";
-  if (/อิหร่าน|สหรัฐ|ต่างประเทศ|ทรัมป์|รัสเซีย|ยูเครน|จีน|ญี่ปุ่น/.test(text)) return "ข่าวต่างประเทศ / อิหร่าน–สหรัฐ";
-  if (/ตำรวจ|อาชญากรรม|สแกมเมอร์|ฆาตกรรม|ยิง|คดี|โกง|จับกุม|ยาเสพติด/.test(text)) return "ข่าวตำรวจ / อาชญากรรม / สแกมเมอร์";
-  if (/ผู้ว่า\s*กทม|บิ๊กโจ๊ก|การเมืองท้องถิ่น/.test(text)) return "ข่าวบุคคล / การเมืองท้องถิ่น";
-  if (/รัฐบาล|นายก|สภา|สว\.?|สส\.?|กกต|พรรค|การเมือง|อนุทิน|เลือกตั้ง|รัฐมนตรี|ฮั้ว/.test(text)) return "ข่าวการเมือง";
-  if (/ประวัติศาสตร์|โบราณ|อดีต/.test(text)) return "ประวัติศาสตร์";
-  if (/พระเครื่อง|วัตถุมงคล|เกจิ/.test(text)) return "พระเครื่อง";
-  if (/ไวรัล|viral|กระแส|โซเชียล|ดราม่า/.test(text)) return "ข่าวกระแส / Viral";
-  if (/ชาวบ้าน|ชุมชน|ร้องทุกข์/.test(text)) return "ข่าวชาวบ้าน";
-  return "ไม่ระบุ";
+/**
+ * Topic Type of a new post (lib/dashboard/topicRules.ts): the title decides
+ * first, then the rest of the text. Only new rows get it; the sync never
+ * changes the Topic Type of a row already in masterData.
+ */
+export function inferTopicType(content: unknown, title?: unknown, program?: string): string {
+  const text = String(content || "");
+  return classifyTopic(String(title ?? text), text, program);
 }
 
 export function generateFacebookId(url: string): string {

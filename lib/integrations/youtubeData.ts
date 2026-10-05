@@ -133,7 +133,7 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
     Program: program,
     Episode_ID: "",
     Topic: firstLine(v.title, `YouTube ${t.iso} ${t.time}`).slice(0, 300),
-    Topic_Type: inferTopicType(text),
+    Topic_Type: inferTopicType(text, v.title, program),
     VDO_Type: v.live ? "LIVE" : v.durationSec > 0 && v.durationSec <= 180 ? "Shorts" : "Video Episode",
     Platform: "YouTube",
     Channel: brand.label,

@@ -331,7 +331,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     Program: program,
     Episode_ID: "",
     Topic: topic.slice(0, 300),
-    Topic_Type: inferTopicType(text),
+    Topic_Type: inferTopicType(text, topic, program),
     VDO_Type: vdoType(network, post, text),
     Platform: platform,
     Channel: brand.label,
