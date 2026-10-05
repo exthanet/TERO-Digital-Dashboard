@@ -136,6 +136,68 @@
   font-size: 12px;
 }
 
+/* New clips by start speed (EarlySignalBox). */
+.early-box h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.early-box h3 svg {
+  color: #ea580c;
+}
+
+.early-sub,
+.early-detail {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.early-detail {
+  min-width: 180px;
+  max-width: 240px;
+  margin-top: 3px;
+  white-space: normal;
+}
+
+.early-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.early-level.hot {
+  background: #fff1e6;
+  color: #c2410c;
+}
+
+.early-level.good {
+  background: #e9f9ef;
+  color: #15803d;
+}
+
+.early-level.normal {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.early-level.muted {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.early-wait {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
 /* Clip analysis panel (ClipDetailPanel): right side on desktop, full screen on phones. */
 .clip-detail-backdrop {
   position: fixed;

@@ -9,7 +9,9 @@ import { Clock, ExternalLink, Eye, Heart, Link2, MessageCircle, Share2, Trending
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { addDays, daysBetween, type GrowthEntry } from "@/lib/dashboard/growth";
-import { loadGrowthDays } from "@/lib/growthData";
+import { growthSyncTimes, loadGrowthDays } from "@/lib/growthData";
+import { earlySignals } from "@/lib/dashboard/earlySignal";
+import { levelText, perHourText } from "@/components/dashboard/sections/EarlySignalBox";
 import { compact, dateLabel, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { watchShare } from "@/lib/dashboard/quality";
@@ -79,6 +81,12 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
 
   const d = useMemo(() => clipDetail(clip, allRows, growthDays, range), [clip, allRows, growthDays, range]);
   const share = useMemo(() => gainedByPlatform(d), [d]);
+  // Start speed of each post first seen in the loaded days (peers: same programme, platform, format).
+  const starts = useMemo(() => {
+    if (loadingDays) return [];
+    const keys = new Set(d.posts.map((p) => p.key));
+    return earlySignals(growthDays, growthSyncTimes(), allRows).filter((c) => keys.has(c.key));
+  }, [loadingDays, d, growthDays, allRows]);
 
   // Cover: the clicked post first, then its other posts; a broken link moves to the next one.
   const [stored, setStored] = useState<Map<string, string>>(new Map());
@@ -114,6 +122,12 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
     const age = lastDay && r.date ? Math.round((Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${r.date}T00:00:00Z`)) / 86400000) : null;
     return age !== null && age >= 0 && age < 7 ? ` · โพสต์ได้ ${age} วัน ยอดยังเพิ่มได้` : "";
   };
+  for (const c of starts) {
+    if (c.perHour === null || c.hours === null) continue;
+    const lv = levelText(c);
+    const head = c.level === "hot" ? "🔥 เริ่มต้นแรง" : c.level === "good" ? "เริ่มต้นดีกว่าปกติ" : c.level === "normal" ? "เริ่มต้นปกติ" : "ความเร็วช่วงแรก";
+    facts.push(`${head}: ${c.row.platform} ${c.row.vdoType} ได้ ${num(c.firstViews)} วิวใน ${c.hours.toFixed(1)} ชม.แรก (${perHourText(c.perHour)}/ชม.)${lv.detail ? ` · ${lv.detail}` : ""}`);
+  }
   for (const p of d.posts) if (p.index !== null) facts.push(`${p.row.platform} ${p.row.vdoType}: ${times(p.index)} ของค่าปกติ (ค่ากลาง ${compact(p.baseline!)})${young(p.row)}`);
   for (const p of d.posts)
     if (p.hour !== null && p.bestHour && p.bestHour.hour !== p.hour && p.hourMedian !== null && p.bestHour.median > p.hourMedian * 1.5)
