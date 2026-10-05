@@ -156,6 +156,13 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     return Array.from(set).sort();
   }, [allMonthly]);
 
+  // Open on the latest year that has data ("ทั้งหมด" and other years stay selectable).
+  useEffect(() => {
+    const all = [...(data?.monthly || []), ...(data?.digital || []), ...(data?.entertainment || [])];
+    const latest = Math.max(...all.map((m) => Number(m.year)).filter(Number.isFinite));
+    if (Number.isFinite(latest)) setSelectedYear(String(latest));
+  }, [data]);
+
   const filteredMonthly = useMemo(() => {
     if (selectedYear === "ALL") return allMonthly;
     return allMonthly.filter((m) => String(m.year) === selectedYear);
