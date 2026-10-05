@@ -7,7 +7,7 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
-import { GROWTH_MAX_DAYS, daysBetween, recordKey, summarizeGrowth, type GrowthEntry } from "@/lib/dashboard/growth";
+import { GROWTH_MAX_DAYS, addDays, daysBetween, recordKey, summarizeGrowth, type GrowthEntry } from "@/lib/dashboard/growth";
 import { firstGrowthDay, growthSyncTimes, loadGrowthDays } from "@/lib/growthData";
 import { earlySignals, newClips } from "@/lib/dashboard/earlySignal";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
@@ -21,6 +21,9 @@ import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
+
+const thClock = (ms: number) =>
+  new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
 
 type ChartKind = "bar" | "line";
 const CHART_KEY = "growth-daily-chart";
@@ -117,6 +120,15 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
       }),
     [s],
   );
+  // A chart day = gains between the previous day's last sync and this day's last sync (the next morning).
+  const syncAt = useMemo(() => (ready ? growthSyncTimes() : new Map<string, number>()), [ready, days]);
+  const dayLabel = (d: string) => {
+    const date = thDate(d, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    const end = syncAt.get(d);
+    if (!end) return date;
+    const start = syncAt.get(addDays(d, -1));
+    return `${date} · นับ${start ? `จาก ${thClock(start)} ` : ""}ถึง ${thClock(end)} น.`;
+  };
   const p = useMemo(() => {
     if (!ready || !comparePeriod || !prevDays.length || !prevDays.every((d) => days!.map.has(d))) return null;
     return summarizeGrowth(prevDays, days!.map, rows, comparePeriod.start);
@@ -229,7 +241,10 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                 ))}
               </div>
             </div>
-            {chart === "line" && <p className="growth-hint">กดชื่อแพลตฟอร์มด้านล่างกราฟเพื่อซ่อน / แสดงเส้น · วันที่ไม่มีข้อมูลจะเว้นช่วงไว้</p>}
+            <p className="growth-hint">
+              วันที่ = วันที่มีคนดู · ระบบ sync ทุกเช้า (ราว 8 โมง) แล้วนับวิวที่เพิ่มจากรอบก่อนเป็นของวันก่อนหน้า จึงเป็นช่วง 8 โมงถึง 8 โมงเช้าวันถัดไป (ชี้ที่กราฟเพื่อดูเวลาจริง) · ยอดล่าสุดคือเมื่อวาน
+              {chart === "line" && " · กดชื่อแพลตฟอร์มด้านล่างกราฟเพื่อซ่อน / แสดงเส้น · วันที่ไม่มีข้อมูลจะเว้นช่วงไว้"}
+            </p>
             <div className="growth-chart-box">
               <ResponsiveContainer width="100%" height="100%">
                 {chart === "line" ? (
@@ -238,7 +253,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                     <XAxis dataKey="date" tickFormatter={(d: string) => thDate(d, { day: "numeric", month: "short" })} fontSize={11} />
                     <YAxis tickFormatter={(v: number) => compact(v)} fontSize={11} width={48} />
                     <Tooltip
-                      labelFormatter={(d) => thDate(String(d), { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                      labelFormatter={(d) => dayLabel(String(d))}
                       formatter={(v) => num(Number(v))}
                     />
                     <Legend onClick={(e) => toggleLine(String(e.dataKey))} wrapperStyle={{ cursor: "pointer" }} />
@@ -253,7 +268,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                   <XAxis dataKey="date" tickFormatter={(d: string) => thDate(d, { day: "numeric", month: "short" })} fontSize={11} />
                   <YAxis tickFormatter={(v: number) => compact(v)} fontSize={11} width={48} />
                   <Tooltip
-                    labelFormatter={(d) => thDate(String(d), { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                    labelFormatter={(d) => dayLabel(String(d))}
                     formatter={(v) => num(Number(v))}
                   />
                   <Legend />
