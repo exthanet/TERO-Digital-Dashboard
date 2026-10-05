@@ -3,7 +3,7 @@
 // for the posts that pass the dashboard filters (program, platform, type, search).
 import { useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, ExternalLink, History, MousePointerClick, TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
@@ -22,6 +22,10 @@ import { track } from "@/lib/loadingBar";
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
 
+type ChartKind = "bar" | "line";
+const CHART_KEY = "growth-daily-chart";
+const TOTAL = "รวมทุกแพลตฟอร์ม";
+
 interface Props {
   /** Rows that pass the dashboard filters, ignoring the date filter (gains are dated by when they happened). */
   rows: RecordRow[];
@@ -37,6 +41,31 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
   const [error, setError] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [opened, setOpened] = useState<RecordRow | null>(null);
+  // Daily chart: stacked bars (total per day) or one line per platform; remembered per viewer.
+  const [chart, setChartState] = useState<ChartKind>(() => {
+    try {
+      return localStorage.getItem(CHART_KEY) === "line" ? "line" : "bar";
+    } catch {
+      return "bar";
+    }
+  });
+  const setChart = (k: ChartKind) => {
+    setChartState(k);
+    try {
+      localStorage.setItem(CHART_KEY, k);
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
+  // Lines hidden from the legend (a big platform can flatten the others).
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggleLine = (key: string) =>
+    setHidden((h) => {
+      const n = new Set(h);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
 
   const rangeDays = useMemo(() => (startDate && endDate ? daysBetween(startDate, endDate) : []), [startDate, endDate]);
   const prevDays = useMemo(
@@ -71,6 +100,22 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
   const s = useMemo(
     () => (ready ? summarizeGrowth(rangeDays, days!.map, rows, startDate) : null),
     [ready, days, rangeDays, rows, startDate],
+  );
+  // Line chart: 0 for a platform with no gain that day, a gap (null) for a day without data, plus the day's total.
+  const lineData = useMemo(
+    () =>
+      (s?.daily || []).map((d) => {
+        const point: Record<string, string | number | null> = { date: d.date };
+        let total = 0;
+        for (const pl of s!.platforms) {
+          const v = d.hasData ? Number(d[pl] || 0) : null;
+          point[pl] = v;
+          total += v || 0;
+        }
+        point[TOTAL] = d.hasData ? total : null;
+        return point;
+      }),
+    [s],
   );
   const p = useMemo(() => {
     if (!ready || !comparePeriod || !prevDays.length || !prevDays.every((d) => days!.map.has(d))) return null;
@@ -169,9 +214,40 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
           </div>
 
           <article className="growth-chart">
-            <h3>วิวที่เพิ่มขึ้นแต่ละวัน แยกตามแพลตฟอร์ม</h3>
+            <div className="growth-chart-head">
+              <h3>วิวที่เพิ่มขึ้นแต่ละวัน แยกตามแพลตฟอร์ม</h3>
+              <div className="segmented" aria-label="รูปแบบกราฟ">
+                {(
+                  [
+                    ["bar", "แท่ง"],
+                    ["line", "เส้น"],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button key={k} className={chart === k ? "active" : ""} onClick={() => setChart(k)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {chart === "line" && <p className="growth-hint">กดชื่อแพลตฟอร์มด้านล่างกราฟเพื่อซ่อน / แสดงเส้น · วันที่ไม่มีข้อมูลจะเว้นช่วงไว้</p>}
             <div className="growth-chart-box">
               <ResponsiveContainer width="100%" height="100%">
+                {chart === "line" ? (
+                  <LineChart data={lineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={(d: string) => thDate(d, { day: "numeric", month: "short" })} fontSize={11} />
+                    <YAxis tickFormatter={(v: number) => compact(v)} fontSize={11} width={48} />
+                    <Tooltip
+                      labelFormatter={(d) => thDate(String(d), { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                      formatter={(v) => num(Number(v))}
+                    />
+                    <Legend onClick={(e) => toggleLine(String(e.dataKey))} wrapperStyle={{ cursor: "pointer" }} />
+                    {s.platforms.map((pl) => (
+                      <Line key={pl} type="monotone" dataKey={pl} stroke={PLATFORM_COLORS[pl] || "#64748b"} strokeWidth={2} dot={{ r: 2 }} hide={hidden.has(pl)} />
+                    ))}
+                    <Line type="monotone" dataKey={TOTAL} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 2 }} hide={hidden.has(TOTAL)} />
+                  </LineChart>
+                ) : (
                 <BarChart data={s.daily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" tickFormatter={(d: string) => thDate(d, { day: "numeric", month: "short" })} fontSize={11} />
@@ -185,6 +261,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                     <Bar key={pl} dataKey={pl} stackId="v" fill={PLATFORM_COLORS[pl] || "#64748b"} />
                   ))}
                 </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           </article>
