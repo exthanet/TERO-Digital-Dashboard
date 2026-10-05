@@ -133,6 +133,21 @@ export function SyncStatusModal({
               })}
             </div>
 
+            {Object.keys(latest.integrations || {}).length > 0 && (
+              <>
+                <h3>การเชื่อมต่อเสริม</h3>
+                <div className="sync-platforms">
+                  {Object.entries(latest.integrations || {}).map(([name, s]) => (
+                    <div key={name} className={s.ok ? "ok" : "bad"} title={s.error || ""}>
+                      <b>{name}</b>
+                      <span>{s.ok ? "✅ ใช้ได้" : "❌ ใช้ไม่ได้"}</span>
+                      <small>{s.ok ? s.detail : s.error || s.detail}</small>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             <h3>
               ผลตรวจความถูกต้อง {latest.checks.filter((c) => c.pass).length}/{latest.checks.length} ข้อ
               {warnings.length > 0 && <span className="sync-warn-count"> · คำเตือน {warnings.length}</span>}

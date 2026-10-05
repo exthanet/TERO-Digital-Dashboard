@@ -126,6 +126,13 @@ export interface TvSourceStatus {
   from?: string;
 }
 
+/** An optional data source beside the platforms (e.g. YouTube Analytics): never fails the run. */
+export interface IntegrationStatus {
+  ok: boolean;
+  detail: string;
+  error?: string;
+}
+
 export interface RunReport {
   runId: string;
   status: "success" | "blocked" | "failed";
@@ -137,6 +144,7 @@ export interface RunReport {
   platforms: Record<string, PlatformStatus>;
   sources: Record<string, unknown>[];
   tvSources?: TvSourceStatus[];
+  integrations?: Record<string, IntegrationStatus>;
   notify?: { ok: boolean; at: string; to: number; error?: string };
   totals: Record<string, number>;
   checks: { name: string; pass: boolean; detail: string; warnings?: string[] }[];
@@ -155,6 +163,7 @@ export async function writeRunReport(db: Firestore, report: RunReport): Promise<
     message: report.message,
     platforms: report.platforms,
     tvSources: report.tvSources || [],
+    integrations: report.integrations || {},
     ...(report.notify ? { notify: report.notify } : {}),
   };
   // Keep the last good time so "ข้อมูลอัปเดตล่าสุด" does not jump backwards on a failed run.

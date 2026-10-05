@@ -32,6 +32,8 @@ export interface SyncStatus {
   message: string;
   platforms: Record<string, PlatformStatus>;
   tvSources?: TvSourceStatus[];
+  /** Optional sources beside the platforms (e.g. YouTube Analytics). */
+  integrations?: Record<string, { ok: boolean; detail: string; error?: string }>;
   /** Last email notification attempt. */
   notify?: { ok: boolean; at: string; to: number; error?: string };
 }

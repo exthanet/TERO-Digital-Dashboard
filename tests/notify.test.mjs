@@ -62,3 +62,22 @@ test("sending: ok, refused and network errors are reported, never thrown", async
     globalThis.fetch = real;
   }
 });
+
+test("an optional source that stopped is a problem: e-mailed under 'problems', ⚠️ in the subject, listed in the body", async () => {
+  const { integrationProblems } = await import("../lib/integrations/notify.ts");
+  const report = {
+    runId: "2026-10-06T01-00-00Z", status: "success", trigger: "schedule", startedAt: "2026-10-06T01:00:00Z", finishedAt: "2026-10-06T01:10:00Z",
+    window: { since: "2026-08-01", until: "2026-10-05" }, message: "ok", platforms: {}, sources: [], totals: {}, checks: [],
+    integrations: { "YouTube Analytics": { ok: false, detail: "ไม่ได้ดึง", error: "ต้องล็อกอินใหม่" } },
+  };
+  assert.equal(integrationProblems(report).length, 1);
+  assert.equal(shouldNotify("problems", "success", true), true);
+  assert.equal(shouldNotify("problems", "success", false), false);
+  assert.equal(shouldNotify("off", "success", true), false);
+  const mail = buildEmail(report);
+  assert.match(mail.subject, /^⚠️ .*YouTube Analytics ใช้ไม่ได้/);
+  assert.match(mail.html, /การเชื่อมต่อเสริม/);
+  assert.match(mail.text, /YouTube Analytics: ❌ ไม่ได้ดึง · ต้องล็อกอินใหม่/);
+  const okMail = buildEmail({ ...report, integrations: { "YouTube Analytics": { ok: true, detail: "เติมเวลาดูและแชร์ 1,180 คลิป" } } });
+  assert.match(okMail.subject, /^✅/);
+});

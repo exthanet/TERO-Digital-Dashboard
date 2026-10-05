@@ -40,6 +40,7 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
+import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount, videoStats } from "../lib/integrations/youtubeAnalytics.ts";
 import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 import {
   backupMasterData,
@@ -58,7 +59,7 @@ import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts
 import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
-import { buildEmail, cleanRecipients, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
+import { buildEmail, cleanRecipients, integrationProblems, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
 import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
 
 function loadEnvFile(file) {
@@ -140,6 +141,8 @@ const tiktokAddOnlyKeys = new Set();
 const thumbs = new Map();
 const incoming = [];
 const tvStatus = [];
+// Optional sources beside the platforms; a problem here is reported and e-mailed, never fails the run.
+const integrations = {};
 
 async function main() {
 const api = new MetricoolApi({
@@ -158,6 +161,22 @@ try {
   if (tiktokAccounts.length) console.log(`TikTok API: ${tiktokAccounts.map((a) => `${a.brand} (${a.displayName})`).join(", ")}`);
 } catch (e) {
   console.log(`TikTok API accounts not read (${e.message}); TikTok comes from Metricool`);
+}
+// YouTube Analytics through the CMS account: watch time and shares for the channels it names.
+let ytCms = null;
+try {
+  ytCms = await loadCmsAccount(await firestore());
+  if (ytCms && !(process.env.YT_OAUTH_CLIENT_ID && process.env.YT_OAUTH_CLIENT_SECRET)) {
+    console.log("YouTube Analytics: account found but YT_OAUTH_CLIENT_ID / YT_OAUTH_CLIENT_SECRET missing; skipped");
+    integrations["YouTube Analytics"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem("YT_OAUTH_CLIENT missing") };
+    ytCms = null;
+  } else if (ytCms) {
+    console.log(`YouTube Analytics (CMS): channels ${ytCms.channels.join(", ")}`);
+    integrations["YouTube Analytics"] = { ok: true, detail: "เติมเวลาดูและแชร์ 0 คลิป" };
+  }
+} catch (e) {
+  console.log(`YouTube Analytics account not read (${e.message}); skipped`);
+  integrations["YouTube Analytics"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem(String(e.message || e)) };
 }
 for (const brand of brands) {
   const brandYouTube = [];
@@ -210,6 +229,24 @@ for (const brand of brands) {
       error = e.message;
     }
     const { rows, onlyDataApi } = combineYouTube(brandYouTube, fromApi);
+    // Watch time and shares from YouTube Analytics; on any error the rows keep what they have.
+    if (ytCms && ytCms.channels.includes(brand.youtubeChannelId)) {
+      let enriched = 0, aError = "";
+      try {
+        const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
+        const ids = [...new Set(rows.filter((r) => r.Platform === "YouTube").map((r) => String(r.Content_ID)))];
+        enriched = applyVideoStats(rows, await videoStats(token, ytCms.ownerId, ids, today));
+      } catch (e) {
+        aError = e.message;
+      }
+      fetchStats.push({ brand: brand.label, network: "youtube-analytics", fetched: enriched, mapped: enriched, error: aError });
+      const yta = integrations["YouTube Analytics"] || { ok: true, detail: "", count: 0 };
+      yta.count = (yta.count || 0) + enriched;
+      yta.detail = `เติมเวลาดูและแชร์ ${yta.count.toLocaleString("en-US")} คลิป`;
+      if (aError) Object.assign(yta, { ok: false, error: analyticsProblem(aError) });
+      integrations["YouTube Analytics"] = yta;
+      console.log(`  ${brand.label.padEnd(12)} yt-analytics enriched=${String(enriched).padStart(5)}${aError ? ` ERROR ${aError}` : ""}`);
+    }
     incoming.push(...rows);
     fetchStats.push({ brand: brand.label, network: "youtube-data-api", fetched: fromApi.length, mapped: fromApi.length, onlyDataApi, error });
     console.log(`  ${brand.label.padEnd(12)} yt-dataapi fetched=${String(fromApi.length).padStart(5)} only-in-dataapi=${onlyDataApi}${error ? ` ERROR ${error}` : ""}`);
@@ -662,6 +699,7 @@ function baseReport(status) {
   return {
     runId, status, trigger, startedAt, finishedAt: "",
     window: { since, until }, message: "", platforms: {}, sources: fetchStats, tvSources: tvStatus,
+    integrations: Object.fromEntries(Object.entries(integrations).map(([k, { count, ...s }]) => [k, s])),
     totals: {}, checks: [], ...(githubRunUrl ? { githubRunUrl } : {}),
   };
 }
@@ -676,7 +714,7 @@ async function notifyRun(report, { force = false } = {}) {
     const cfg = doc ? decodeFields(doc.fields || {}) : {};
     const to = cleanRecipients(cfg.emails);
     const mode = cfg.mode || "always";
-    if (!to.length || (!force && !shouldNotify(mode, report.status))) return;
+    if (!to.length || (!force && !shouldNotify(mode, report.status, integrationProblems(report).length > 0))) return;
     if (!url || !secret) {
       report.notify = { ok: false, at: new Date().toISOString(), to: to.length, error: "ยังไม่ได้ตั้งค่า NOTIFY_WEBHOOK_URL / NOTIFY_TOKEN" };
       return;

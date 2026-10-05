@@ -23,9 +23,13 @@ const thTime = (iso: string) =>
     ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
     : "-";
 
-export function shouldNotify(mode: NotifyMode, status: RunReport["status"]): boolean {
+/** True when an optional source (YouTube Analytics…) did not work this run. */
+export const integrationProblems = (report: Pick<RunReport, "integrations">) =>
+  Object.entries(report.integrations || {}).filter(([, s]) => !s.ok);
+
+export function shouldNotify(mode: NotifyMode, status: RunReport["status"], problems = false): boolean {
   if (mode === "off") return false;
-  return mode === "always" || status !== "success";
+  return mode === "always" || status !== "success" || problems;
 }
 
 /** Only plain, well-formed addresses; at most 10. */
@@ -35,17 +39,19 @@ export function cleanRecipients(emails: unknown): string[] {
 }
 
 export function buildEmail(report: RunReport, dashboardUrl = DASHBOARD_URL): { subject: string; html: string; text: string } {
-  const icon = report.status === "success" ? "✅" : report.status === "blocked" ? "⚠️" : "❌";
+  const problems = integrationProblems(report);
+  const icon = report.status === "success" ? (problems.length ? "⚠️" : "✅") : report.status === "blocked" ? "⚠️" : "❌";
   const subject =
     report.runId === "test"
       ? `🧪 อีเมลทดสอบ TERO Dashboard · ${thTime(report.finishedAt || report.startedAt)}`
-      : `${icon} TERO Dashboard sync ${STATUS_TH[report.status]} · ${thTime(report.finishedAt || report.startedAt)}`;
+      : `${icon} TERO Dashboard sync ${STATUS_TH[report.status]}${problems.length ? ` · ${problems.map(([n]) => n).join(", ")} ใช้ไม่ได้` : ""} · ${thTime(report.finishedAt || report.startedAt)}`;
   const t = report.totals || {};
   const failed = (report.checks || []).filter((c) => !c.pass);
   const warnings = (report.checks || []).flatMap((c) => c.warnings || []).length;
   const platforms = Object.entries(report.platforms || {}).map(
     ([p, s]) => `${p}: ${s.ok ? "ดึงได้" : "ดึงไม่ได้"}${s.latestPost ? ` · โพสต์ล่าสุด ${s.latestPost}` : ""}${s.error ? ` · ${s.error}` : ""}`,
   );
+  const integrations = Object.entries(report.integrations || {}).map(([n, s]) => `${n}: ${s.ok ? "✅" : "❌"} ${s.detail}${s.error ? ` · ${s.error}` : ""}`);
   const tv = (report.tvSources || []).map((s) =>
     s.ok ? `${s.name}: ${s.episodes} เทป${s.from ? ` (${s.from === "upload" ? "ไฟล์ที่อัปโหลด" : "SharePoint"})` : ""}` : `${s.name}: อ่านไม่ได้ · ${s.error}`,
   );
@@ -68,10 +74,11 @@ export function buildEmail(report: RunReport, dashboardUrl = DASHBOARD_URL): { s
 ${list("การตรวจที่ไม่ผ่าน", failed.map((c) => `${c.name} — ${c.detail}`))}
 ${list("แพลตฟอร์ม", platforms)}
 ${list("แหล่งข้อมูล TV", tv)}
+${list("การเชื่อมต่อเสริม", integrations)}
 <p style="margin-top:16px"><a href="${esc(dashboardUrl)}">เปิด dashboard</a>${report.githubRunUrl ? ` · <a href="${esc(report.githubRunUrl)}">ดูรายละเอียดใน GitHub</a>` : ""}</p>
 <p style="color:#7b879a;font-size:11px">ส่งอัตโนมัติจากระบบ sync ของ ${BRAND.product} · เปลี่ยนผู้รับได้ที่ เครื่องมือ admin → การแจ้งเตือน</p>
 </div>`;
-  const text = [subject, ...rows.map(([k, v]) => `${k}: ${v}`), ...failed.map((c) => `ไม่ผ่าน: ${c.name} — ${c.detail}`), dashboardUrl].join("\n");
+  const text = [subject, ...rows.map(([k, v]) => `${k}: ${v}`), ...failed.map((c) => `ไม่ผ่าน: ${c.name} — ${c.detail}`), ...integrations, dashboardUrl].join("\n");
   return { subject, html, text };
 }
 
