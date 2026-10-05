@@ -131,6 +131,27 @@
   color: #0757e8;
 }
 
+/* Title opens the clip analysis (styles .clip-open in growth.css); the icon opens the clip. */
+.ranking-body > .ranking-title {
+  display: flex;
+  overflow: visible;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.ranking-title .clip-open {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ranking-body .ranking-title a {
+  display: inline-flex;
+  flex: none;
+  margin-top: 2px;
+  color: #94a3b8;
+}
+
 .ranking-body small {
   display: block;
   margin-top: 2px;

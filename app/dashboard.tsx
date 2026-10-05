@@ -279,6 +279,7 @@ export default function Dashboard() {
             />
             <ExecutiveInsights insights={model.insights} />
             <RankingSection
+              rows={model.rows}
               rankingRows={model.rankingRows}
               dataLatestDate={model.dataLatestDate}
               startDate={model.startDate}

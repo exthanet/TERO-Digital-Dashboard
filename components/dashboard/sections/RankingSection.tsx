@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ThumbsDown, Trophy, Tv } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, ThumbsDown, Trophy, Tv } from "lucide-react";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, num } from "@/lib/dashboard/format";
 import {
@@ -13,6 +13,8 @@ import {
   type RankedClip,
 } from "@/lib/dashboard/ranking";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
+import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
+import type { RecordRow } from "@/lib/dashboard/types";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`));
@@ -35,7 +37,18 @@ function indexText(x: RankedClip) {
     : `${Math.round(x.index * 100)}% ของค่าปกติ`;
 }
 
-function ClipList({ items, tone, order }: { items: RankedClip[]; tone: "best" | "worst"; order: ClipOrder }) {
+function ClipList({
+  items,
+  tone,
+  order,
+  onOpen,
+}: {
+  items: RankedClip[];
+  tone: "best" | "worst";
+  order: ClipOrder;
+  /** Opens the clip analysis. */
+  onOpen: (row: RecordRow) => void;
+}) {
   if (!items.length) {
     return <p className="ranking-empty">ไม่มีคลิปในช่วงนี้</p>;
   }
@@ -45,9 +58,16 @@ function ClipList({ items, tone, order }: { items: RankedClip[]; tone: "best" | 
         <li key={`${x.row.contentId || x.row.url || x.row.topic}-${i}`}>
           <b className="ranking-no">{i + 1}</b>
           <div className="ranking-body">
-            <a href={x.row.url || undefined} target="_blank" rel="noreferrer" title={x.row.topic}>
-              {x.row.topic || "ไม่ระบุประเด็น"}
-            </a>
+            <span className="ranking-title">
+              <button type="button" className="clip-open" onClick={() => onOpen(x.row)} title="วิเคราะห์คลิปนี้">
+                {x.row.topic || "ไม่ระบุประเด็น"}
+              </button>
+              {x.row.url && (
+                <a href={x.row.url} target="_blank" rel="noreferrer" aria-label="เปิดคลิป" title="เปิดคลิป">
+                  <ExternalLink size={11} />
+                </a>
+              )}
+            </span>
             <small>
               <span className="tag">{x.row.platform}</span> {x.row.vdoType}
               {x.fresh && <span className="ranking-fresh" title="ลงไม่ถึง 2 วัน ยอดยังเพิ่มอยู่">ใหม่</span>}
@@ -68,16 +88,18 @@ const TV_SHOWN = 20;
 const CLIPS_SHOWN = 20;
 
 export function RankingSection({
+  rows,
   rankingRows,
   dataLatestDate,
   startDate,
   endDate,
-}: Pick<DashboardModel, "rankingRows" | "dataLatestDate" | "startDate" | "endDate">) {
+}: Pick<DashboardModel, "rows" | "rankingRows" | "dataLatestDate" | "startDate" | "endDate">) {
   const [grain, setGrain] = useState<Mode>("range");
   const [anchor, setAnchor] = useState("");
   const [allEpisodes, setAllEpisodes] = useState(false);
   // Raw views by default: by ranking a clip can sit above one with more views.
   const [order, setOrder] = useState<ClipOrder>("views");
+  const [opened, setOpened] = useState<RecordRow | null>(null);
   // A new report range at the top brings the card back to that range.
   useEffect(() => {
     setGrain("range");
@@ -116,6 +138,7 @@ export function RankingSection({
 
   return (
     <section className="panel ranking-panel" id="ranking">
+      {opened && <ClipDetailPanel clip={opened} allRows={rows} latestDate={newest} onClose={() => setOpened(null)} />}
       <div className="panel-head">
         <div>
           <h2>Ranking: ดีที่สุด / แย่ที่สุด<HelpLink topic="ranking" /></h2>
@@ -170,13 +193,13 @@ export function RankingSection({
           <h3>
             <Trophy size={16} /> คลิปดีที่สุด
           </h3>
-          <ClipList items={clips.best} tone="best" order={order} />
+          <ClipList items={clips.best} tone="best" order={order} onOpen={setOpened} />
         </article>
         <article>
           <h3>
             <ThumbsDown size={16} /> คลิปแย่ที่สุด
           </h3>
-          <ClipList items={clips.worst} tone="worst" order={order} />
+          <ClipList items={clips.worst} tone="worst" order={order} onOpen={setOpened} />
         </article>
         <article className="ranking-tv">
           <h3>

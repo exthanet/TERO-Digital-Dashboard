@@ -1,17 +1,19 @@
 "use client";
 // Advanced → การเติบโต: click a clip to see it on every platform, its daily
 // gains in the range, how it did against normal and when it was posted
-// (lib/dashboard/clipDetail.ts). Uses the growth days the page already loaded.
+// (lib/dashboard/clipDetail.ts). Uses the growth days the page already loaded,
+// or loads up to 31 days up to the latest data when opened from elsewhere.
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Clock, ExternalLink, Eye, Heart, Link2, MessageCircle, Share2, TrendingUp, X } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
-import type { GrowthEntry } from "@/lib/dashboard/growth";
+import { addDays, daysBetween, type GrowthEntry } from "@/lib/dashboard/growth";
+import { loadGrowthDays } from "@/lib/growthData";
 import { compact, dateLabel, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { watchShare } from "@/lib/dashboard/quality";
-import { clipDetail, daysAfterPost, gainedByPlatform, type ClipPost } from "@/lib/dashboard/clipDetail";
+import { clipDetail, daysAfterPost, gainedByPlatform, siblingsOf, type ClipPost } from "@/lib/dashboard/clipDetail";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { recordKey } from "@/lib/dashboard/growth";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
@@ -27,12 +29,19 @@ const duration = (r: RecordRow) => {
   return sec > 0 ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} นาที` : "";
 };
 
+/** Days loaded when the panel fetches its own growth data. */
+const OWN_DAYS = 31;
+const NO_DAYS = new Map<string, GrowthEntry[] | null>();
+
 interface Props {
   clip: RecordRow;
   /** Every row (not cut by the filters), to find the same content on other platforms. */
   allRows: RecordRow[];
-  days: Map<string, GrowthEntry[] | null>;
-  rangeDays: string[];
+  /** Growth days already loaded (growth page); without them the panel loads its own. */
+  days?: Map<string, GrowthEntry[] | null>;
+  rangeDays?: string[];
+  /** Newest data day: the panel loads from the posting day (at most 31 days back) to here. */
+  latestDate?: string;
   onClose: () => void;
 }
 
@@ -43,8 +52,32 @@ function hourText(p: ClipPost) {
   return `โพสต์ ${p.row.publishTime} น.${own}${best}`;
 }
 
-export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Props) {
-  const d = useMemo(() => clipDetail(clip, allRows, days, rangeDays), [clip, allRows, days, rangeDays]);
+export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, onClose }: Props) {
+  // Opened without growth data: the last 31 days up to the latest data, not before the first post.
+  const ownRange = useMemo(() => {
+    if (days && rangeDays) return null;
+    const posted = siblingsOf(clip, allRows).posts.map((r) => r.date).filter(Boolean).sort()[0] || clip.date;
+    const end = latestDate && latestDate >= posted ? latestDate : posted;
+    const from = addDays(end, -(OWN_DAYS - 1));
+    return daysBetween(posted > from ? posted : from, end);
+  }, [days, rangeDays, clip, allRows, latestDate]);
+  const [ownDays, setOwnDays] = useState<Map<string, GrowthEntry[] | null> | null>(null);
+  useEffect(() => {
+    if (!ownRange) return;
+    let alive = true;
+    setOwnDays(null);
+    track(loadGrowthDays(ownRange))
+      .then((m) => alive && setOwnDays(m))
+      .catch(() => alive && setOwnDays(NO_DAYS));
+    return () => {
+      alive = false;
+    };
+  }, [ownRange]);
+  const growthDays = days || ownDays || NO_DAYS;
+  const range = rangeDays || ownRange || [];
+  const loadingDays = !days && !ownDays;
+
+  const d = useMemo(() => clipDetail(clip, allRows, growthDays, range), [clip, allRows, growthDays, range]);
   const share = useMemo(() => gainedByPlatform(d), [d]);
 
   // Cover: the clicked post first, then its other posts; a broken link moves to the next one.
@@ -76,7 +109,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Pro
     facts.push(`วิวเพิ่มมากที่สุดวันที่ ${thDate(d.peak.date)} (${num(d.peak.views)} วิว)${after !== null && after >= 0 ? ` · ${after === 0 ? "วันที่โพสต์" : `${after} วันหลังโพสต์`}` : ""}`);
   }
   // Posts under a week old are still collecting views: say so beside the comparison.
-  const lastDay = rangeDays.at(-1) || "";
+  const lastDay = range.at(-1) || "";
   const young = (r: RecordRow) => {
     const age = lastDay && r.date ? Math.round((Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${r.date}T00:00:00Z`)) / 86400000) : null;
     return age !== null && age >= 0 && age < 7 ? ` · โพสต์ได้ ${age} วัน ยอดยังเพิ่มได้` : "";
@@ -86,7 +119,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Pro
     if (p.hour !== null && p.bestHour && p.bestHour.hour !== p.hour && p.hourMedian !== null && p.bestHour.median > p.hourMedian * 1.5)
       facts.push(`${p.row.platform} โพสต์ ${hh(p.hour)} แต่ ${p.row.vdoType} ช่วง ${hh(p.bestHour.hour)} ได้ค่ากลางสูงกว่า ${times(p.bestHour.median / p.hourMedian)}`);
 
-  const firstDay = rangeDays[0] || "";
+  const firstDay = range[0] || "";
   const hasWatch = d.posts.some((p) => watchShare(p.row) !== null);
 
   // On <body>: inside a panel, a transformed ancestor would trap the fixed overlay.
@@ -120,7 +153,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Pro
 
         <div className="kpi-grid clip-detail-kpis">
           <Kpi tone="blue" icon={<Eye />} label="ยอดวิวรวม" value={compact(d.totalViews)} detail={d.posts.length > 1 ? `รวม ${d.posts.length} โพสต์ · ยอดสะสมล่าสุด` : "ยอดสะสมล่าสุด"} />
-          <Kpi tone="green" icon={<TrendingUp />} label="วิวที่เพิ่มในช่วงนี้" value={compact(d.gained)} detail={`${thDate(firstDay)} – ${thDate(rangeDays.at(-1) || "")} · ${d.daysWithData} วันที่มีข้อมูล`} />
+          <Kpi tone="green" icon={<TrendingUp />} label="วิวที่เพิ่มในช่วงนี้" value={loadingDays ? "…" : compact(d.gained)} detail={`${thDate(firstDay)} – ${thDate(lastDay)}${loadingDays ? "" : ` · ${d.daysWithData} วันที่มีข้อมูล`}`} />
           <Kpi tone="violet" icon={<Heart />} label="Engagement" value={compact(d.likes + d.comments + d.shares)} detail={`ER ${(d.er * 100).toFixed(2)}% · เพิ่มในช่วงนี้ ${compact(d.gainedEngagement)}`} />
           <Kpi
             tone="indigo"
@@ -184,7 +217,9 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Pro
 
         <section className="clip-detail-box">
           <h3>วิวที่เพิ่มแต่ละวัน แยกตามแพลตฟอร์ม</h3>
-          {d.daysWithData ? (
+          {loadingDays ? (
+            <p className="growth-notice">กำลังโหลดข้อมูลรายวัน…</p>
+          ) : d.daysWithData ? (
             <div className="chart-md">
               <ResponsiveContainer>
                 <ComposedChart data={d.daily}>
