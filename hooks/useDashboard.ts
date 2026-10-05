@@ -26,7 +26,7 @@ import type {
   RawRow,
   RecordRow,
 } from "@/lib/dashboard/types";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/loadingBar";
 
 
@@ -95,8 +95,9 @@ export function useDashboard(enabled = true) {
     [uploadedAt, setUploadedAt] = useState(""),
     [message, setMessage] = useState("");
   // Filters: the controls show a choice at once (…Input); the report is worked out
-  // from deferred copies, so the page stays responsive and the top loading bar
-  // runs while it recalculates (`filtering`).
+  // from applied copies, set only after the browser has painted the top loading
+  // bar (two animation frames). The recalculation can block the page for seconds,
+  // and the bar must already be on screen by then (it animates off the main thread).
   const [programInput, setProgram] = useState("ถกไม่เถียง"),
     [platformInput, setPlatform] = useState("ALL"),
     [vdoTypeInput, setVdoType] = useState("ALL"),
@@ -108,29 +109,46 @@ export function useDashboard(enabled = true) {
     [compareModeInput, setCompareModeState] = useState<ComparePreset>("PREVIOUS"),
     [compareStartInput, setCompareStart] = useState(""),
     [compareEndInput, setCompareEnd] = useState("");
-  const program = useDeferredValue(programInput),
-    platform = useDeferredValue(platformInput),
-    vdoType = useDeferredValue(vdoTypeInput),
-    topicType = useDeferredValue(topicTypeInput),
-    search = useDeferredValue(searchInput),
-    startDate = useDeferredValue(startDateInput),
-    endDate = useDeferredValue(endDateInput),
-    datePreset = useDeferredValue(datePresetInput),
-    compareMode = useDeferredValue(compareModeInput),
-    compareStart = useDeferredValue(compareStartInput),
-    compareEnd = useDeferredValue(compareEndInput);
-  const filtering =
-    program !== programInput ||
-    platform !== platformInput ||
-    vdoType !== vdoTypeInput ||
-    topicType !== topicTypeInput ||
-    search !== searchInput ||
-    startDate !== startDateInput ||
-    endDate !== endDateInput ||
-    datePreset !== datePresetInput ||
-    compareMode !== compareModeInput ||
-    compareStart !== compareStartInput ||
-    compareEnd !== compareEndInput;
+  const inputs = {
+    program: programInput,
+    platform: platformInput,
+    vdoType: vdoTypeInput,
+    topicType: topicTypeInput,
+    search: searchInput,
+    startDate: startDateInput,
+    endDate: endDateInput,
+    datePreset: datePresetInput,
+    compareMode: compareModeInput,
+    compareStart: compareStartInput,
+    compareEnd: compareEndInput,
+  };
+  const inputsKey = JSON.stringify(inputs);
+  const [applied, setApplied] = useState(inputs);
+  const appliedKey = JSON.stringify(applied);
+  useEffect(() => {
+    if (inputsKey === appliedKey) return;
+    const next = JSON.parse(inputsKey) as typeof inputs;
+    let done = false;
+    const apply = () => {
+      if (done) return;
+      done = true;
+      startTransition(() => setApplied(next));
+    };
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(apply);
+    });
+    // Hidden tabs run no animation frames: apply anyway.
+    const fallback = setTimeout(apply, 250);
+    return () => {
+      done = true;
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+      clearTimeout(fallback);
+    };
+  }, [inputsKey, appliedKey]);
+  const { program, platform, vdoType, topicType, search, startDate, endDate, datePreset, compareMode, compareStart, compareEnd } = applied;
+  const filtering = inputsKey !== appliedKey;
   const [topTopicType, setTopTopicType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");

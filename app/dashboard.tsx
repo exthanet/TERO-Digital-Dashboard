@@ -19,6 +19,7 @@ import { ExecutiveCharts } from "@/components/dashboard/sections/ExecutiveCharts
 import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsights";
 import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
+import { Freeze } from "@/components/dashboard/shared/Freeze";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
@@ -207,6 +208,8 @@ export default function Dashboard() {
             />
         )}
 
+        {/* While a new filter is being worked out, the sections stay as they are (same tab only). */}
+        <Freeze frozen={model.filtering} keep={activeTab}>
         {activeTab === "growth" && isAdmin && (
           <GrowthSection
             rows={model.growthRows}
@@ -386,6 +389,8 @@ export default function Dashboard() {
             <AffiliateReport currentUser={auth.user} />
           </div>
         )}
+
+        </Freeze>
 
         <DashboardFooter sourceName={model.sourceName} uploadedAt={model.uploadedAt} totalRows={model.rows.length} />
       </section>
