@@ -15,6 +15,8 @@ import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { EarlySignalBox } from "@/components/dashboard/sections/EarlySignalBox";
+import { EvergreenBox } from "@/components/dashboard/sections/EvergreenBox";
+import { evergreen } from "@/lib/dashboard/evergreen";
 import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
@@ -88,6 +90,8 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
     const latest = [...rangeDays].reverse().find((d) => days!.map.get(d));
     return latest ? newClips(early, latest, new Set(rows.map(recordKey))) : [];
   }, [ready, days, rangeDays, early, rows]);
+  // Older content still gaining nearly every day; grouped across platforms from the filtered rows.
+  const green = useMemo(() => (ready ? evergreen(days!.map, rangeDays, rows) : { items: [], daysWithData: 0 }), [ready, days, rangeDays, rows]);
 
   return (
     <section className="panel growth-panel" id="growth">
@@ -186,6 +190,8 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
           </article>
 
           <EarlySignalBox clips={freshClips} onOpen={setOpened} />
+
+          <EvergreenBox items={green.items} daysWithData={green.daysWithData} onOpen={setOpened} />
 
           <article className="growth-table">
             <h3>คลิปที่วิวเพิ่มมากที่สุดในช่วงนี้</h3>

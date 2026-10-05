@@ -1234,3 +1234,42 @@
     width: 100%;
   }
 }
+
+/* Evergreen content (EvergreenBox). */
+.evergreen-box h3 svg {
+  color: #16a34a;
+}
+
+.evergreen-bands {
+  margin: 0 0 10px;
+  flex-wrap: wrap;
+}
+
+.evergreen-spark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 22px;
+  min-width: 60px;
+}
+
+.evergreen-spark i {
+  display: block;
+  width: 5px;
+  border-radius: 2px 2px 0 0;
+  background: #16a34a;
+}
+
+.evergreen-trend {
+  white-space: nowrap;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.evergreen-trend.up {
+  color: #16a34a;
+}
+
+.evergreen-trend.down {
+  color: #ea580c;
+}
