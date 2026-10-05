@@ -20,7 +20,7 @@ const { sumBy, topicSimilarity } = await vite.ssrLoadModule(
 const { getDatePresetRange } = await vite.ssrLoadModule(
   "/lib/dashboard/dates.ts",
 );
-const { periodFor, shiftPeriod, rankClips, rankEpisodes } = await vite.ssrLoadModule(
+const { periodFor, shiftPeriod, rankClips, rankContents, rankEpisodes } = await vite.ssrLoadModule(
   "/lib/dashboard/ranking.ts",
 );
 test("CSV preserves quoted commas, escaped quotes and multiline topics", () => {
@@ -160,6 +160,31 @@ test("clips are ranked against the median of their own platform and format", () 
   const byViews = rankClips([...history, ...week, clip("2026-09-22", "Facebook", "Facebook Post", 49, "fb-49")], periodFor("2026-09-24", "week"), "2026-09-27", 2, "views");
   assert.deepEqual(byViews.best.map((x) => x.row.topic), ["yt-half", "fb-5x"]);
   assert.deepEqual(byViews.worst.map((x) => x.row.topic), ["fb-0.9x"]);
+});
+test("content: posts of the same title on every platform add up; normal = content on as many platforms", () => {
+  const post = (date, platform, views, topic, id) => ({ ...clip(date, platform, platform + " Clip", views, topic), contentId: id, program: "ถกไม่เถียง" });
+  const history = [];
+  // Earlier content: three pieces on 2 platforms (totals 200, 300, 400) and three on 1 platform.
+  for (const [i, v] of [100, 150, 200].entries()) {
+    history.push(post("2026-09-0" + (i + 1), "YouTube", v, "เก่า" + i, "h-yt-" + i), post("2026-09-0" + (i + 1), "TikTok", v, "เก่า" + i + " #tag", "h-tk-" + i));
+    history.push(post("2026-09-0" + (i + 1), "Facebook", 50, "เดี่ยว" + i, "h-fb-" + i));
+  }
+  const week = [
+    post("2026-09-21", "YouTube", 1000, "เรื่องใหญ่ #ถกไม่เถียง", "a-yt"),
+    post("2026-09-22", "TikTok", 3000, "เรื่องใหญ่", "a-tk"),
+    post("2026-09-23", "Facebook", 600, "อีกเรื่อง", "b-fb"),
+  ];
+  const r = rankContents([...history, ...week], periodFor("2026-09-24", "week"), "2026-09-27", 5, "views");
+  assert.equal(r.total, 2);
+  assert.equal(r.posts, 3);
+  const big = r.best[0];
+  assert.equal(big.group.views, 4000);
+  assert.deepEqual(big.group.platforms.map((p) => p.platform), ["TikTok", "YouTube"]);
+  assert.equal(big.group.lead.contentId, "a-tk");
+  // 2-platform normal = median(200, 300, 400) = 300; Facebook-only normal = the Facebook Clip posts (50).
+  assert.equal(big.baseline, 300);
+  assert.equal(r.best[1].baseline, 50);
+  assert.equal(r.best[1].index, 12);
 });
 test("TV episodes sort by One31 rating and compare with the previous 4 weeks", () => {
   const ep = (date, rating) => ({ ...clip(date, "TV", "TV Episode", 0, date), ratingTotal: rating, program: "ถกไม่เถียง" });

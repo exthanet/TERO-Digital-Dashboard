@@ -230,3 +230,16 @@
   cursor: pointer;
   padding: 0;
 }
+
+/* Content rows: platform with the most (▲) and fewest (▼) views under the title. */
+.ranking-platforms .up {
+  color: #16a34a;
+}
+
+.ranking-platforms .down {
+  color: #ea580c;
+}
+
+.ranking-platforms b {
+  font-weight: 700;
+}

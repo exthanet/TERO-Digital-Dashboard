@@ -7,6 +7,7 @@
 // 365 days, a year, all data) the median within the range itself.
 // The card can also list clips by raw views instead ("views").
 import type { RecordRow } from "@/lib/dashboard/types";
+import { groupContents, type ContentGroup } from "@/lib/dashboard/contentGroups";
 
 export type RankGrain = "day" | "week";
 /** "index": against what is normal for the same platform + VDO type; "views": raw views. */
@@ -137,6 +138,80 @@ export function rankClips(
     .slice(0, size);
 
   return { best, worst, total: ranked.length, baselineKind };
+}
+
+export interface RankedContent {
+  group: ContentGroup;
+  /** Total views divided by the median total of content on as many platforms; null without a baseline. */
+  index: number | null;
+  baseline: number | null;
+  /** First post less than 2 days before the latest data date: views still climbing. */
+  fresh: boolean;
+}
+
+/**
+ * Like rankClips, one row per piece of content (its posts on every platform
+ * added up, see contentGroups.ts). Normal = median total of content posted on
+ * the same number of platforms (on one platform: the same platform + format), so
+ * a clip on four platforms is not compared with one posted only on TikTok; under
+ * 3 such pieces, content on as many platforms, then all content.
+ */
+export function rankContents(
+  rows: RecordRow[],
+  period: Period,
+  latestDate: string,
+  size = 5,
+  order: ClipOrder = "views",
+): { best: RankedContent[]; worst: RankedContent[]; total: number; posts: number; baselineKind: BaselineKind } {
+  const groups = groupContents(rows.filter((r) => !isTv(r) && r.date));
+  const days = Math.round((toDate(period.end).getTime() - toDate(period.start).getTime()) / DAY) + 1;
+  const baselineKind: BaselineKind = days > MAX_DAYS_FOR_PRIOR_BASELINE ? "within" : "prior30";
+  const baseStart = addDays(period.start, -30);
+  const history = groups.filter((g) =>
+    g.views > 0 && (baselineKind === "within" ? g.date >= period.start && g.date <= period.end : g.date >= baseStart && g.date < period.start),
+  );
+  // Content on one platform compares with the same platform + format (a YouTube
+  // full episode is not an Instagram post); on several, with content on as many platforms.
+  const keyOf = (g: ContentGroup) => (g.platforms.length === 1 ? `1|${g.lead.platform}|${g.lead.vdoType}` : `n|${g.platforms.length}`);
+  const byKey = new Map<string, number[]>();
+  const byCount = new Map<number, number[]>();
+  for (const g of history) {
+    byKey.set(keyOf(g), [...(byKey.get(keyOf(g)) || []), g.views]);
+    byCount.set(g.platforms.length, [...(byCount.get(g.platforms.length) || []), g.views]);
+  }
+  const all = history.map((g) => g.views);
+  const baselineFor = (g: ContentGroup) => {
+    for (const list of [byKey.get(keyOf(g)) || [], byCount.get(g.platforms.length) || [], all]) if (list.length >= 3) return median(list);
+    return null;
+  };
+
+  const freshFrom = latestDate ? addDays(latestDate, -1) : "";
+  const ranked: RankedContent[] = groups
+    .filter((g) => g.date >= period.start && g.date <= period.end)
+    .map((group) => {
+      const baseline = baselineFor(group);
+      return { group, baseline, index: baseline ? group.views / baseline : null, fresh: !!freshFrom && group.date >= freshFrom };
+    });
+
+  const byViews = order === "views";
+  const best = [...ranked]
+    .sort(
+      byViews
+        ? (a, b) => b.group.views - a.group.views || (b.index ?? -1) - (a.index ?? -1)
+        : (a, b) => (b.index ?? -1) - (a.index ?? -1) || b.group.views - a.group.views,
+    )
+    .slice(0, size);
+  const bestSet = new Set(best);
+  const worst = ranked
+    .filter((x) => (byViews || x.index !== null) && !x.fresh && !bestSet.has(x) && x.group.views >= MIN_VIEWS_FOR_WORST)
+    .sort(
+      byViews
+        ? (a, b) => a.group.views - b.group.views || (a.index ?? 0) - (b.index ?? 0)
+        : (a, b) => (a.index ?? 0) - (b.index ?? 0) || a.group.views - b.group.views,
+    )
+    .slice(0, size);
+
+  return { best, worst, total: ranked.length, posts: ranked.reduce((a, x) => a + x.group.posts.length, 0), baselineKind };
 }
 
 /** TV episodes in the period, best rating first, each against the previous 28 days. */

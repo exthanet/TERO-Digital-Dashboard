@@ -6,15 +6,18 @@ import { compact, num } from "@/lib/dashboard/format";
 import {
   periodFor,
   rankClips,
+  rankContents,
   type ClipOrder,
   rankEpisodes,
   shiftPeriod,
   type RankGrain,
   type RankedClip,
+  type RankedContent,
 } from "@/lib/dashboard/ranking";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import type { RecordRow } from "@/lib/dashboard/types";
+import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`));
@@ -30,12 +33,63 @@ function periodLabel(start: string, end: string, grain: Mode) {
   return `${thDate(start, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) })} – ${thDate(end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-function indexText(x: RankedClip) {
+function indexText(x: { index: number | null }) {
   if (x.index === null) return "ยังไม่มีค่าปกติให้เทียบ";
   return x.index >= 1
     ? `${x.index.toFixed(1)}× ของค่าปกติ`
     : `${Math.round(x.index * 100)}% ของค่าปกติ`;
 }
+
+/** One line of the best / worst lists: a post, or a piece of content on several platforms. */
+interface ListItem {
+  key: string;
+  row: RecordRow;
+  views: number;
+  index: number | null;
+  fresh: boolean;
+  sub: React.ReactNode;
+}
+
+const PlatformName = ({ name }: { name: string }) => <b style={{ color: PLATFORM_COLORS[name] || "#475569" }}>{name}</b>;
+
+/** Per post: the platform and format. */
+const postItem = (x: RankedClip): ListItem => ({
+  key: `${x.row.platform}|${x.row.contentId || x.row.url || x.row.topic}`,
+  row: x.row,
+  views: x.row.views,
+  index: x.index,
+  fresh: x.fresh,
+  sub: (
+    <>
+      <span className="tag">{x.row.platform}</span> {x.row.vdoType}
+    </>
+  ),
+});
+
+/** Per content: the platform with the most and the fewest views. */
+const contentItem = (x: RankedContent): ListItem => {
+  const p = x.group.platforms;
+  const top = p[0];
+  const low = p[p.length - 1];
+  return {
+    key: x.group.key,
+    row: x.group.lead,
+    views: x.group.views,
+    index: x.index,
+    fresh: x.fresh,
+    sub:
+      p.length > 1 ? (
+        <span className="ranking-platforms">
+          <span className="up">▲</span> <PlatformName name={top.platform} /> {compact(top.views)} · <span className="down">▼</span>{" "}
+          <PlatformName name={low.platform} /> {compact(low.views)} · {p.length} แพลตฟอร์ม
+        </span>
+      ) : (
+        <>
+          <span className="tag">{top.platform}</span> {x.group.lead.vdoType}
+        </>
+      ),
+  };
+};
 
 function ClipList({
   items,
@@ -43,7 +97,7 @@ function ClipList({
   order,
   onOpen,
 }: {
-  items: RankedClip[];
+  items: ListItem[];
   tone: "best" | "worst";
   order: ClipOrder;
   /** Opens the clip analysis. */
@@ -55,7 +109,7 @@ function ClipList({
   return (
     <ol className={`ranking-list ${tone}`}>
       {items.map((x, i) => (
-        <li key={`${x.row.contentId || x.row.url || x.row.topic}-${i}`}>
+        <li key={`${x.key}-${i}`}>
           <b className="ranking-no">{i + 1}</b>
           <div className="ranking-body">
             <span className="ranking-title">
@@ -69,12 +123,12 @@ function ClipList({
               )}
             </span>
             <small>
-              <span className="tag">{x.row.platform}</span> {x.row.vdoType}
+              {x.sub}
               {x.fresh && <span className="ranking-fresh" title="ลงไม่ถึง 2 วัน ยอดยังเพิ่มอยู่">ใหม่</span>}
             </small>
           </div>
           <div className="ranking-metric">
-            <strong>{compact(x.row.views)}</strong>
+            <strong>{compact(x.views)}</strong>
             {order === "index" && <small className={x.index !== null && x.index < 1 ? "down" : "up"}>{indexText(x)}</small>}
           </div>
         </li>
@@ -100,6 +154,8 @@ export function RankingSection({
   // Raw views by default: by ranking a clip can sit above one with more views.
   const [order, setOrder] = useState<ClipOrder>("views");
   const [opened, setOpened] = useState<RecordRow | null>(null);
+  // One line per content (its posts on every platform added up) by default, or one per post.
+  const [byContent, setByContent] = useState(true);
   // A new report range at the top brings the card back to that range.
   useEffect(() => {
     setGrain("range");
@@ -125,10 +181,15 @@ export function RankingSection({
     if (grain === "range") return startDate && endDate && startDate <= endDate ? { start: startDate, end: endDate } : null;
     return current ? periodFor(current, grain) : null;
   }, [current, grain, startDate, endDate]);
-  const clips = useMemo(
-    () => (period ? rankClips(rankingRows, period, newest, CLIPS_SHOWN, order) : { best: [], worst: [], total: 0, baselineKind: "prior30" as const }),
-    [rankingRows, period, newest, order],
-  );
+  const clips = useMemo(() => {
+    if (!period) return { best: [] as ListItem[], worst: [] as ListItem[], total: 0, posts: 0, baselineKind: "prior30" as const };
+    if (byContent) {
+      const r = rankContents(rankingRows, period, newest, CLIPS_SHOWN, order);
+      return { best: r.best.map(contentItem), worst: r.worst.map(contentItem), total: r.total, posts: r.posts, baselineKind: r.baselineKind };
+    }
+    const r = rankClips(rankingRows, period, newest, CLIPS_SHOWN, order);
+    return { best: r.best.map(postItem), worst: r.worst.map(postItem), total: r.total, posts: r.total, baselineKind: r.baselineKind };
+  }, [rankingRows, period, newest, order, byContent]);
   const episodes = useMemo(() => (period ? rankEpisodes(rankingRows, period) : []), [rankingRows, period]);
 
   if (!period) return null;
@@ -143,11 +204,25 @@ export function RankingSection({
         <div>
           <h2>Ranking: ดีที่สุด / แย่ที่สุด<HelpLink topic="ranking" /></h2>
           <p>
-            คลิปที่ลงใน{grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ {num(clips.total)} ชิ้น ·{" "}
-            {order === "views" ? "เรียงตามยอดวิวจริง" : "เรียงตามวิวเทียบค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน"}
+            {byContent
+              ? `คอนเทนต์ที่ลงใน${grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ ${num(clips.total)} ชิ้น (${num(clips.posts)} โพสต์) · รวมยอดทุกแพลตฟอร์มโดยจับคู่จากชื่อคลิป · `
+              : `คลิปที่ลงใน${grain === "day" ? "วัน" : grain === "week" ? "สัปดาห์" : "ช่วง"}นี้ ${num(clips.total)} ชิ้น · `}
+            {order === "views"
+              ? "เรียงตามยอดวิวจริง"
+              : byContent
+                ? "เรียงตามยอดรวมเทียบค่าปกติของคอนเทนต์ที่ลงจำนวนแพลตฟอร์มเท่ากัน"
+                : "เรียงตามวิวเทียบค่าปกติของแพลตฟอร์มและรูปแบบเดียวกัน"}
           </p>
         </div>
         <div className="ranking-controls">
+          <div className="segmented" aria-label="นับแบบ">
+            <button className={byContent ? "active" : ""} onClick={() => setByContent(true)} title="รวมโพสต์ของคลิปเดียวกันทุกแพลตฟอร์มเป็นแถวเดียว">
+              รวมทุกแพลตฟอร์ม
+            </button>
+            <button className={!byContent ? "active" : ""} onClick={() => setByContent(false)} title="1 โพสต์ = 1 แถว">
+              แยกโพสต์
+            </button>
+          </div>
           <div className="segmented" aria-label="เรียงคลิปตาม">
             <button className={order === "views" ? "active" : ""} onClick={() => setOrder("views")} title="ยอดวิวจริง มากไปน้อย (แย่ที่สุด = น้อยไปมาก)">
               ยอดวิว
@@ -243,7 +318,9 @@ export function RankingSection({
         </article>
       </div>
       <p className="ai-note ranking-note">
-        ค่าปกติ = ค่ามัธยฐานยอดวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกัน
+        {byContent
+          ? "รวมทุกแพลตฟอร์ม: โพสต์ที่รายการเดียวกัน ชื่อคลิปเดียวกัน (ไม่นับ hashtag) และลงห่างกันไม่เกิน 3 วัน นับเป็นคอนเทนต์เดียว ถ้าตั้งชื่อต่างกันจะแยกแถว · ค่าปกติ = ค่ามัธยฐานยอดรวมของคอนเทนต์ที่ลงจำนวนแพลตฟอร์มเท่ากัน (ลงแพลตฟอร์มเดียว: เทียบกับแพลตฟอร์มและรูปแบบเดียวกัน)"
+          : "ค่าปกติ = ค่ามัธยฐานยอดวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกัน"}
         {clips.baselineKind === "within" ? "ภายในช่วงนี้ (ช่วงยาวกว่า 1 เดือน)" : "ใน 30 วันก่อนหน้า"} ·
         “แย่ที่สุด” ไม่นับคลิปที่ลงไม่ถึง 2 วัน และคลิปที่วิวต่ำกว่า 50 · ยอดวิวเป็นยอดสะสม ณ วันที่อัปเดตข้อมูลล่าสุด
       </p>
