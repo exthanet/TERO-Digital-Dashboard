@@ -4,6 +4,8 @@ import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
 import { loadRevenueDataFromFirebase } from "@/lib/firebase";
 import type { RevenueData, MonthlyRevenueItem } from "@/lib/dashboard/revenueParser";
 import { RevenueImportModal } from "@/components/dashboard/sections/RevenueImportModal";
+import { RevenueCompanyCompare } from "@/components/dashboard/sections/RevenueCompanyCompare";
+import { COMPANY_LABEL, inCurrency, type Currency } from "@/lib/dashboard/revenueCompanies";
 import type { User } from "@/lib/auth/types";
 import {
   Bar,
@@ -44,11 +46,11 @@ import {
 } from "lucide-react";
 import { track } from "@/lib/loadingBar";
 
-// Format currency as USD
-const money = (v: number) =>
-  new Intl.NumberFormat("en-US", {
+// Format an amount in the currency the page shows (USD as in the file, or THB by the file's rates).
+const formatMoney = (v: number, currency: Currency) =>
+  new Intl.NumberFormat(currency === "THB" ? "th-TH" : "en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2,
   }).format(v || 0);
 
@@ -83,6 +85,9 @@ const MONTH_ORDER = [
 export default function RevenueReport({ currentUser }: RevenueReportProps) {
   const [data, setData] = useState<RevenueData | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("ALL");
+  // Which numbers the page shows: Overall, one company's sheet, or both companies side by side.
+  const [company, setCompany] = useState<"overall" | "digital" | "entertainment" | "compare">("overall");
+  const [currencyPicked, setCurrency] = useState<Currency>("USD");
   const [importOpen, setImportOpen] = useState(false);
   const [sourceType, setSourceType] = useState<"firebase" | "file">("firebase");
   const [loading, setLoading] = useState(true);
@@ -124,9 +129,26 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     loadData();
   }, []);
 
-  const allMonthly = useMemo(() => {
-    return [...(data?.monthly || [])].sort((a, b) => a.month.localeCompare(b.month));
-  }, [data]);
+  const hasCompanies = !!(data?.digital?.length || data?.entertainment?.length);
+  const view = hasCompanies ? company : "overall";
+  const hasRates = !!data?.rates && Object.keys(data.rates).length > 0;
+  const currency: Currency = hasRates ? currencyPicked : "USD";
+  const money = (v: number) => formatMoney(v, currency);
+  const allMonthlyRaw = useMemo(() => {
+    // The comparison lists every month any sheet has (for the year menu); its own view does the rest.
+    const list =
+      view === "digital"
+        ? data?.digital
+        : view === "entertainment"
+          ? data?.entertainment
+          : view === "compare"
+            ? [...new Map([...(data?.monthly || []), ...(data?.digital || []), ...(data?.entertainment || [])].map((m) => [m.month, m])).values()]
+            : data?.monthly;
+    return [...(list || [])].sort((a, b) => a.month.localeCompare(b.month));
+  }, [data, view]);
+  // In THB, months without a rate in the file are left out (listed in the notice), never guessed.
+  const converted = useMemo(() => inCurrency(allMonthlyRaw, currency, data?.rates), [allMonthlyRaw, currency, data]);
+  const allMonthly = view === "compare" ? allMonthlyRaw : converted.items;
 
   const years = useMemo(() => {
     if (allMonthly.length === 0) return [];
@@ -305,7 +327,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
       <div className="affiliate-head" style={{ alignItems: "flex-start", gap: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span className="section-eyebrow">REVENUE REPORT (USD)</span>
+            <span className="section-eyebrow">REVENUE REPORT ({currency})</span>
             <span
               style={{
                 display: "inline-flex",
@@ -338,12 +360,15 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
               }}
             >
               <Coins size={12} />
-              Currency: USD ($)
+              Currency: {currency === "THB" ? "THB (฿) · อัตราจากไฟล์" : "USD ($)"}
             </span>
           </div>
-          <h2>YouTube Revenue & Forecast Analysis</h2>
+          <h2>
+            YouTube Revenue & Forecast Analysis
+            {view === "digital" || view === "entertainment" ? ` · ${COMPANY_LABEL[view]}` : view === "compare" ? " · เทียบ 2 บริษัท" : ""}
+          </h2>
           <p>
-            วิเคราะห์โครงสร้างรายได้ YouTube ครบทุก 13 ประเภทรายได้ (หน่วย USD) พร้อมระบบคาดการณ์รายได้ (Revenue Forecasting & Accuracy Projection)
+            วิเคราะห์โครงสร้างรายได้ YouTube ครบทุก 13 ประเภทรายได้ (หน่วย {currency}) พร้อมระบบคาดการณ์รายได้ (Revenue Forecasting & Accuracy Projection)
           </p>
         </div>
 
@@ -392,6 +417,33 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           </button>
 
+          {hasRates && (
+            <div className="segmented revenue-currency-toggle" aria-label="สกุลเงิน">
+              {(["USD", "THB"] as const).map((c) => (
+                <button key={c} className={currency === c ? "active" : ""} onClick={() => setCurrency(c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {hasCompanies && (
+            <div className="segmented revenue-company-toggle" aria-label="บริษัท">
+              {(
+                [
+                  ["overall", "รวม"],
+                  ["digital", COMPANY_LABEL.digital],
+                  ["entertainment", COMPANY_LABEL.entertainment],
+                  ["compare", "เทียบ 2 บริษัท"],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} className={view === k ? "active" : ""} onClick={() => setCompany(k)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {years.length > 0 && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               ปี{" "}
@@ -419,7 +471,16 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         </div>
       </div>
 
-      {!data || filteredMonthly.length === 0 ? (
+      {currency === "THB" && (
+        <p className="growth-notice revenue-thb-note">
+          THB = USD × อัตรา (คอลัมน์ Rate ในไฟล์) ของแต่ละเดือน · เป็นรายได้ก่อนหักภาษี ไม่ใช่ยอดรับจริง
+          {view !== "compare" && converted.missing.length > 0 && ` · ไม่รวม ${converted.missing.length} เดือนที่ยังไม่มีอัตรา: ${converted.missing.join(", ")}`}
+        </p>
+      )}
+
+      {data && view === "compare" ? (
+        <RevenueCompanyCompare data={data} year={selectedYear} currency={currency} />
+      ) : !data || filteredMonthly.length === 0 ? (
         <div
           className="empty-state"
           style={{ padding: "48px 0", background: "#f8fafc", borderRadius: 12, textAlign: "center" }}
@@ -600,7 +661,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
               <Wallet style={{ color: "#2563eb" }} />
               <span>EST. Total Revenue</span>
               <strong>{money(totals.estRevenue)}</strong>
-              <small>{filteredMonthly.length} เดือนที่บันทึก (USD)</small>
+              <small>{filteredMonthly.length} เดือนที่บันทึก ({currency})</small>
             </article>
             <article>
               <PlaySquare style={{ color: "#0284c7" }} />
@@ -646,7 +707,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
             <article className="panel">
               <div className="panel-head">
                 <div>
-                  <h3>แนวโน้มรายได้และคาดการณ์รายเดือน (Revenue & Forecast Trend - USD)</h3>
+                  <h3>แนวโน้มรายได้และคาดการณ์รายเดือน (Revenue & Forecast Trend - {currency})</h3>
                   <p>แสดงยอดจริงย้อนหลังพร้อมแท่งคาดการณ์อนาคต (Estimate)</p>
                 </div>
               </div>
@@ -658,8 +719,8 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                     <YAxis tickFormatter={moneyCompact} tick={{ fontSize: 10 }} />
                     <Tooltip formatter={(v) => money(Number(v))} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
-                    <Bar dataKey="actualRevenue" name="Actual Revenue (USD)" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="forecastRevenue" name="Forecast (Est. USD)" fill="#34d399" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actualRevenue" name={`Actual Revenue (${currency})`} fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="forecastRevenue" name={`Forecast (Est. ${currency})`} fill="#34d399" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -669,7 +730,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
             <article className="panel">
               <div className="panel-head">
                 <div>
-                  <h3>สัดส่วนโครงสร้างรายได้ (Revenue Breakdown - USD)</h3>
+                  <h3>สัดส่วนโครงสร้างรายได้ (Revenue Breakdown - {currency})</h3>
                   <p>สัดส่วนเปอร์เซ็นต์ตามประเภทรายได้ทั้งหมด</p>
                 </div>
               </div>
@@ -706,8 +767,8 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
             <article className="panel">
               <div className="panel-head">
                 <div>
-                  <h3>ตารางสรุปรายได้รายเดือนทั้งหมด (Monthly Revenue Table - USD)</h3>
-                  <p>แสดงทุกคอลัมน์และประเภทรายได้ 13 ฟิลด์ตามรายงาน YouTube Analytics (หน่วยเป็น USD)</p>
+                  <h3>ตารางสรุปรายได้รายเดือนทั้งหมด (Monthly Revenue Table - {currency})</h3>
+                  <p>แสดงทุกคอลัมน์และประเภทรายได้ 13 ฟิลด์ตามรายงาน YouTube Analytics (หน่วยเป็น {currency})</p>
                 </div>
               </div>
               <div className="table-scroll">

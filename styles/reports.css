@@ -345,3 +345,138 @@
   color: #718096;
   font-size: 10px;
 }
+
+/* Revenue by company (RevenueReport company toggle, RevenueCompanyCompare, import preview). */
+.revenue-company-toggle button {
+  white-space: nowrap;
+}
+
+.revenue-compare {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.revenue-compare-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.revenue-compare-cards article {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #e3eaf5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.revenue-compare-cards span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.revenue-compare-cards strong {
+  font-size: 20px;
+}
+
+.revenue-compare-cards small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.revenue-compare-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+.revenue-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.revenue-compare-table th,
+.revenue-compare-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eef2f8;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.revenue-compare-table th {
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.revenue-compare-table .num {
+  text-align: right;
+}
+
+.revenue-compare-table .strong {
+  font-weight: 800;
+}
+
+.revenue-compare-table .down {
+  color: #ea580c;
+}
+
+.revenue-import-sheets {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.revenue-import-sheets th,
+.revenue-import-sheets td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.revenue-import-sheets .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.revenue-import-sheets small {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.revenue-import-checks {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+}
+
+.revenue-import-checks strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.revenue-import-checks p {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .revenue-compare-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .revenue-compare-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   MonthlyRevenueItem,
   RevenueData,
-  parseYouTubeRevenueFile,
+  parseRevenueWorkbook,
 } from "@/lib/dashboard/revenueParser";
+import { COMPANY_LABEL, revenueChecks, type RevenueChecks } from "@/lib/dashboard/revenueCompanies";
 import { saveRevenueDataToFirebase } from "@/lib/firebase";
 import {
   AlertCircle,
@@ -46,6 +47,10 @@ export function RevenueImportModal({
     monthsCount: number;
     totalRevenue: number;
     newData: RevenueData;
+    /** Each sheet read: label, months, range, EST.Revenue total. */
+    sheets: { label: string; name: string; months: number; range: string; total: number }[];
+    checks: RevenueChecks;
+    rates: { months: number; range: string; unmatched: number };
   } | null>(null);
 
   const [importMode, setImportMode] = useState<"overwrite" | "merge">("overwrite");
@@ -65,42 +70,65 @@ export function RevenueImportModal({
     setParsedPreview(null);
 
     try {
-      const parsedItems = await parseYouTubeRevenueFile(file);
-      if (parsedItems.length === 0) {
+      // Overall + one sheet per company, matched by sheet name; numbers as the file gives them.
+      const wb = await parseRevenueWorkbook(file);
+      const parsedItems = wb.overall || [];
+      if (!wb.overall && !currentData?.monthly.length) {
+        throw new Error("ไม่พบ sheet Overall ในไฟล์ และยังไม่มีข้อมูลรวมในระบบ");
+      }
+      if (parsedItems.length === 0 && !wb.digital?.length && !wb.entertainment?.length) {
         throw new Error("ไม่พบข้อมูลรายได้รายเดือนในไฟล์");
       }
 
-      let finalMonthly: MonthlyRevenueItem[] = [];
-
-      if (importMode === "overwrite") {
-        // Replace all existing records completely with the new file
-        finalMonthly = [...parsedItems].sort((a, b) => a.month.localeCompare(b.month));
-      } else {
-        // Merge with existing data
+      // Overwrite replaces what the file holds; merge replaces only its months. Sheets not in the file stay as they are.
+      const combine = (current: MonthlyRevenueItem[] | undefined, incoming: MonthlyRevenueItem[] | null) => {
+        if (!incoming) return current;
+        if (importMode === "overwrite") return [...incoming].sort((a, b) => a.month.localeCompare(b.month));
         const monthMap = new Map<string, MonthlyRevenueItem>();
-        (currentData?.monthly || []).forEach((m) => monthMap.set(m.month, m));
-        parsedItems.forEach((m) => monthMap.set(m.month, m));
-        finalMonthly = Array.from(monthMap.values()).sort((a, b) =>
-          a.month.localeCompare(b.month)
-        );
-      }
+        (current || []).forEach((m) => monthMap.set(m.month, m));
+        incoming.forEach((m) => monthMap.set(m.month, m));
+        return Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+      };
+      const finalMonthly = combine(currentData?.monthly, wb.overall) || [];
 
       const totalRevenue = finalMonthly.reduce((acc, curr) => acc + curr.estRevenue, 0);
 
       const newData: RevenueData = {
         generatedAt: new Date().toISOString(),
         monthly: finalMonthly,
+        digital: combine(currentData?.digital, wb.digital),
+        entertainment: combine(currentData?.entertainment, wb.entertainment),
+        // Rates: the file's replace (overwrite) or update (merge) what is stored; none in the file keeps the stored ones.
+        rates: wb.rates ? (importMode === "overwrite" ? wb.rates : { ...(currentData?.rates || {}), ...wb.rates }) : currentData?.rates,
       };
+      const rateMonths = Object.keys(wb.rates || {}).sort();
 
+      const label = { overall: "Overall (รวม)", ...COMPANY_LABEL };
       setParsedPreview({
         monthsCount: parsedItems.length,
         totalRevenue,
         newData,
+        sheets: wb.sheets.map((sh) => {
+          const items = wb[sh.role] || [];
+          return {
+            label: label[sh.role],
+            name: sh.name,
+            months: items.length,
+            range: items.length ? `${items[0].monthLabel} – ${items[items.length - 1].monthLabel}` : "-",
+            total: items.reduce((a, m) => a + m.estRevenue, 0),
+          };
+        }),
+        checks: revenueChecks(wb.overall, wb.digital, wb.entertainment),
+        rates: {
+          months: rateMonths.length,
+          range: rateMonths.length ? `${rateMonths[0]} – ${rateMonths[rateMonths.length - 1]}` : "",
+          unmatched: wb.unmatchedRates,
+        },
       });
 
       setFeedback({
         type: "success",
-        text: `อ่านไฟล์ "${file.name}" สำเร็จ! (${importMode === "overwrite" ? "แทนที่ข้อมูลทั้งหมดด้วย" : "ตรวจพบ"} ${parsedItems.length} เดือน: ${parsedItems[0].monthLabel} – ${parsedItems[parsedItems.length - 1].monthLabel}) ตรวจเดือนให้ถูกก่อนบันทึก`,
+        text: `อ่านไฟล์ "${file.name}" สำเร็จ · ตรวจเดือนและตัวเลขแต่ละ sheet ด้านล่างให้ถูกก่อนบันทึก`,
       });
     } catch (err: unknown) {
       setFeedback({
@@ -293,6 +321,64 @@ export function RevenueImportModal({
             <div style={{ fontSize: 12, color: "#334155" }}>
               รวมยอดสะสมทั้งหมดในระบบหลังอัปเดต: {parsedPreview.newData.monthly.length} เดือน
             </div>
+
+            <table className="revenue-import-sheets">
+              <thead>
+                <tr>
+                  <th>Sheet</th>
+                  <th>เดือน</th>
+                  <th className="num">EST.Revenue รวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedPreview.sheets.map((sh) => (
+                  <tr key={sh.name}>
+                    <td>
+                      <b>{sh.label}</b>
+                      <small>{sh.name}</small>
+                    </td>
+                    <td>
+                      {sh.months} เดือน
+                      <small>{sh.range}</small>
+                    </td>
+                    <td className="num">{moneyUsd(sh.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ fontSize: 12, color: "#334155" }}>
+              {parsedPreview.rates.months
+                ? `อัตราแลกเปลี่ยน (คอลัมน์ Rate) ${parsedPreview.rates.months} เดือน: ${parsedPreview.rates.range}`
+                : "ไม่พบคอลัมน์ Rate ในไฟล์ · อัตราที่มีในระบบจะใช้ต่อ"}
+              {parsedPreview.rates.unmatched > 0 && ` · จับคู่เดือนไม่ได้ ${parsedPreview.rates.unmatched} แถว (ไม่ได้ใช้)`}
+            </div>
+
+            {(parsedPreview.checks.gaps.length > 0 || parsedPreview.checks.columns.length > 0 || parsedPreview.checks.totals.length > 0) && (
+              <div className="revenue-import-checks">
+                <strong>
+                  <AlertCircle size={14} /> ตัวเลขที่ไม่ลงกันในไฟล์ (ระบบบันทึกตามไฟล์ ไม่ได้แก้ให้)
+                </strong>
+                {parsedPreview.checks.gaps.length > 0 && (
+                  <p>
+                    Overall มากกว่า Digital + Entertainment ใน {parsedPreview.checks.gaps.length} เดือน (เช่น{" "}
+                    {parsedPreview.checks.gaps.slice(0, 2).map((g) => `${g.month}: ${moneyUsd(g.gap)}`).join(", ")}) · หน้ารายงานแสดงส่วนนี้เป็น “ส่วนที่ไม่อยู่ใน 2 sheet”
+                  </p>
+                )}
+                {parsedPreview.checks.columns.length > 0 && (
+                  <p>
+                    คอลัมน์ที่ 2 บริษัทรวมกันมากกว่า Overall (อาจกรอกคนละคอลัมน์):{" "}
+                    {parsedPreview.checks.columns.slice(0, 3).map((c) => `${c.month} ${c.label} ${moneyUsd(c.companies)} > ${moneyUsd(c.overall)}`).join(" · ")}
+                  </p>
+                )}
+                {parsedPreview.checks.totals.length > 0 && (
+                  <p>
+                    EST.Revenue ไม่เท่ากับผลรวมคอลัมน์ย่อย {parsedPreview.checks.totals.length} จุด:{" "}
+                    {parsedPreview.checks.totals.slice(0, 3).map((t) => `${t.sheet} ${t.month} ต่าง ${moneyUsd(t.diff)}`).join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
 
             <Button
               onClick={handleSaveToCloud}

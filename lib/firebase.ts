@@ -295,6 +295,11 @@ export async function loadRevenueDataFromFirebase(): Promise<RevenueData | null>
 
   const generatedAt = metaDoc?.data()?.generatedAt || new Date().toISOString();
   const monthly = (monthlyDoc?.data()?.monthly || []) as RevenueData["monthly"];
+  // Per company (revenueData/digital, revenueData/entertainment): only once a file with those sheets was imported.
+  const company = (id: string) => {
+    const list = snapshot.docs.find((d) => d.id === id)?.data()?.monthly as RevenueData["monthly"] | undefined;
+    return list && list.length ? list : undefined;
+  };
 
   if (monthly.length === 0) {
     return null;
@@ -303,6 +308,9 @@ export async function loadRevenueDataFromFirebase(): Promise<RevenueData | null>
   return {
     generatedAt,
     monthly,
+    digital: company("digital"),
+    entertainment: company("entertainment"),
+    rates: (snapshot.docs.find((d) => d.id === "rates")?.data()?.rates as Record<string, number> | undefined) || undefined,
   };
 }
 
@@ -313,7 +321,9 @@ export async function saveRevenueDataToFirebase(
   data: RevenueData,
   onProgress?: (current: number, total: number) => void
 ): Promise<{ success: boolean; message: string }> {
-  const totalSteps = 2;
+  const companies = (["digital", "entertainment"] as const).filter((c) => data[c]?.length);
+  const hasRates = !!data.rates && Object.keys(data.rates).length > 0;
+  const totalSteps = 2 + companies.length + (hasRates ? 1 : 0);
   let currentStep = 0;
 
   // 1. Save Meta doc
@@ -331,6 +341,23 @@ export async function saveRevenueDataToFirebase(
   });
   currentStep++;
   if (onProgress) onProgress(currentStep, totalSteps);
+
+  // 3. Per company, only when the import carried those sheets (others stay as they are).
+  for (const c of companies) {
+    await setDoc(doc(db, "revenueData", c), {
+      monthly: data[c]!.map((m) => cleanRowForFirestore(m as Record<string, unknown>)),
+      updatedAt: new Date().toISOString(),
+    });
+    currentStep++;
+    if (onProgress) onProgress(currentStep, totalSteps);
+  }
+
+  // 4. THB per USD by month, from the file (kept as they are when the file has none).
+  if (hasRates) {
+    await setDoc(doc(db, "revenueData", "rates"), { rates: data.rates, updatedAt: new Date().toISOString() });
+    currentStep++;
+    if (onProgress) onProgress(currentStep, totalSteps);
+  }
 
   return {
     success: true,

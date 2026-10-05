@@ -21,7 +21,28 @@ export type MonthlyRevenueItem = {
 
 export type RevenueData = {
   generatedAt: string;
+  /** Overall (every channel), as the "Overall" sheet gives it. */
   monthly: MonthlyRevenueItem[];
+  /** Per company, from their own sheets; absent until a file with those sheets is imported. */
+  digital?: MonthlyRevenueItem[];
+  entertainment?: MonthlyRevenueItem[];
+  /** THB per USD by month ("2026-01"), from the Rate column in the file; absent months have no rate yet. */
+  rates?: Record<string, number>;
+};
+
+export type RevenueCompany = "digital" | "entertainment";
+
+/** What one import file holds: null = no sheet for it in the file. */
+export type RevenueWorkbook = {
+  overall: MonthlyRevenueItem[] | null;
+  digital: MonthlyRevenueItem[] | null;
+  entertainment: MonthlyRevenueItem[] | null;
+  /** THB per USD by month, from a table with a "Rate" column (null = none in the file). */
+  rates: Record<string, number> | null;
+  /** Rate rows that could not be matched to a month. */
+  unmatchedRates: number;
+  /** Sheets read, in file order, with what each was used for. */
+  sheets: { name: string; role: "overall" | RevenueCompany; months: number }[];
 };
 
 const numVal = (row: Record<string, unknown>, ...keys: string[]): number => {
@@ -220,6 +241,98 @@ export function parseYouTubeRevenueRows(rows: Record<string, unknown>[]): Monthl
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
+
+/**
+ * One sheet as rows keyed by its header row, stopping at the first empty row:
+ * a second table further down (e.g. the THB conversion under Tero Entertainment)
+ * is not monthly revenue.
+ */
+function sheetRows(sheet: XLSX.WorkSheet): Record<string, unknown>[] {
+  return tableAt(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true }) as unknown[][], 0);
+}
+
+/** Rows of the table whose header is grid[at], up to the next empty row. */
+function tableAt(grid: unknown[][], at: number): Record<string, unknown>[] {
+  const header = (grid[at] || []).map((h) => String(h ?? ""));
+  const out: Record<string, unknown>[] = [];
+  for (const r of grid.slice(at + 1)) {
+    if (r.every((c) => c === null || c === "")) break;
+    out.push(Object.fromEntries(header.map((h, i) => [h, r[i] ?? null])));
+  }
+  return out;
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * THB per USD by month from a table with a "Rate" column further down the sheet
+ * (the payment table under Tero Entertainment). Its rows carry no month: each is
+ * matched to the month whose EST.Revenue it repeats in its first column
+ * (e.g. a "Tero Ent" cell of 1200.5 matches the month with EST.Revenue 1,200.498). A "Monthly" column is used when present.
+ */
+export function ratesFromGrid(grid: unknown[][], months: MonthlyRevenueItem[]): { rates: Record<string, number>; unmatched: number } {
+  const rates: Record<string, number> = {};
+  let unmatched = 0;
+  const at = grid.findIndex((r, i) => i > 0 && r.some((c) => typeof c === "string" && /^\s*rate\s*$/i.test(c)));
+  if (at < 0) return { rates, unmatched };
+  const header = (grid[at] || []).map((h) => String(h ?? "").trim());
+  const rateKey = header.find((h) => /^rate$/i.test(h))!;
+  const monthKey = header.find((h) => ["monthly", "month", "เดือน"].includes(h.toLowerCase()));
+  const byEst = new Map<number, string[]>();
+  for (const m of months) byEst.set(round2(m.estRevenue), [...(byEst.get(round2(m.estRevenue)) || []), m.month]);
+  for (const row of tableAt(grid, at)) {
+    const rate = Number(row[rateKey]);
+    if (!Number.isFinite(rate) || rate <= 0) continue;
+    let month: string | null = null;
+    if (monthKey) month = parseMonthYear(row[monthKey])?.month || null;
+    else {
+      const hits = byEst.get(round2(Number(row[header[0]])));
+      month = hits && hits.length === 1 ? hits[0] : null;
+    }
+    if (month) rates[month] = rate;
+    else unmatched++;
+  }
+  return { rates, unmatched };
+}
+
+/** Sheet name → what it holds: "Overall …", "… TERO Digital", "… TERO ENTERTAINMENT". */
+export function sheetRole(name: string): "overall" | RevenueCompany | null {
+  if (/overall/i.test(name)) return "overall";
+  if (/digital/i.test(name)) return "digital";
+  if (/entertain/i.test(name)) return "entertainment";
+  return null;
+}
+
+/**
+ * A revenue workbook: the Overall sheet and one sheet per company, matched by
+ * sheet name. A file without named sheets is read as before (first sheet = overall).
+ */
+export async function parseRevenueWorkbook(file: File): Promise<RevenueWorkbook> {
+  if (file.name.toLowerCase().endsWith(".csv") || file.name.toLowerCase().endsWith(".txt")) {
+    const overall = await parseYouTubeRevenueFile(file);
+    return { overall, digital: null, entertainment: null, rates: null, unmatchedRates: 0, sheets: [{ name: file.name, role: "overall", months: overall.length }] };
+  }
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const out: RevenueWorkbook = { overall: null, digital: null, entertainment: null, rates: null, unmatchedRates: 0, sheets: [] };
+  const named = wb.SheetNames.filter((n) => sheetRole(n));
+  const pick = named.length ? named : wb.SheetNames.slice(0, 1);
+  for (const name of pick) {
+    const role = sheetRole(name) || "overall";
+    if (out[role]) continue; // first sheet of each kind wins
+    let items: MonthlyRevenueItem[];
+    try {
+      items = parseYouTubeRevenueRows(sheetRows(wb.Sheets[name]));
+    } catch (e) {
+      throw new Error(`Sheet "${name}": ${e instanceof Error ? e.message : String(e)}`);
+    }
+    out[role] = items;
+    out.sheets.push({ name, role, months: items.length });
+    const found = ratesFromGrid(XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null, raw: true }) as unknown[][], items);
+    if (Object.keys(found.rates).length) out.rates = { ...(out.rates || {}), ...found.rates };
+    out.unmatchedRates += found.unmatched;
+  }
+  return out;
+}
 
 export async function parseYouTubeRevenueFile(file: File): Promise<MonthlyRevenueItem[]> {
   const isCsv = file.name.toLowerCase().endsWith(".csv");

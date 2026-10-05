@@ -152,6 +152,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     lead: "รายงานรายได้จากไฟล์ที่ admin นำเข้า",
     points: [
       "YouTube Revenue แสดงเป็น USD แยก 13 ประเภทรายได้ พร้อมคาดการณ์ทั้งปี",
+      "เลือกดูได้ 4 แบบ: รวม (sheet Overall), TERO Digital, Tero Entertainment หรือ “เทียบ 2 บริษัท” · ทุกตัวเลขตามไฟล์ที่นำเข้า",
+      "“ส่วนที่ไม่อยู่ใน 2 sheet” = Overall − TERO Digital − Tero Entertainment ของเดือนที่มีครบ 3 sheet",
+      "ปุ่ม USD | THB: THB = USD × อัตราของเดือนนั้นจากคอลัมน์ Rate ในไฟล์ (ก่อนหักภาษี ไม่ใช่ยอดรับจริง) · เดือนที่ไฟล์ยังไม่มีอัตราจะไม่ถูกรวม และแจ้งชื่อเดือนไว้",
+      "นำเข้าไฟล์เดียวที่มี sheet ชื่อ Overall / TERO Digital / TERO ENTERTAINMENT ได้เลย ระบบอ่านจากชื่อ sheet และแจ้งตัวเลขที่ไม่ลงกันก่อนบันทึก",
       "Affiliate Program เปิดมาที่ปีล่าสุด เลือก “ทั้งหมด” หรือปีอื่นได้",
       "ป้าย “Firebase Firestore” มุมบน = อ่านข้อมูลล่าสุดจากระบบ",
     ],
