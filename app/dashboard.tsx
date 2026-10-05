@@ -208,6 +208,7 @@ export default function Dashboard() {
         {activeTab === "growth" && isAdmin && (
           <GrowthSection
             rows={model.growthRows}
+            allRows={model.rows}
             startDate={model.startDate}
             endDate={model.endDate}
             comparePeriod={model.comparePeriod}

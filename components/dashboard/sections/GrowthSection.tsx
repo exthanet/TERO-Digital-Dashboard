@@ -2,7 +2,7 @@
 // Advanced → การเติบโต: views gained per day (growthDaily, see lib/dashboard/growth.ts),
 // for the posts that pass the dashboard filters (program, platform, type, search).
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, History, MousePointerClick, TrendingUp } from "lucide-react";
+import { Activity, AlertTriangle, ExternalLink, History, MousePointerClick, TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
@@ -12,6 +12,7 @@ import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
+import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
@@ -20,15 +21,18 @@ const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric"
 interface Props {
   /** Rows that pass the dashboard filters, ignoring the date filter (gains are dated by when they happened). */
   rows: RecordRow[];
+  /** Every row, to find a clip's posts on other platforms whatever the filters. */
+  allRows: RecordRow[];
   startDate: string;
   endDate: string;
   comparePeriod: { start: string; end: string } | null;
 }
 
-export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props) {
+export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod }: Props) {
   const [firstDay, setFirstDay] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [opened, setOpened] = useState<RecordRow | null>(null);
 
   const rangeDays = useMemo(() => (startDate && endDate ? daysBetween(startDate, endDate) : []), [startDate, endDate]);
   const prevDays = useMemo(
@@ -77,6 +81,9 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
 
   return (
     <section className="panel growth-panel" id="growth">
+      {opened && ready && (
+        <ClipDetailPanel clip={opened} allRows={allRows} days={days!.map} rangeDays={rangeDays} onClose={() => setOpened(null)} />
+      )}
       <div className="panel-head">
         <div>
           <h2>การเติบโต: ยอดที่เพิ่มขึ้นจริงในช่วงนี้<HelpLink topic="growth" /></h2>
@@ -170,6 +177,7 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
 
           <article className="growth-table">
             <h3>คลิปที่วิวเพิ่มมากที่สุดในช่วงนี้</h3>
+            <p className="growth-hint">กดชื่อคลิปเพื่อดูการวิเคราะห์คลิปนั้น (ทุกแพลตฟอร์ม วิวรายวัน ช่วงเวลาโพสต์)</p>
             {clips.length ? (
               <div className="table-scroll">
                 <table>
@@ -188,9 +196,16 @@ export function GrowthSection({ rows, startDate, endDate, comparePeriod }: Props
                       <tr key={c.key}>
                         <td>{i + 1}</td>
                         <td className="growth-clip">
-                          <a href={c.row.url || undefined} target="_blank" rel="noreferrer" title={c.row.topic}>
-                            {c.row.topic || "ไม่ระบุประเด็น"}
-                          </a>
+                          <span className="growth-clip-title">
+                            <button type="button" className="clip-open" onClick={() => setOpened(c.row)} title="วิเคราะห์คลิปนี้">
+                              {c.row.topic || "ไม่ระบุประเด็น"}
+                            </button>
+                            {c.row.url && (
+                              <a href={c.row.url} target="_blank" rel="noreferrer" aria-label="เปิดคลิป" title="เปิดคลิป">
+                                <ExternalLink size={12} />
+                              </a>
+                            )}
+                          </span>
                           <small>
                             <span className="tag">{c.row.platform}</span> {c.row.vdoType}
                             {c.row.date < startDate && <span className="growth-tag old">คลิปเก่า</span>}

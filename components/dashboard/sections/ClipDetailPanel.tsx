@@ -1,0 +1,244 @@
+"use client";
+// Advanced → การเติบโต: click a clip to see it on every platform, its daily
+// gains in the range, how it did against normal and when it was posted
+// (lib/dashboard/clipDetail.ts). Uses the growth days the page already loaded.
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { Clock, ExternalLink, Eye, Heart, Link2, MessageCircle, Share2, TrendingUp, X } from "lucide-react";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { RecordRow } from "@/lib/dashboard/types";
+import type { GrowthEntry } from "@/lib/dashboard/growth";
+import { compact, dateLabel, num } from "@/lib/dashboard/format";
+import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
+import { watchShare } from "@/lib/dashboard/quality";
+import { clipDetail, daysAfterPost, gainedByPlatform, type ClipPost } from "@/lib/dashboard/clipDetail";
+import { Kpi } from "@/components/dashboard/shared/Kpi";
+import { recordKey } from "@/lib/dashboard/growth";
+import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
+import { track } from "@/lib/loadingBar";
+
+const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
+  iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
+const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
+const times = (x: number) => (x >= 1 ? `${x.toFixed(1)}×` : `${Math.round(x * 100)}%`);
+const colorOf = (p: string) => PLATFORM_COLORS[p] || "#64748b";
+const duration = (r: RecordRow) => {
+  const sec = r.videoLengthSec || Math.round(r.durationMin * 60);
+  return sec > 0 ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} นาที` : "";
+};
+
+interface Props {
+  clip: RecordRow;
+  /** Every row (not cut by the filters), to find the same content on other platforms. */
+  allRows: RecordRow[];
+  days: Map<string, GrowthEntry[] | null>;
+  rangeDays: string[];
+  onClose: () => void;
+}
+
+function hourText(p: ClipPost) {
+  if (p.hour === null) return "ไม่มีเวลาโพสต์";
+  const own = p.hourMedian !== null ? ` · ชั่วโมงนี้ได้ค่ากลาง ${compact(p.hourMedian)}/คลิป` : "";
+  const best = p.bestHour && p.bestHour.hour !== p.hour ? ` · ชั่วโมงที่ดีที่สุด ${hh(p.bestHour.hour)} (${compact(p.bestHour.median)}/คลิป)` : p.bestHour ? " · เป็นชั่วโมงที่ค่ากลางสูงสุด" : "";
+  return `โพสต์ ${p.row.publishTime} น.${own}${best}`;
+}
+
+export function ClipDetailPanel({ clip, allRows, days, rangeDays, onClose }: Props) {
+  const d = useMemo(() => clipDetail(clip, allRows, days, rangeDays), [clip, allRows, days, rangeDays]);
+  const share = useMemo(() => gainedByPlatform(d), [d]);
+
+  // Cover: the clicked post first, then its other posts; a broken link moves to the next one.
+  const [stored, setStored] = useState<Map<string, string>>(new Map());
+  const [coverAt, setCoverAt] = useState(0);
+  useEffect(() => {
+    track(loadThumbnails())
+      .then(setStored)
+      .catch(() => setStored(new Map()));
+  }, []);
+  const covers = useMemo(() => {
+    const keys = [recordKey(clip), ...d.posts.map((p) => p.key)].filter(Boolean);
+    return [...new Set(keys.map((k) => thumbnailFor(k, stored)).filter(Boolean))];
+  }, [clip, d, stored]);
+  useEffect(() => setCoverAt(0), [covers]);
+  const cover = covers[coverAt] || "";
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Short facts from the numbers above (rules, not AI).
+  const facts: string[] = [];
+  if (share.length > 1 && d.gained > 0) facts.push(`${Math.round((share[0].total / d.gained) * 100)}% ของวิวที่เพิ่มในช่วงนี้มาจาก ${share[0].name}`);
+  if (d.peak) {
+    const after = daysAfterPost(d, d.peak.date);
+    facts.push(`วิวเพิ่มมากที่สุดวันที่ ${thDate(d.peak.date)} (${num(d.peak.views)} วิว)${after !== null && after >= 0 ? ` · ${after === 0 ? "วันที่โพสต์" : `${after} วันหลังโพสต์`}` : ""}`);
+  }
+  // Posts under a week old are still collecting views: say so beside the comparison.
+  const lastDay = rangeDays.at(-1) || "";
+  const young = (r: RecordRow) => {
+    const age = lastDay && r.date ? Math.round((Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${r.date}T00:00:00Z`)) / 86400000) : null;
+    return age !== null && age >= 0 && age < 7 ? ` · โพสต์ได้ ${age} วัน ยอดยังเพิ่มได้` : "";
+  };
+  for (const p of d.posts) if (p.index !== null) facts.push(`${p.row.platform} ${p.row.vdoType}: ${times(p.index)} ของค่าปกติ (ค่ากลาง ${compact(p.baseline!)})${young(p.row)}`);
+  for (const p of d.posts)
+    if (p.hour !== null && p.bestHour && p.bestHour.hour !== p.hour && p.hourMedian !== null && p.bestHour.median > p.hourMedian * 1.5)
+      facts.push(`${p.row.platform} โพสต์ ${hh(p.hour)} แต่ ${p.row.vdoType} ช่วง ${hh(p.bestHour.hour)} ได้ค่ากลางสูงกว่า ${times(p.bestHour.median / p.hourMedian)}`);
+
+  const firstDay = rangeDays[0] || "";
+  const hasWatch = d.posts.some((p) => watchShare(p.row) !== null);
+
+  // On <body>: inside a panel, a transformed ancestor would trap the fixed overlay.
+  return createPortal(
+    <div className="clip-detail-backdrop" onClick={onClose}>
+      <aside className="clip-detail" role="dialog" aria-modal="true" aria-label="วิเคราะห์คลิป" onClick={(e) => e.stopPropagation()}>
+        <header className="clip-detail-head">
+          {cover && (
+            <a className="clip-detail-cover" href={clip.url || undefined} target="_blank" rel="noreferrer" title="เปิดคลิป">
+              <img src={cover} alt={clip.topic} referrerPolicy="no-referrer" onError={() => setCoverAt((i) => i + 1)} />
+            </a>
+          )}
+          <div className="clip-detail-title">
+            <small>วิเคราะห์คลิป</small>
+            <h2 title={clip.topic}>{clip.topic || "ไม่ระบุประเด็น"}</h2>
+            <p>
+              {[clip.program, clip.topicType, thDate(d.firstPosted, { day: "numeric", month: "short", year: "numeric" }), duration(clip)].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <button type="button" className="clip-detail-close" onClick={onClose} aria-label="ปิด">
+            <X size={18} />
+          </button>
+        </header>
+
+        {d.byTitle && (
+          <p className="growth-notice">
+            <Link2 size={14} /> พบคลิปเดียวกัน {d.posts.length} โพสต์ใน {new Set(d.posts.map((p) => p.row.platform)).size} แพลตฟอร์ม · จับคู่จากชื่อคลิป
+            (รายการเดียวกัน โพสต์ห่างกันไม่เกิน 3 วัน) ถ้าตั้งชื่อต่างกันจะไม่ถูกนับรวม
+          </p>
+        )}
+
+        <div className="kpi-grid clip-detail-kpis">
+          <Kpi tone="blue" icon={<Eye />} label="ยอดวิวรวม" value={compact(d.totalViews)} detail={d.posts.length > 1 ? `รวม ${d.posts.length} โพสต์ · ยอดสะสมล่าสุด` : "ยอดสะสมล่าสุด"} />
+          <Kpi tone="green" icon={<TrendingUp />} label="วิวที่เพิ่มในช่วงนี้" value={compact(d.gained)} detail={`${thDate(firstDay)} – ${thDate(rangeDays.at(-1) || "")} · ${d.daysWithData} วันที่มีข้อมูล`} />
+          <Kpi tone="violet" icon={<Heart />} label="Engagement" value={compact(d.likes + d.comments + d.shares)} detail={`ER ${(d.er * 100).toFixed(2)}% · เพิ่มในช่วงนี้ ${compact(d.gainedEngagement)}`} />
+          <Kpi
+            tone="indigo"
+            icon={<MessageCircle />}
+            label="Comment"
+            value={compact(d.comments)}
+            detail={`Like ${compact(d.likes)} · Share ${compact(d.shares)}${d.totalViews ? ` · ${((d.comments / d.totalViews) * 1000).toFixed(2)} comment ต่อ 1,000 วิว` : ""}`}
+          />
+        </div>
+
+        <section className="clip-detail-box">
+          <h3>แยกตามแพลตฟอร์ม</h3>
+          <div className="table-scroll">
+            <table className="clip-detail-table">
+              <thead>
+                <tr>
+                  <th>แพลตฟอร์ม</th>
+                  <th>โพสต์</th>
+                  <th className="num">วิวสะสม</th>
+                  <th className="num">สัดส่วน</th>
+                  <th className="num">เพิ่มในช่วงนี้</th>
+                  <th className="num">ER</th>
+                  {hasWatch && <th className="num" title="เวลาดูเฉลี่ย ÷ ความยาวคลิป">ดูเฉลี่ย</th>}
+                  <th className="num">เทียบค่าปกติ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.posts.map((p) => (
+                  <tr key={p.key || p.row.url}>
+                    <td>
+                      <span className="clip-dot" style={{ background: colorOf(p.row.platform) }} />
+                      <a href={p.row.url || undefined} target="_blank" rel="noreferrer">
+                        {p.row.platform} <ExternalLink size={11} />
+                      </a>
+                      <small>{p.row.vdoType}</small>
+                    </td>
+                    <td>
+                      {thDate(p.row.date)}
+                      <small>{p.row.publishTime ? `${p.row.publishTime} น.` : "ไม่มีเวลา"}</small>
+                    </td>
+                    <td className="num strong">{num(p.row.views)}</td>
+                    <td className="num">
+                      {d.totalViews ? `${Math.round((p.row.views / d.totalViews) * 100)}%` : "-"}
+                      <span className="clip-share">
+                        <i style={{ width: `${d.totalViews ? (p.row.views / d.totalViews) * 100 : 0}%`, background: colorOf(p.row.platform) }} />
+                      </span>
+                    </td>
+                    <td className="num">{num(p.gained)}</td>
+                    <td className="num">{p.row.views > 0 ? `${((p.row.engagement / p.row.views) * 100).toFixed(1)}%` : "-"}</td>
+                    {hasWatch && <td className="num">{watchShare(p.row) === null ? "-" : `${Math.round(watchShare(p.row)! * 100)}%`}</td>}
+                    <td className={`num ${p.index === null ? "" : p.index >= 1 ? "up" : "down"}`}>{p.index === null ? "-" : times(p.index)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="audience-note">
+            เทียบค่าปกติ = วิว ÷ ค่ากลางวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อนโพสต์{hasWatch && " · ดูเฉลี่ย = เวลาดูเฉลี่ย ÷ ความยาวคลิป (เฉพาะแพลตฟอร์มที่ API ให้ข้อมูล)"}
+          </p>
+        </section>
+
+        <section className="clip-detail-box">
+          <h3>วิวที่เพิ่มแต่ละวัน แยกตามแพลตฟอร์ม</h3>
+          {d.daysWithData ? (
+            <div className="chart-md">
+              <ResponsiveContainer>
+                <ComposedChart data={d.daily}>
+                  <CartesianGrid vertical={false} stroke="#e8edf5" />
+                  <XAxis dataKey="date" tickFormatter={dateLabel} tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="v" tickFormatter={compact} tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="c" orientation="right" tickFormatter={compact} tick={{ fontSize: 11 }} />
+                  <Tooltip labelFormatter={(v) => thDate(String(v), { weekday: "short", day: "numeric", month: "short" })} formatter={(v, name) => [num(Number(v)), String(name)]} />
+                  <Legend />
+                  {d.platforms.map((p) => (
+                    <Bar key={p} yAxisId="v" dataKey={p} stackId="v" fill={colorOf(p)} />
+                  ))}
+                  <Line yAxisId="c" type="monotone" dataKey="cumulative" name="เพิ่มสะสมในช่วงนี้" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  {d.firstPosted >= firstDay && <ReferenceLine yAxisId="v" x={d.firstPosted} stroke="#64748b" strokeDasharray="4 3" label={{ value: "โพสต์", fontSize: 11, position: "insideTopLeft" }} />}
+                  {d.peak && <ReferenceLine yAxisId="v" x={d.peak.date} stroke="#16a34a" strokeDasharray="4 3" label={{ value: "พีค", fontSize: 11, position: "insideTopRight" }} />}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="growth-notice">ไม่มีข้อมูลรายวันของคลิปนี้ในช่วงที่เลือก</p>
+          )}
+          <p className="audience-note">ข้อมูลรายวันมีเฉพาะโพสต์ที่ดึงผ่าน API และวันที่ระบบเก็บข้อมูลแล้ว ไม่รวมแถวที่ทีมกรอกเอง</p>
+        </section>
+
+        <section className="clip-detail-box">
+          <h3>
+            <Clock size={15} /> ช่วงเวลาที่โพสต์
+          </h3>
+          <ul className="clip-detail-hours">
+            {d.posts.map((p) => (
+              <li key={`h-${p.key || p.row.url}`}>
+                <b style={{ color: colorOf(p.row.platform) }}>{p.row.platform}</b> <small>{p.row.vdoType}</small>
+                <span>{hourText(p)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="audience-note">ค่ากลาง = วิวต่อคลิปของแพลตฟอร์มและรูปแบบเดียวกันที่โพสต์ในชั่วโมงนั้น ช่วง 90 วันก่อนโพสต์ (ต้องมีอย่างน้อย 3 คลิป)</p>
+        </section>
+
+        {facts.length > 0 && (
+          <section className="clip-detail-box">
+            <h3>
+              <Share2 size={15} /> สรุปจากตัวเลข
+            </h3>
+            <ul className="clip-detail-facts">
+              {[...new Set(facts)].map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+            <p className="audience-note">คิดจากกฎตายตัว ไม่ใช่ AI · เป็นความสัมพันธ์ของตัวเลข ไม่ได้บอกสาเหตุ</p>
+          </section>
+        )}
+      </aside>
+    </div>,
+    document.body,
+  );
+}

@@ -92,18 +92,280 @@
   max-width: 460px;
 }
 
-.growth-clip a {
+/* Clip title opens the clip analysis; the small icon opens the clip itself. */
+.growth-clip-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.clip-open {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: #172139;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clip-open:hover,
+.clip-open:focus-visible {
+  color: #0757e8;
+  text-decoration: underline;
+}
+
+.growth-clip-title a {
+  flex: none;
+  margin-top: 3px;
+  color: #94a3b8;
+}
+
+.growth-clip-title a:hover {
+  color: #0757e8;
+}
+
+.growth-hint {
+  margin: -4px 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* Clip analysis panel (ClipDetailPanel): right side on desktop, full screen on phones. */
+.clip-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  justify-content: flex-end;
+  background: #0f172a66;
+}
+
+.clip-detail {
+  box-sizing: border-box;
+  width: min(860px, 100%);
+  max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 22px 32px;
+  background: #f6f8fc;
+  box-shadow: -12px 0 32px #0f2a5c2e;
+  animation: clip-detail-in 0.2s ease-out;
+}
+
+@keyframes clip-detail-in {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+.clip-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.clip-detail-cover {
+  flex: none;
+  width: 200px;
+}
+
+.clip-detail-cover img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.clip-detail-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.clip-detail-head small {
+  color: #0757e8;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.clip-detail-head h2 {
+  margin: 2px 0 4px;
+  font-size: 18px;
+  line-height: 1.4;
+  color: #172139;
+}
+
+.clip-detail-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.clip-detail-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dbe5f3;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.clip-detail .clip-detail-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.clip-detail-box {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e3eaf5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.clip-detail-box h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.clip-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.clip-detail-table th,
+.clip-detail-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #eef2f8;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.clip-detail-table th {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.clip-detail-table .num {
+  text-align: right;
+}
+
+.clip-detail-table .strong {
+  font-weight: 800;
+}
+
+.clip-detail-table .up {
+  color: #16a34a;
+  font-weight: 800;
+}
+
+.clip-detail-table .down {
+  color: #ea580c;
+  font-weight: 800;
+}
+
+.clip-detail-table small {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.clip-detail-table a {
   color: #172139;
   font-weight: 700;
   text-decoration: none;
 }
 
-.growth-clip a:hover {
-  color: #0757e8;
+.clip-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.clip-share {
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: #eef2f8;
+}
+
+.clip-share i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.clip-detail-hours,
+.clip-detail-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.clip-detail-hours li span {
+  display: block;
+  color: #475569;
+}
+
+.clip-detail-hours small {
+  color: #94a3b8;
+}
+
+.clip-detail-facts li {
+  padding-left: 14px;
+  position: relative;
+  color: #334155;
+}
+
+.clip-detail-facts li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0757e8;
+}
+
+@media (max-width: 640px) {
+  .clip-detail {
+    padding: 16px 16px 28px;
+  }
+  .clip-detail-head {
+    flex-wrap: wrap;
+  }
+  .clip-detail-cover {
+    order: 2;
+    width: 100%;
+  }
+  .clip-detail .clip-detail-kpis {
+    grid-template-columns: 1fr;
+  }
 }
 
 .growth-clip small {
