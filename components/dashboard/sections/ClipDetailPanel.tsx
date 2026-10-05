@@ -23,6 +23,8 @@ import { track } from "@/lib/loadingBar";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
+const thClock = (ms: number) =>
+  new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
 const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const times = (x: number) => (x >= 1 ? `${x.toFixed(1)}×` : `${Math.round(x * 100)}%`);
 const colorOf = (p: string) => PLATFORM_COLORS[p] || "#64748b";
@@ -80,6 +82,15 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
   const loadingDays = !days && !ownDays;
 
   const d = useMemo(() => clipDetail(clip, allRows, growthDays, range), [clip, allRows, growthDays, range]);
+  // A chart day = gains between the previous day's last sync and this day's last sync (the next morning).
+  const syncAt = useMemo(() => (loadingDays ? new Map<string, number>() : growthSyncTimes()), [loadingDays, growthDays]);
+  const dayLabel = (day: string) => {
+    const date = thDate(day, { weekday: "short", day: "numeric", month: "short" });
+    const end = syncAt.get(day);
+    if (!end) return date;
+    const start = syncAt.get(addDays(day, -1));
+    return `${date} · นับ${start ? `จาก ${thClock(start)} ` : ""}ถึง ${thClock(end)} น.`;
+  };
   const share = useMemo(() => gainedByPlatform(d), [d]);
   // Start speed of each post first seen in the loaded days (peers: same programme, platform, format).
   const starts = useMemo(() => {
@@ -177,6 +188,9 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
             detail={`Like ${compact(d.likes)} · Share ${compact(d.shares)}${d.totalViews ? ` · ${((d.comments / d.totalViews) * 1000).toFixed(2)} comment ต่อ 1,000 วิว` : ""}`}
           />
         </div>
+        <p className="audience-note clip-detail-kpi-note">
+          ยอดวิวรวม = ยอดสะสมตั้งแต่โพสต์ถึง sync ล่าสุด · วิวที่เพิ่มในช่วงนี้ = ผลรวมของกราฟรายวันในช่วงที่เลือก จึงน้อยกว่ายอดวิวรวม · ER = (Like + Comment + Share) ÷ วิว
+        </p>
 
         <section className="clip-detail-box">
           <h3>แยกตามแพลตฟอร์ม</h3>
@@ -225,7 +239,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
             </table>
           </div>
           <p className="audience-note">
-            เทียบค่าปกติ = วิว ÷ ค่ากลางวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อนโพสต์{hasWatch && " · ดูเฉลี่ย = เวลาดูเฉลี่ย ÷ ความยาวคลิป (เฉพาะแพลตฟอร์มที่ API ให้ข้อมูล)"}
+            สัดส่วน = วิวของโพสต์นั้น ÷ ยอดวิวรวมทุกแพลตฟอร์ม · เพิ่มในช่วงนี้ = วิวที่เพิ่มในช่วงที่เลือก (จากข้อมูลรายวัน) · เทียบค่าปกติ = วิว ÷ ค่ากลางวิวของคลิปแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อนโพสต์{hasWatch && " · ดูเฉลี่ย = เวลาดูเฉลี่ย ÷ ความยาวคลิป (เฉพาะแพลตฟอร์มที่ API ให้ข้อมูล)"}
           </p>
         </section>
 
@@ -241,7 +255,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
                   <XAxis dataKey="date" tickFormatter={dateLabel} tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="v" tickFormatter={compact} tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="c" orientation="right" tickFormatter={compact} tick={{ fontSize: 11 }} />
-                  <Tooltip labelFormatter={(v) => thDate(String(v), { weekday: "short", day: "numeric", month: "short" })} formatter={(v, name) => [num(Number(v)), String(name)]} />
+                  <Tooltip labelFormatter={(v) => dayLabel(String(v))} formatter={(v, name) => [num(Number(v)), String(name)]} />
                   <Legend />
                   {d.platforms.map((p) => (
                     <Bar key={p} yAxisId="v" dataKey={p} stackId="v" fill={colorOf(p)} />
@@ -255,7 +269,11 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
           ) : (
             <p className="growth-notice">ไม่มีข้อมูลรายวันของคลิปนี้ในช่วงที่เลือก</p>
           )}
-          <p className="audience-note">ข้อมูลรายวันมีเฉพาะโพสต์ที่ดึงผ่าน API และวันที่ระบบเก็บข้อมูลแล้ว ไม่รวมแถวที่ทีมกรอกเอง</p>
+          <p className="audience-note">
+            วันที่ = วันที่มีคนดู · ระบบ sync ทุกเช้า (ราว 8 โมง) แล้วนับวิวที่เพิ่มจากรอบก่อนเป็นของวันก่อนหน้า จึงเป็นช่วง 8 โมงถึง 8 โมงเช้าวันถัดไป (ชี้ที่กราฟเพื่อดูเวลาจริง) · ยอดล่าสุดคือเมื่อวาน
+            · เส้นส้ม = วิวที่เพิ่มรวมกันตั้งแต่วันแรกของช่วง (แกนขวา) · เส้นประ "โพสต์" = วันที่โพสต์ · "พีค" = วันที่วิวเพิ่มมากที่สุด
+            · ข้อมูลรายวันมีเฉพาะโพสต์ที่ดึงผ่าน API และวันที่ระบบเก็บข้อมูลแล้ว ไม่รวมแถวที่ทีมกรอกเอง
+          </p>
         </section>
 
         <section className="clip-detail-box">

@@ -1582,3 +1582,7 @@
 .growth-chart-head h3 {
   margin: 0;
 }
+
+.clip-detail .clip-detail-kpi-note {
+  margin: -4px 0 12px;
+}
