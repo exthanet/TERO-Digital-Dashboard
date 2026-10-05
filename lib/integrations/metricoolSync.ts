@@ -164,6 +164,16 @@ export { postId, rowKey } from "../dashboard/postKey.ts";
 // ---------- program / format detection ----------
 
 /** Program from post text. More specific names are checked first. */
+/**
+ * The account's own programme, unless the title names another known one
+ * (a เงินทองของจริง clip posted on the ถกไม่เถียง page belongs to เงินทองของจริง).
+ */
+export function programFor(brand: BrandConfig, title: string, detected: string): string {
+  if (brand.mode !== "single" || !brand.program) return detected;
+  const named = detectProgram(title);
+  return named !== "ไม่ระบุ" && named !== brand.program ? named : brand.program;
+}
+
 export function detectProgram(text: string): string {
   const t = text.toLowerCase();
   if (t.includes("เงินทองของจริง")) return "เงินทองของจริง";
@@ -323,7 +333,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     network === "youtube"
       ? [detectProgram(String(post.title ?? "")), detectProgram(text)].find((p) => p !== "ไม่ระบุ") || "ไม่ระบุ"
       : detectProgram(text);
-  const program = brand.mode === "single" && brand.program ? brand.program : detected;
+  const program = programFor(brand, network === "youtube" ? String(post.title ?? "") : text, detected);
   const topic = firstLine(network === "youtube" ? String(post.title ?? "") : text, `${platform} ${t.iso} ${t.time}`);
 
   return {

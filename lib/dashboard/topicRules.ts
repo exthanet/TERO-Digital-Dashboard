@@ -7,15 +7,22 @@
 // politics, no trailing spaces, the system's category names, foreign and Branded
 // words from the previous rules, plus names and words common in titles the
 // formula left unknown.
+// 2026-10-05 review: the เงินทองของจริง programme is always finance (unless
+// Branded); broad words (วิกฤต, กฎหมาย, กระทรวง, ประเทศไทย, ผู้นำ, ยุติธรรม,
+// บ้านเมือง) no longer decide politics; amulets are "ข่าวพระเครื่อง".
 //
 // Pure, no imports: the sync and Node scripts use it directly.
 
 export const UNKNOWN_TOPIC = "ไม่ระบุ";
 export const PROMO_TOPIC = "โปรโมทรายการ";
+export const FINANCE_TOPIC = "การเงิน / ธุรกิจ";
+export const BRANDED_TOPIC = "งานลูกค้า / งานขอ / Branded Content";
+/** Programmes whose every clip has one Topic Type (Branded work aside). */
+export const PROGRAM_TOPICS: Record<string, string> = { "เงินทองของจริง": FINANCE_TOPIC };
 
 export const TOPIC_RULES: [topic: string, words: string][] = [
   ["งานลูกค้า / งานขอ / Branded Content", "ลูกค้า|โฆษณา|สปอนเซอร์|branded|promotion|โปรโมชัน"],
-  ["พระเครื่อง", "มาดามเก่ง|เซียนพระ|โทนบางแค|พระเครื่อง|วัตถุมงคล|เกจิ"],
+  ["ข่าวพระเครื่อง", "มาดามเก่ง|เซียนพระ|โทนบางแค|พระเครื่อง|วัตถุมงคล|เกจิ"],
   ["ประวัติศาสตร์", "พระนเรศ|กำไรของแผ่นดิน|คำสอนของพ่อ|มรดกทรงคุณค่า|ประวัติศาสตร์"],
   ["ข่าวชาวบ้าน", "กู้ภัย|สายเชีย"],
   ["ข่าวไทย–กัมพูชา", "ฮุน ?เซน|Hun Sen|กัมพูชา|เขมร|ทหาร|Cambodia|กองทัพ"],
@@ -27,14 +34,14 @@ export const TOPIC_RULES: [topic: string, words: string][] = [
   ["ข่าวบุคคล / การเมืองท้องถิ่น", "ผู้ว่า\\s*กทม|บิ๊กโจ๊ก|การเมืองท้องถิ่น"],
   [
     "ข่าวการเมือง",
-    "รัฐบาล|การเมือง|นายก|สภา|ส\\.ส\\.|สส\\.|ส\\.ว\\.|สว\\.|สว สีน้ำเงิน|สวสีน้ำเงิน|กกต|พรรค|ฮั้ว|รัฐประหาร|อภิปราย|เพื่อไทย|ภูมิใจไทย|ประกันสังคม|กระทรวง|ประชาธิปไตย|ชัชชาติ|ซุปเปอร์จี|สุริยะ|เอกสารลับ|บกลายจุด|มัลลิกา|ศุภจี|กฎหมาย|แลนด์บริด|government|economic|กสทช|ฝ่ายค้าน|เทพไท|สนธิ|ยึดเมือง|รธน|วิกฤต|เลือกตั้ง|รัฐมนตรี|อนุทิน",
+    "รัฐบาล|การเมือง|นายก|สภา|ส\\.ส\\.|สส\\.|ส\\.ว\\.|สว\\.|สว สีน้ำเงิน|สวสีน้ำเงิน|กกต|พรรค|ฮั้ว|รัฐประหาร|อภิปราย|เพื่อไทย|ภูมิใจไทย|ประกันสังคม|ประชาธิปไตย|ชัชชาติ|ซุปเปอร์จี|สุริยะ|เอกสารลับ|บกลายจุด|มัลลิกา|ศุภจี|แลนด์บริด|government|economic|กสทช|ฝ่ายค้าน|เทพไท|สนธิ|ยึดเมือง|รธน|เลือกตั้ง|รัฐมนตรี|อนุทิน",
   ],
   ["การเงิน / ธุรกิจ", "เงินทองของจริง|การเงิน|หุ้น|กองทุน|ภาษี|ค่าใช้จ่าย|ดอกเบี้ย|VAT|ร้านอาหาร|ธุรกิจ"],
   ["ข่าวกระแส / Viral", "ดราม่า|ไวรัล|viral|กระแส|ชาวเน็ต|ทัวร์ลง|โซเชียล|แอร์โฮสเตส|ถกใจคนค้น|นักแสดง|netflix|เอเจนซีคนจีน|นักมวย|เกาเหลา|พ่อเลี้ยงเดี่ยว"],
   // Names and words common in titles the rules above leave unknown.
   [
     "ข่าวการเมือง",
-    "วิโรจน์|เท้ง|ณัฐพงษ์|ธรรมนัส|ทักษิณ|แพทองธาร|อุ๊งอิ๊ง|พิธา|ประยุทธ์|ประวิตร|สุชาติ ชมกลิ่น|วราวุธ|บรรหาร|เสรีพิศุทธ์|รักชนก|พริษฐ์|ไอติม|จตุพร|สาทิตย์|อนุดิษฐ์|ศิโรตม์|ซื้อเสียง|บัตรเสีย|บัตรดี|กาบัตร|ไอโอ|สีน้ำเงิน|ค่ายส้ม|พรรคส้ม|ส้มปูด|เสื้อแดง|ประชาชนสีอะไร|ผู้นำ|ยุติธรรม|ประเทศไทย|บ้านเมือง",
+    "วิโรจน์|เท้ง|ณัฐพงษ์|ธรรมนัส|ทักษิณ|แพทองธาร|อุ๊งอิ๊ง|พิธา|ประยุทธ์|ประวิตร|สุชาติ ชมกลิ่น|วราวุธ|บรรหาร|เสรีพิศุทธ์|รักชนก|พริษฐ์|ไอติม|จตุพร|สาทิตย์|อนุดิษฐ์|ศิโรตม์|ซื้อเสียง|บัตรเสีย|บัตรดี|กาบัตร|ไอโอ|สีน้ำเงิน|ค่ายส้ม|พรรคส้ม|ส้มปูด|เสื้อแดง|ประชาชนสีอะไร",
   ],
   ["ข่าวกระแส / Viral", "ทราย สก๊อต|ทราย สมุทร|ทราย สก็อต|ภิรมย์ภักดี|เอเจนซี|เอเจนซี่|อินฟลูเอนเซอร์|อินฟลูฯ|ครีเอเตอร์|ดารา|นักร้อง|ลาจอ|หมาแก่|ดรามา|แบน|boycott|บอยคอต|ทิน โชคกมลกิจ|ไวรัล"],
   ["การเงิน / ธุรกิจ", "PT-พันธุ์ไทย|ปั๊ม PT|แฟรนไชส์|ค่าครองชีพ|เศรษฐกิจ"],
@@ -53,9 +60,11 @@ export function matchTopic(text: string): { topic: string; word: string } | null
 
 /**
  * Topic Type for a new post: from its title first, then the rest of its text;
- * programme "PROMO" is a channel promo.
+ * programme "PROMO" is a channel promo; programmes in PROGRAM_TOPICS have theirs.
  */
 export function classifyTopic(title: string, text = "", program = ""): string {
   if (program.trim().toUpperCase() === "PROMO") return PROMO_TOPIC;
+  const fixed = PROGRAM_TOPICS[program.trim()];
+  if (fixed) return [title, text].some((t) => t && matchTopic(t)?.topic === BRANDED_TOPIC) ? BRANDED_TOPIC : fixed;
   return (matchTopic(title) || (text && text !== title ? matchTopic(text) : null))?.topic || UNKNOWN_TOPIC;
 }

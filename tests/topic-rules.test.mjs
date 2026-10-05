@@ -23,3 +23,20 @@ test("title first, then the rest of the text; PROMO is a channel promo", () => {
   assert.equal(classifyTopic("อะไรก็ได้", "", "PROMO"), "โปรโมทรายการ");
   assert.equal(inferTopicType("รายละเอียด #การเมือง", "วิโรจน์ลั่น ! บ้านเมืองดีขึ้นหรือยัง"), "ข่าวการเมือง");
 });
+
+test("เงินทองของจริง is always finance unless Branded; broad words no longer decide politics", () => {
+  assert.equal(classifyTopic("SME ไทย รับมือยังไงเมื่อเจอวิกฤต ?", "", "เงินทองของจริง"), "การเงิน / ธุรกิจ");
+  assert.equal(classifyTopic("บริการสภาฯ กดปุ่มเดียว", "", "เงินทองของจริง"), "การเงิน / ธุรกิจ");
+  assert.equal(classifyTopic("สปอนเซอร์พิเศษ", "", "เงินทองของจริง"), "งานลูกค้า / งานขอ / Branded Content");
+  assert.equal(classifyTopic("มีปืนเยอะผิดไหม? กฎหมายว่าอย่างไร"), "ไม่ระบุ");
+  assert.equal(classifyTopic("มาทำตามความฝันที่ประเทศไทย"), "ไม่ระบุ");
+  assert.equal(classifyTopic("ซื้อพระเครื่องที่ไหนดี"), "ข่าวพระเครื่อง");
+});
+
+test("a single-programme account keeps its programme unless the title names another one", async () => {
+  const { programFor } = await import("../lib/integrations/metricoolSync.ts");
+  const tk = { mode: "single", program: "ถกไม่เถียง" };
+  assert.equal(programFor(tk, "[Highlight] | เงินทองของจริง EP.159", "ไม่ระบุ"), "เงินทองของจริง");
+  assert.equal(programFor(tk, "ข่าวการเมืองวันนี้", "ไม่ระบุ"), "ถกไม่เถียง");
+  assert.equal(programFor({ mode: "multi" }, "อะไรก็ได้", "Kidsfun"), "Kidsfun");
+});

@@ -8,7 +8,7 @@
 // Quota: 10,000 units/day free. playlistItems.list and videos.list cost 1 unit
 // per call of up to 50 items, so ~5,000 videos ≈ 200 units.
 import { formatPercent, formatWhole, inferTopicType, firstLine } from "./metricool.ts";
-import { bangkokParts, detectProgram, type BrandConfig, type MappedRow } from "./metricoolSync.ts";
+import { bangkokParts, detectProgram, programFor, type BrandConfig, type MappedRow } from "./metricoolSync.ts";
 
 const API = "https://www.googleapis.com/youtube/v3";
 
@@ -126,7 +126,7 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
   const text = `${v.title}\n${v.description}`;
   // The title decides first: descriptions often plug other shows.
   const detected = [detectProgram(v.title), detectProgram(text)].find((p) => p !== "ไม่ระบุ") || "ไม่ระบุ";
-  const program = brand.mode === "single" && brand.program ? brand.program : detected;
+  const program = programFor(brand, v.title, detected);
   const engagement = v.likes + v.comments;
   return {
     Date: t.iso, // masterData stores plain "YYYY-MM-DD" days
