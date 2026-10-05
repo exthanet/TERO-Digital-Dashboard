@@ -40,6 +40,8 @@ import {
   rowKey,
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
+import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
+import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
@@ -147,6 +149,8 @@ const tvStatus = [];
 const integrations = {};
 // YouTube Deep Dive data collected with the enrichment, written after masterData (write mode).
 let ytDeepDive = null;
+// รายได้ → Monthly ACC: this month and the one before, per CMS channel, written after masterData.
+const accMonths = [];
 
 async function main() {
 const api = new MetricoolApi({
@@ -428,6 +432,35 @@ console.log(`  dashboard load: ${validation.stats.dashboardLoadMB.before} → ${
 const tvRun = await tvStep(result.merged);
 const finalRows = tvRun.result ? tvRun.result.rows : result.merged;
 const tvChecks = tvRun.result ? validateTv(result.merged, tvRun.result, tvRun.episodes) : [];
+
+// ---------- Monthly ACC (รายได้) ----------
+// Through the same CMS account; shows inside a channel are found by masterData's
+// Program, then by title for older clips. A problem is reported, never fails the run.
+if (ytCms) {
+  const startedAt = Date.now();
+  const thisMonth = today.slice(0, 7);
+  const prev = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5)) - 2, 1)).toISOString().slice(0, 7);
+  try {
+    const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
+    const programs = [...new Set(ACC_CHANNELS.filter((c) => c.program).map((c) => c.program))];
+    const programOf = new Map();
+    for (const r of finalRows) {
+      if (r.Platform !== "YouTube") continue;
+      const id = postId("YouTube", r.URL) || postId("YouTube", r.Content_ID);
+      if (id) programOf.set(id, r.Program || "");
+    }
+    const programVideos = {};
+    for (const channel of [...new Set(ACC_CHANNELS.filter((c) => c.program).map((c) => c.id))]) {
+      Object.assign(programVideos, programVideoIds(await channelUploads(token, channel), programOf, programs));
+    }
+    for (const m of [prev, thisMonth]) accMonths.push(await collectAccMonth(token, ytCms.ownerId, m, today, programVideos));
+    console.log(`Monthly ACC: ${accMonths.map((m) => `${m.month} (through ${m.through})`).join(", ")} · ${Object.entries(programVideos).map(([p, ids]) => `${p} ${ids.length} clips`).join(", ")} in ${Math.round((Date.now() - startedAt) / 1000)}s`);
+  } catch (e) {
+    accMonths.length = 0;
+    console.log(`Monthly ACC not collected: ${e.message}`);
+    integrations["Monthly ACC"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem(e.message) };
+  }
+}
 for (const c of tvChecks) {
   console.log(`  ${c.pass ? "✔" : "✖"} ${c.name} — ${c.detail}`);
   for (const w of c.warnings || []) console.log(`      · ${w}`);
@@ -503,6 +536,18 @@ try {
       console.error(`youtube deep dive not written: ${e.message}`);
       const yta = integrations["YouTube Analytics"];
       if (yta) Object.assign(yta, { ok: false, error: analyticsProblem(`deep dive not written: ${e.message}`) });
+    }
+  }
+  // Monthly ACC (admins only); never fails the run.
+  for (const m of accMonths) {
+    try {
+      await writeAccMonth(fsdb, m);
+      console.log(`monthly acc: accMonthly/${m.month} ${m.rows.length} channels`);
+      integrations["Monthly ACC"] = { ok: true, detail: `อัปเดต ${accMonths.map((x) => x.month).join(", ")}` };
+    } catch (e) {
+      console.error(`monthly acc not written: ${e.message}`);
+      integrations["Monthly ACC"] = { ok: false, detail: "ไม่ได้บันทึก", error: analyticsProblem(`monthly acc not written: ${e.message}`) };
+      break;
     }
   }
   if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);

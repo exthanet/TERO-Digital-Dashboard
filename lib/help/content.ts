@@ -163,6 +163,18 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
+    id: "monthly-acc",
+    title: "Monthly ACC (รายได้)",
+    admin: true,
+    lead: "ยอดวิวและรายได้รายเดือนของแต่ละช่อง YouTube ใน CMS ตามคอลัมน์ของรายงาน Channel summary",
+    points: [
+      "ดึงจาก YouTube Analytics API ทุกวันพร้อม sync: เดือนนี้ (ถึงวันล่าสุดที่มีข้อมูล) และเดือนก่อน เพราะ YouTube ปรับรายได้ย้อนหลังได้ราว 2 สัปดาห์",
+      "Owned Views = วิวของวิดีโอในช่อง · Watch Page / Embedded Player / Channel Page = แหล่งที่เล่น (ที่เหลือมาจากหน้า Shorts หน้าแรก ฯลฯ) · Live / On Demand รวมกันเท่ากับ Owned Views",
+      "รายได้เป็นยอดประมาณการ (USD) จาก YouTube อาจต่างจากไฟล์ Channel summary ของ CMS เล็กน้อย · THB ใช้อัตราของเดือนนั้นจากไฟล์รายได้",
+      "Ad-Enabled views ไม่มีใน API จึงเว้นว่าง · ปุ่ม Export Excel ได้ไฟล์ตามเดือนและสกุลเงินที่เลือก",
+    ],
+  },
+  {
     id: "revenue",
     title: "รายได้: YouTube Revenue และ Affiliate",
     lead: "รายงานรายได้จากไฟล์ที่ admin นำเข้า",

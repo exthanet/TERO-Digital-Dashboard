@@ -23,6 +23,7 @@ import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
 import { YouTubeDeepDiveSection } from "@/components/dashboard/sections/YouTubeDeepDiveSection";
+import { AccMonthlyReport } from "@/components/dashboard/AccMonthlyReport";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
 import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
@@ -48,7 +49,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "advice" | "help">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -371,6 +372,12 @@ export default function Dashboard() {
         {activeTab === "revenue" && (
           <div style={{ marginTop: 8 }}>
             <RevenueReport currentUser={auth.user} />
+          </div>
+        )}
+
+        {activeTab === "acc" && isAdmin && (
+          <div style={{ marginTop: 8 }}>
+            <AccMonthlyReport />
           </div>
         )}
 

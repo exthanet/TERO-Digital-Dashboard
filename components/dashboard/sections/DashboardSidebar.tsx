@@ -32,7 +32,7 @@ import {
   X, MonitorPlay } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 
-type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "advice" | "help";
+type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -49,7 +49,7 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
   onLogout?: () => void;
 }
 
-type NavItem = { id: string; label: string; icon: ReactNode; tab?: Tab };
+type NavItem = { id: string; label: string; icon: ReactNode; tab?: Tab; adminOnly?: boolean };
 
 const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean }[] = [
   {
@@ -85,6 +85,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     items: [
       { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
       { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
+      { id: "acc", label: "Monthly ACC", icon: <FileSpreadsheet />, tab: "acc", adminOnly: true },
     ],
   },
   {
@@ -251,7 +252,7 @@ export function DashboardSidebar({
               </button>
               {!collapsed[g.id] && (
                 <nav>
-                  {g.items.map((item) => (
+                  {g.items.filter((item) => !item.adminOnly || isAdmin).map((item) => (
                     <a
                       key={item.id}
                       href={item.tab ? undefined : `#${item.id}`}

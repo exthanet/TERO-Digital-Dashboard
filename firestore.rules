@@ -73,6 +73,11 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false;
     }
+    // รายได้ → Monthly ACC (channel views and revenue per month) from the sync: admins read, nobody writes from a browser.
+    match /accMonthly/{doc} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
     match /syncSecrets/{doc} {
       allow read, write: if false;
     }

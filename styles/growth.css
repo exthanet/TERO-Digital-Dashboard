@@ -1439,3 +1439,132 @@
     grid-template-columns: 110px 1fr 46px;
   }
 }
+
+/* รายได้ → Monthly ACC (AccMonthlyReport). */
+.acc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.acc-toolbar .yt-curve-pick {
+  margin: 0;
+}
+
+.acc-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.acc-export:hover {
+  background: #15803d;
+}
+
+.acc-note {
+  margin: 4px 0 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.acc-id {
+  display: block;
+  color: #94a3b8;
+  font-size: 10.5px;
+}
+
+.acc-monthly .acc-total td {
+  border-top: 2px solid #cbd5e1;
+  font-weight: 800;
+}
+
+.acc-monthly td.muted {
+  color: #cbd5e1;
+}
+
+.acc-monthly .acc-program td:first-child {
+  padding-left: 22px;
+}
+
+.acc-monthly .acc-missing td:first-child {
+  color: #94a3b8;
+}
+
+.acc-export-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.acc-export:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.acc-export-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  width: 260px;
+  padding: 12px;
+  border: 1px solid #e3eaf5;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 28px #16305b26;
+  font-size: 13px;
+}
+
+.acc-export-panel ul {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.acc-export-panel label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.acc-export-panel label.off {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.acc-export-panel small {
+  color: #94a3b8;
+}
+
+.acc-export-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.acc-export-actions button {
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
