@@ -35,6 +35,7 @@ export const DASHBOARD_COLUMNS = [
   "Revenue", "Estimated revenue (THB)",
   "Avg_Watch_Sec", "Video_Length_Sec", "Skip_Rate",
   "Publish_Time",
+  "Hashtags",
   "Clicks", "Link_Clicks", "Impressions",
 ] as const;
 

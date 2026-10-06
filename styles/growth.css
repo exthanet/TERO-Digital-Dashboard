@@ -1735,3 +1735,33 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Platform report: hashtags. */
+.platform-tags {
+  margin-bottom: 12px;
+}
+
+.platform-tag-row {
+  cursor: pointer;
+}
+
+.platform-tag-row:hover td {
+  background: #f8fafc;
+}
+
+.platform-tag-clips td {
+  background: #f8fafc;
+  white-space: normal !important;
+}
+
+.platform-tag-clips ol {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.platform-tag-clips small {
+  margin-left: 6px;
+  color: #64748b;
+}

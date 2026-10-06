@@ -32,6 +32,8 @@ export type RecordRow = {
   revenue: number;
   /** Bangkok time of posting, "HH:MM" ("" when unknown, e.g. rows the team typed in). */
   publishTime: string;
+  /** "#a #b" from the title / caption (YouTube: and description); "" when none or not filled yet. */
+  hashtags: string;
   /** Average watch time per view, seconds, from the API (0 = not reported). */
   avgWatchSec: number;
   /** Video length from the same API, seconds (0 = not reported). */

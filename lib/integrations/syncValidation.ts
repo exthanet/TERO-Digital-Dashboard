@@ -2,7 +2,7 @@
 // Any failed check blocks the write; warnings are listed for a person to read.
 import { excelDate, isPlainDay, normalizeRowsWithDeduplication } from "../dashboard/normalize.ts";
 import { parseNumber } from "./metricool.ts";
-import { METRIC_COLUMNS, rowKey, type MergeResult } from "./metricoolSync.ts";
+import { FILL_COLUMNS, METRIC_COLUMNS, canFill, rowKey, type MergeResult } from "./metricoolSync.ts";
 import { RATING_COLUMNS, TV_OWNED, isTvRow, tvChannel, tvKey, type TvEpisode, type TvMergeResult } from "./tvSheet.ts";
 
 export interface Check {
@@ -53,14 +53,17 @@ export function validateMerge(
     lost.slice(0, 10).map((i) => `แถว ${i}: ${identity(baseline[i])}`),
   );
 
-  // 2. Only metric columns may change on existing rows; team and TV columns stay.
+  // 2. Only metric columns may change on existing rows (and FILL_COLUMNS, only
+  // where they were empty); team and TV columns stay.
   const metric = new Set<string>(METRIC_COLUMNS);
+  const fill = new Set<string>(FILL_COLUMNS);
   const changedOther: string[] = [];
   let tvChanged = 0;
   baseline.forEach((before, i) => {
     const after = merged[i];
     for (const col of new Set([...Object.keys(before), ...Object.keys(after)])) {
       if (metric.has(col)) continue;
+      if (fill.has(col) && canFill(col, before[col], after[col])) continue;
       if (JSON.stringify(before[col]) !== JSON.stringify(after[col])) {
         if (changedOther.length < 10) changedOther.push(`แถว ${i} คอลัมน์ ${col}`);
         if (!DIGITAL.has(String(before.Platform))) tvChanged++;
@@ -70,7 +73,7 @@ export function validateMerge(
   add(
     "2. คอลัมน์ที่ทีมกรอกและแถว TV ไม่ถูกแก้",
     changedOther.length === 0,
-    changedOther.length ? `พบการแก้ ${changedOther.length}+ จุด (TV ${tvChanged})` : "เปลี่ยนเฉพาะ Views/Likes/Comments/Shares/Engagement",
+    changedOther.length ? `พบการแก้ ${changedOther.length}+ จุด (TV ${tvChanged})` : "เปลี่ยนเฉพาะ Views/Likes/Comments/Shares/Engagement (และเติม Hashtags / เวลาโพสต์ที่ว่าง)",
     changedOther,
   );
 

@@ -244,7 +244,7 @@ export function useDashboard(enabled = true) {
           (!startDate || r.date >= startDate) &&
           (!endDate || r.date <= endDate) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),
@@ -260,7 +260,7 @@ export function useDashboard(enabled = true) {
           (!startDate || r.date >= startDate) &&
           (!endDate || r.date <= endDate) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),
@@ -277,7 +277,7 @@ export function useDashboard(enabled = true) {
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),
@@ -938,7 +938,7 @@ export function useDashboard(enabled = true) {
           (topicType === "ALL" || r.topicType === topicType) &&
           (!endDate || r.date <= endDate) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),
@@ -955,7 +955,7 @@ export function useDashboard(enabled = true) {
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),
@@ -971,7 +971,7 @@ export function useDashboard(enabled = true) {
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           (!search ||
-            `${r.topic} ${r.program} ${r.channel}`
+            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
               .toLowerCase()
               .includes(search.toLowerCase())),
       ),

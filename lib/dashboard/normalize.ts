@@ -178,6 +178,7 @@ export function normalize(r: RawRow): RecordRow {
     uploadCount: n(pick(r, "Upload_Count")) || 1,
     revenue: n(pick(r, "Revenue", "Estimated revenue (THB)")),
     publishTime: s(pick(r, "Publish_Time")),
+    hashtags: s(pick(r, "Hashtags")),
     avgWatchSec: n(pick(r, "Avg_Watch_Sec")),
     videoLengthSec: n(pick(r, "Video_Length_Sec")),
     skipRate: s(pick(r, "Skip_Rate")) === "" ? null : n(pick(r, "Skip_Rate")),

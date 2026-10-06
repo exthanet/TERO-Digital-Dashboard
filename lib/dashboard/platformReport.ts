@@ -4,6 +4,7 @@
 //
 // Relative imports only: tests run this file directly with Node.
 import type { RecordRow } from "./types.ts";
+import { parseHashtags } from "./hashtags.ts";
 
 export const REPORT_PLATFORMS = ["YouTube", "Facebook", "Instagram", "TikTok", "TV"] as const;
 
@@ -148,4 +149,54 @@ export function bestSlots(map: ReturnType<typeof postingHeatmap>, n = 3): { day:
   const out: { day: number; hour: number; medianViews: number; posts: number }[] = [];
   map.cells.forEach((row, day) => row.forEach((c, hour) => c.medianViews !== null && out.push({ day, hour, medianViews: c.medianViews, posts: c.posts })));
   return out.sort((a, b) => b.medianViews - a.medianViews).slice(0, n);
+}
+
+export interface HashtagStat {
+  tag: string;
+  posts: number;
+  views: number;
+  medianViews: number;
+  /** Median views per post of this tag ÷ the platform's median in the range. */
+  index: number | null;
+  er: number;
+  /** Share of its posts that carry the tag in the title (the rest: caption / description only). */
+  inTitle: number;
+  rows: RecordRow[];
+}
+
+/** Tags used on fewer posts than this are left out: too few to compare. */
+export const MIN_POSTS_PER_TAG = 3;
+
+/** Hashtags of the posts in the range, with how their posts did against the platform's normal. */
+export function hashtagStats(rows: RecordRow[], minPosts = MIN_POSTS_PER_TAG): { tags: HashtagStat[]; withTags: number; total: number } {
+  const platformMedian = median(rows.map((r) => r.views));
+  const groups = new Map<string, RecordRow[]>();
+  let withTags = 0;
+  for (const r of rows) {
+    const tags = parseHashtags(r.hashtags);
+    if (tags.length) withTags++;
+    for (const t of tags) {
+      const list = groups.get(t);
+      if (list) list.push(r);
+      else groups.set(t, [r]);
+    }
+  }
+  const tags = [...groups.entries()]
+    .filter(([, list]) => list.length >= minPosts)
+    .map(([tag, list]) => {
+      const views = list.reduce((a, r) => a + r.views, 0);
+      const med = median(list.map((r) => r.views)) || 0;
+      return {
+        tag,
+        posts: list.length,
+        views,
+        medianViews: med,
+        index: platformMedian ? med / platformMedian : null,
+        er: views > 0 ? list.reduce((a, r) => a + r.likes + r.comments + r.shares, 0) / views : 0,
+        inTitle: list.filter((r) => String(r.topic || "").toLowerCase().includes(tag)).length / list.length,
+        rows: [...list].sort((a, b) => b.views - a.views),
+      };
+    })
+    .sort((a, b) => b.posts - a.posts || b.views - a.views);
+  return { tags, withTags, total: rows.length };
 }

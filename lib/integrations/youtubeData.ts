@@ -8,6 +8,7 @@
 // Quota: 10,000 units/day free. playlistItems.list and videos.list cost 1 unit
 // per call of up to 50 items, so ~5,000 videos ≈ 200 units.
 import { formatPercent, formatWhole, inferTopicType, firstLine } from "./metricool.ts";
+import { hashtagsField } from "../dashboard/hashtags.ts";
 import { bangkokParts, detectProgram, programFor, type BrandConfig, type MappedRow } from "./metricoolSync.ts";
 
 const API = "https://www.googleapis.com/youtube/v3";
@@ -140,6 +141,7 @@ export function mapYouTubeVideo(v: YouTubeVideo, brand: BrandConfig): MappedRow 
     Content_ID: v.id,
     URL: `https://www.youtube.com/watch?v=${v.id}`,
     Publish_Time: t.time,
+    Hashtags: hashtagsField(text),
     Duration_Min: (v.durationSec / 60).toFixed(2),
     Views: formatWhole(v.views),
     Likes: formatWhole(v.likes),
@@ -201,6 +203,10 @@ export function combineYouTube(metricool: MappedRow[], dataApi: MappedRow[]): { 
       Comments: d.Comments,
       Engagement: formatWhole(engagement),
       Engagement_Rate: formatPercent(views > 0 ? (engagement / views) * 100 : 0),
+      // The Data API has the description and the real posting time; Metricool's
+      // YouTube posts often come as "00:00".
+      Hashtags: d.Hashtags || m.Hashtags || "",
+      ...(/^0?0:00/.test(String(m.Publish_Time || "")) || !m.Publish_Time ? { Publish_Time: d.Publish_Time } : {}),
     });
   }
   return { rows, onlyDataApi };

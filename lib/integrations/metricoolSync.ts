@@ -19,6 +19,7 @@ import {
   type MasterRowOutput,
 } from "./metricool.ts";
 import { postId, rowKey } from "../dashboard/postKey.ts";
+import { hashtagsField } from "../dashboard/hashtags.ts";
 
 export type Network = "facebook" | "fbreels" | "instagram" | "reels" | "tiktok" | "youtube";
 export const NETWORKS: Network[] = ["facebook", "fbreels", "instagram", "reels", "tiktok", "youtube"];
@@ -348,6 +349,7 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
     Content_ID: id,
     URL: url,
     Publish_Time: t.time,
+    Hashtags: hashtagsField(text),
     Duration_Min: (durationSec / 60).toFixed(2),
     Views: formatWhole(views),
     Likes: formatWhole(likes),
@@ -374,6 +376,23 @@ export function mapPost(network: Network, post: Post, brand: BrandConfig): Mappe
 
 // ---------- merge ----------
 
+/**
+ * Columns filled on rows that already exist only while the row has none:
+ * Hashtags when blank, Publish_Time when blank or the "00:00" placeholder
+ * (YouTube rows saved without a time). A value already there is never replaced.
+ */
+export const FILL_COLUMNS = ["Hashtags", "Publish_Time"] as const;
+
+const isPlaceholderTime = (v: unknown) => /^0?0:00(:00)?$/.test(String(v ?? "").trim());
+const blank = (v: unknown) => v === undefined || v === null || String(v).trim() === "";
+
+/** Whether `incoming` may fill `col` of a row that holds `before`. */
+export function canFill(col: string, before: unknown, incoming: unknown): boolean {
+  if (blank(incoming)) return false;
+  if (col === "Publish_Time") return !isPlaceholderTime(incoming) && (blank(before) || isPlaceholderTime(before));
+  return blank(before);
+}
+
 /** Columns Metricool keeps up to date on rows that already exist. */
 export const METRIC_COLUMNS = [
   "Views", "Likes", "Comments", "Shares", "Engagement", "Engagement_Rate", "Video_Views",
@@ -389,7 +408,8 @@ export interface MergeResult {
 }
 
 /**
- * Existing rows (matched by platform + post id) only get METRIC_COLUMNS;
+ * Existing rows (matched by platform + post id) only get METRIC_COLUMNS (and
+ * FILL_COLUMNS while empty);
  * Program, Topic, Topic_Type, VDO_Type, Episode_ID, Best_of_Month, Revenue,
  * Notes and TV columns stay as the team left them. Unknown posts are added.
  */
@@ -421,9 +441,13 @@ export function mergeIntoMaster(master: Record<string, unknown>[], incoming: Map
     for (const col of METRIC_COLUMNS) {
       if (parseNumber(existing[col]) !== parseNumber(row[col])) after[col] = row[col];
     }
+    for (const col of FILL_COLUMNS) {
+      const value = (row as unknown as Record<string, unknown>)[col];
+      if (canFill(col, existing[col], value)) after[col] = String(value);
+    }
     if (Object.keys(after).length) {
       merged[at] = { ...existing, ...after };
-      updated.push({ key, before: Object.fromEntries(METRIC_COLUMNS.map((c) => [c, existing[c]])), after });
+      updated.push({ key, before: Object.fromEntries([...METRIC_COLUMNS, ...FILL_COLUMNS].map((c) => [c, existing[c]])), after });
     } else {
       unchanged++;
     }

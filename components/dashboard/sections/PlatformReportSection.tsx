@@ -3,14 +3,16 @@
 // headline numbers against the comparison period, VDO type mix, posting weekday ×
 // hour, and the best / worst clips. TV shows ratings instead. Filters at the top
 // apply, except the platform filter (picked here).
-import { useMemo, useState } from "react";
-import { BarChart3, ExternalLink, Eye, Heart, Layers, MessageCircle, Share2, ThumbsDown, Trophy, Tv, Users } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { BarChart3, ExternalLink, Hash, Eye, Heart, Layers, MessageCircle, Share2, ThumbsDown, Trophy, Tv, Users } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { rankClips, rankEpisodes, type ClipOrder, type RankedClip } from "@/lib/dashboard/ranking";
 import {
   MIN_POSTS_PER_CELL,
+  MIN_POSTS_PER_TAG,
+  hashtagStats,
   REPORT_PLATFORMS,
   WEEKDAYS,
   bestSlots,
@@ -48,6 +50,9 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
   const [picked, setPicked] = useState<Platform>(() => (REPORT_PLATFORMS as readonly string[]).includes(platformFilter) ? (platformFilter as Platform) : "YouTube");
   const [order, setOrder] = useState<ClipOrder>("views");
   const [opened, setOpened] = useState<RecordRow | null>(null);
+  const [tagSort, setTagSort] = useState<"posts" | "median">("posts");
+  const [openTag, setOpenTag] = useState<string | null>(null);
+  const [allTags, setAllTags] = useState(false);
   const isTv = picked === "TV";
   const color = PLATFORM_COLORS[picked] || "#475569";
 
@@ -68,6 +73,11 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
     [mine, startDate, endDate, latestDate, order, isTv],
   );
   const episodes = useMemo(() => (isTv && startDate && endDate ? rankEpisodes(mine, { start: startDate, end: endDate }) : []), [mine, startDate, endDate, isTv]);
+  const tags = useMemo(() => (isTv ? null : hashtagStats(cur)), [cur, isTv]);
+  const tagList = useMemo(
+    () => (tags ? [...tags.tags].sort((a, b) => (tagSort === "median" ? b.medianViews - a.medianViews : b.posts - a.posts || b.views - a.views)) : []),
+    [tags, tagSort],
+  );
   const heatMax = Math.max(0, ...heat.cells.flat().map((c) => c.medianViews || 0));
 
   const g = (now: number | null, before: number | null | undefined) => <Growth value={before === undefined ? null : change(now, before ?? null)} title={compareText} />;
@@ -180,6 +190,91 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
               <p className="audience-note">เวลาโพสต์เป็นเวลาไทยตามที่บันทึก · เป็นความสัมพันธ์จากข้อมูล ควรทดลองยืนยันก่อนเปลี่ยนแผน</p>
             </article>
           </div>
+
+          {tags && (
+            <article className="growth-table platform-tags">
+              <div className="platform-report-head">
+                <h3>
+                  <Hash size={15} /> Hashtag
+                </h3>
+                <div className="segmented" aria-label="เรียง hashtag">
+                  {(
+                    [
+                      ["posts", "ใช้บ่อย"],
+                      ["median", "วิวต่อโพสต์"],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <button key={k} className={tagSort === k ? "active" : ""} onClick={() => setTagSort(k)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="growth-hint">
+                มี hashtag {num(tags.withTags)} จาก {num(tags.total)} โพสต์ · แสดงเฉพาะ hashtag ที่ใช้อย่างน้อย {MIN_POSTS_PER_TAG} โพสต์ · เทียบค่าปกติ = วิวต่อโพสต์ (ค่ากลาง) ของ hashtag ÷ ของ {picked} ทั้งหมดในช่วงนี้ · กดแถวเพื่อดูคลิป
+              </p>
+              {tagList.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Hashtag</th>
+                        <th className="num">โพสต์</th>
+                        <th className="num">วิวรวม</th>
+                        <th className="num">วิว/โพสต์ (ค่ากลาง)</th>
+                        <th className="num">เทียบค่าปกติ</th>
+                        <th className="num">ER</th>
+                        <th className="num" title="สัดส่วนโพสต์ที่ใส่ hashtag นี้ในชื่อคลิป (ที่เหลืออยู่ในแคปชัน / description)">อยู่ในชื่อ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(allTags ? tagList : tagList.slice(0, 15)).map((t) => (
+                        <Fragment key={t.tag}>
+                          <tr className="platform-tag-row" onClick={() => setOpenTag(openTag === t.tag ? null : t.tag)} aria-expanded={openTag === t.tag}>
+                            <td>
+                              <b>{t.tag}</b>
+                            </td>
+                            <td className="num">{num(t.posts)}</td>
+                            <td className="num">{compact(t.views)}</td>
+                            <td className="num strong">{compact(t.medianViews)}</td>
+                            <td className={`num ${t.index === null ? "" : t.index >= 1 ? "up" : "down"}`}>{t.index === null ? "-" : t.index >= 1 ? `${t.index.toFixed(1)}×` : `${Math.round(t.index * 100)}%`}</td>
+                            <td className="num">{pct(t.er, 2)}</td>
+                            <td className="num">{pct(t.inTitle, 0)}</td>
+                          </tr>
+                          {openTag === t.tag && (
+                            <tr className="platform-tag-clips">
+                              <td colSpan={7}>
+                                <ol>
+                                  {t.rows.slice(0, 10).map((r, i) => (
+                                    <li key={`${r.url || r.topic}-${i}`}>
+                                      <button type="button" className="clip-open" onClick={() => setOpened(r)} title="วิเคราะห์คลิปนี้">
+                                        {r.topic || "ไม่ระบุประเด็น"}
+                                      </button>
+                                      <small>
+                                        {compact(r.views)} วิว · {thDate(r.date)}
+                                      </small>
+                                    </li>
+                                  ))}
+                                </ol>
+                                {t.rows.length > 10 && <small>และอีก {num(t.rows.length - 10)} คลิป · ค้นหา {t.tag} ในช่องค้นหาด้านบนเพื่อดูทั้งหมด</small>}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="growth-notice">ยังไม่มี hashtag ที่ใช้ถึง {MIN_POSTS_PER_TAG} โพสต์ในช่วงนี้{tags.withTags === 0 ? " (ระบบเริ่มเก็บ hashtag ตั้งแต่ sync รอบถัดไป)" : ""}</p>
+              )}
+              {tagList.length > 15 && (
+                <button type="button" className="ranking-more" onClick={() => setAllTags((v) => !v)}>
+                  {allTags ? "แสดงน้อยลง" : `ดูทั้งหมด ${tagList.length} hashtag`}
+                </button>
+              )}
+            </article>
+          )}
 
           <div className="platform-report-head">
             <h3>คลิปดีที่สุด / แย่ที่สุด {SHOWN} อันดับ</h3>

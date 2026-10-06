@@ -61,6 +61,8 @@ export interface MasterRowOutput {
   Content_ID: string;
   URL: string;
   Publish_Time: string;
+  /** "#a #b" from the title / caption (YouTube: title and description). */
+  Hashtags?: string;
   Duration_Min: string;
   Views: string;
   Likes: string;
