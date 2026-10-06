@@ -15,6 +15,7 @@ import {
   Gauge,
   Images,
   KeyRound,
+  Layers,
   LayoutDashboard,
   Lightbulb,
   ListChecks,
@@ -32,7 +33,7 @@ import {
   X, MonitorPlay } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 
-type Tab = "overview" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
+type Tab = "overview" | "platform" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -60,6 +61,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "ranking", label: "Ranking ดี/แย่", icon: <ListOrdered /> },
       { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
+      { id: "platform-report", label: "รายงานรายแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
       { id: "topics", label: "ประเภทเนื้อหา", icon: <Sparkles /> },
       { id: "rating", label: "TV Rating", icon: <Tv /> },
       { id: "best", label: "Top 10 ประเด็น", icon: <Trophy /> },
@@ -94,7 +96,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     items: [{ id: "help", label: "คู่มือ & FAQ", icon: <CircleHelp />, tab: "help" }],
   },
 ];
-const SECTION_IDS = GROUPS[0].items.map((i) => i.id).filter((id) => id !== "overview");
+const SECTION_IDS = GROUPS[0].items.filter((i) => !i.tab).map((i) => i.id).filter((id) => id !== "overview");
 const GROUP_KEY = "sidebar-groups";
 
 const thTime = (iso: string) =>

@@ -961,6 +961,22 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, platform, vdoType, topicType, search],
   );
+  // รายงานรายแพลตฟอร์ม: the filters except platform and date (the page picks the platform; the range and the comparison come from the dates).
+  const platformReportRows = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          r.date &&
+          (program === "ALL" || r.program === program) &&
+          (vdoType === "ALL" || r.vdoType === vdoType) &&
+          (topicType === "ALL" || r.topicType === topicType) &&
+          (!search ||
+            `${r.topic} ${r.program} ${r.channel}`
+              .toLowerCase()
+              .includes(search.toLowerCase())),
+      ),
+    [rows, program, vdoType, topicType, search],
+  );
   const dataLatestDate = useMemo(
     () => rows.reduce((max, r) => (r.date > max ? r.date : max), ""),
     [rows],
@@ -1404,6 +1420,7 @@ export function useDashboard(enabled = true) {
     q4Plan,
     insights,
     rankingRows,
+    platformReportRows,
     dataLatestDate,
     comparePeriod,
     growth,
