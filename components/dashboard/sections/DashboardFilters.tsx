@@ -33,7 +33,11 @@ export function DashboardFilters({
   options,
   applyDatePreset,
   dataFirstDate,
-}: Pick<
+  onSearch,
+}: {
+  /** Enter in the search box / the button beside it: open รายงาน → ผลการค้นหา. */
+  onSearch?: () => void;
+} & Pick<
   DashboardModel,
   | "program"
   | "setProgram"
@@ -138,8 +142,17 @@ export function DashboardFilters({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search: ชื่อประเด็น"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && onSearch) onSearch();
+            }}
+            placeholder="ค้นหา: ประเด็น / #hashtag (หลายคำคั่นด้วย ,)"
+            title="ค้นจากชื่อคลิป รายการ ช่อง และ hashtag · หลายคำคั่นด้วยจุลภาค = เจอคำใดคำหนึ่ง · กด Enter เพื่อดูสรุปผลการค้นหา"
           />
+          {onSearch && search.trim() && (
+            <button type="button" className="search-go" onClick={onSearch}>
+              ดูสรุป
+            </button>
+          )}
         </label>
       </div>
     </>

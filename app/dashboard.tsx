@@ -23,6 +23,7 @@ import { Freeze } from "@/components/dashboard/shared/Freeze";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
+import { SearchResultsSection } from "@/components/dashboard/sections/SearchResultsSection";
 import { PlatformReportSection } from "@/components/dashboard/sections/PlatformReportSection";
 import { YouTubeDeepDiveSection } from "@/components/dashboard/sections/YouTubeDeepDiveSection";
 import { AccMonthlyReport } from "@/components/dashboard/AccMonthlyReport";
@@ -51,7 +52,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "search" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -185,7 +186,7 @@ export default function Dashboard() {
           onTabChange={setActiveTab}
         />
 
-        {(activeTab === "overview" || activeTab === "platform" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "youtube" || activeTab === "advice") && isAdmin)) && (
+        {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "youtube" || activeTab === "advice") && isAdmin)) && (
             <DashboardFilters
               program={model.filterInputs.program}
               setProgram={model.setProgram}
@@ -206,11 +207,23 @@ export default function Dashboard() {
               options={model.options}
               applyDatePreset={model.applyDatePreset}
               dataFirstDate={model.dataFirstDate}
+              onSearch={() => setActiveTab("search")}
             />
         )}
 
         {/* While a new filter is being worked out, the sections stay as they are (same tab only). */}
         <Freeze frozen={model.filtering} keep={activeTab}>
+        {activeTab === "search" && (
+          <SearchResultsSection
+            rows={model.filtered}
+            allRows={model.rows}
+            search={model.search}
+            startDate={model.startDate}
+            endDate={model.endDate}
+            latestDate={model.dataLatestDate}
+          />
+        )}
+
         {activeTab === "platform" && (
           <PlatformReportSection
             rows={model.platformReportRows}

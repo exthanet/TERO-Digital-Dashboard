@@ -9,6 +9,7 @@ import { PROGRAMS } from "@/lib/dashboard/constants";
 import { parseCsv } from "@/lib/dashboard/csv";
 import { getCompareRange, getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { loadDashboardRows } from "@/lib/dashboardCache";
+import { matchesSearch, searchTerms } from "@/lib/dashboard/search";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import {
   countNonPlainDates,
@@ -149,6 +150,8 @@ export function useDashboard(enabled = true) {
   }, [inputsKey, appliedKey]);
   const { program, platform, vdoType, topicType, search, startDate, endDate, datePreset, compareMode, compareStart, compareEnd } = applied;
   const filtering = inputsKey !== appliedKey;
+  // Search box terms (comma = any of them; see lib/dashboard/search.ts).
+  const terms = useMemo(() => searchTerms(search), [search]);
   const [topTopicType, setTopTopicType] = useState("ALL");
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
@@ -243,12 +246,9 @@ export function useDashboard(enabled = true) {
           (topicType === "ALL" || r.topicType === topicType) &&
           (!startDate || r.date >= startDate) &&
           (!endDate || r.date <= endDate) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, platform, vdoType, topicType, startDate, endDate, search],
+    [rows, program, platform, vdoType, topicType, startDate, endDate, terms],
   );
   const executiveRows = useMemo(
     () =>
@@ -259,12 +259,9 @@ export function useDashboard(enabled = true) {
           (topicType === "ALL" || r.topicType === topicType) &&
           (!startDate || r.date >= startDate) &&
           (!endDate || r.date <= endDate) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, vdoType, topicType, startDate, endDate, search],
+    [rows, program, vdoType, topicType, startDate, endDate, terms],
   );
   // Advanced → การเติบโต: the same filters without the date (gains are dated by when they happened).
   const growthRows = useMemo(
@@ -276,12 +273,9 @@ export function useDashboard(enabled = true) {
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, platform, vdoType, topicType, search],
+    [rows, program, platform, vdoType, topicType, terms],
   );
   // Daily up to 31 days (e.g. "28 วันล่าสุด", which spans two months); monthly beyond.
   const executiveGrain = useMemo<"day" | "month">(
@@ -937,12 +931,9 @@ export function useDashboard(enabled = true) {
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           (!endDate || r.date <= endDate) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, platform, vdoType, topicType, endDate, search],
+    [rows, program, platform, vdoType, topicType, endDate, terms],
   );
   // Ranking picks its own day/week, so it gets every filter except dates.
   const rankingRows = useMemo(
@@ -954,12 +945,9 @@ export function useDashboard(enabled = true) {
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, platform, vdoType, topicType, search],
+    [rows, program, platform, vdoType, topicType, terms],
   );
   // รายงานรายแพลตฟอร์ม: the filters except platform and date (the page picks the platform; the range and the comparison come from the dates).
   const platformReportRows = useMemo(
@@ -970,12 +958,9 @@ export function useDashboard(enabled = true) {
           (program === "ALL" || r.program === program) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
-          (!search ||
-            `${r.topic} ${r.program} ${r.channel} ${r.hashtags}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          matchesSearch(r, terms),
       ),
-    [rows, program, vdoType, topicType, search],
+    [rows, program, vdoType, topicType, terms],
   );
   const dataLatestDate = useMemo(
     () => rows.reduce((max, r) => (r.date > max ? r.date : max), ""),
