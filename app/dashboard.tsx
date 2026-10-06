@@ -20,6 +20,7 @@ import { ExecutiveInsights } from "@/components/dashboard/sections/ExecutiveInsi
 import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
 import { Freeze } from "@/components/dashboard/shared/Freeze";
+import { CollapseControls } from "@/components/dashboard/shared/CollapseControls";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
@@ -185,6 +186,7 @@ export default function Dashboard() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
+        <CollapseControls />
 
         {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "youtube" || activeTab === "advice") && isAdmin)) && (
             <DashboardFilters
