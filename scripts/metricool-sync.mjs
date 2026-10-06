@@ -159,7 +159,9 @@ const api = new MetricoolApi({
   apiToken: process.env.METRICOOL_API_TOKEN,
 });
 const youtube = process.env.YOUTUBE_API_KEY ? new YouTubeDataApi(process.env.YOUTUBE_API_KEY) : null;
-const brands = JSON.parse(fs.readFileSync("config/metricool-brands.json", "utf8")).filter((b) => b.enabled);
+// --brands="TERO News" (comma-separated labels): only those brands, e.g. for a one-off backfill with --since.
+const onlyBrands = args.brands ? args.brands.split(",").map((s) => s.trim()) : null;
+const brands = JSON.parse(fs.readFileSync("config/metricool-brands.json", "utf8")).filter((b) => b.enabled && (!onlyBrands || onlyBrands.includes(b.label)));
 
 console.log(`Metricool ${write ? "WRITE" : "test"} run ${since} → ${until} · brands: ${brands.map((b) => b.label).join(", ")}`);
 // Accounts are read even without the app's key/secret: an account already on
@@ -191,7 +193,7 @@ for (const brand of brands) {
   const brandYouTube = [];
   const brandTikTok = [];
   const tiktokAccount = tiktokAccounts.find((a) => a.brand === brand.label);
-  for (const network of NETWORKS) {
+  for (const network of brand.networks || NETWORKS) {
     // YouTube counts views inside the range only, so ask from `since` to today
     // for lifetime numbers, then keep the videos published in the window.
     const to = network === "youtube" ? today : until;
@@ -437,7 +439,8 @@ const tvChecks = tvRun.result ? validateTv(result.merged, tvRun.result, tvRun.ep
 // ---------- Monthly ACC (รายได้) ----------
 // Through the same CMS account; shows inside a channel are found by masterData's
 // Program, then by title for older clips. A problem is reported, never fails the run.
-if (ytCms) {
+// Skipped on a run limited to some brands (--brands): a backfill, not the daily run.
+if (ytCms && !onlyBrands) {
   const startedAt = Date.now();
   const thisMonth = today.slice(0, 7);
   const prev = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5)) - 2, 1)).toISOString().slice(0, 7);

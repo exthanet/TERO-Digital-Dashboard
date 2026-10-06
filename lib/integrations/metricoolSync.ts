@@ -43,6 +43,10 @@ export interface BrandConfig {
   enabled: boolean;
   /** Also read this channel through the YouTube Data API (fills Metricool gaps). */
   youtubeChannelId?: string;
+  /** Only these networks (e.g. ["facebook"] when the brand has no other account in Metricool); all when absent. */
+  networks?: Network[];
+  /** Every post of this account is `program`, even when the title names another show (e.g. TERO News reposting ถกไม่เถียง clips). */
+  lockProgram?: boolean;
 }
 
 export interface Brand {
@@ -171,6 +175,7 @@ export { postId, rowKey } from "../dashboard/postKey.ts";
  */
 export function programFor(brand: BrandConfig, title: string, detected: string): string {
   if (brand.mode !== "single" || !brand.program) return detected;
+  if (brand.lockProgram) return brand.program;
   const named = detectProgram(title);
   return named !== "ไม่ระบุ" && named !== brand.program ? named : brand.program;
 }
