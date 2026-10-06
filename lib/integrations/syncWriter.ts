@@ -17,6 +17,8 @@ export const CHUNK_ROWS = 250;
 export const KEEP_BACKUPS = 7;
 export const KEEP_RUN_DAYS = 90;
 export const KEEP_SNAPSHOT_DAYS = 365;
+/** Once every run is also backed up to GitHub (90 days), Firestore keeps less (Spark plan: 1 GB). */
+export const KEEP_WITH_GITHUB = { backups: 2, snapshotDays: 60 } as const;
 
 export const runIdFor = (d = new Date()) => d.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
 
@@ -173,19 +175,28 @@ export async function writeRunReport(db: Firestore, report: RunReport): Promise<
   await db.set("syncStatus/latest", encodeFields(latest));
 }
 
-/** Drop run logs after 90 days, snapshots after a year, backups beyond the last 7. */
-export async function cleanupOld(db: Firestore, now = new Date()): Promise<Record<string, number>> {
+/**
+ * Drop run logs after 90 days, snapshots after a year and sync backups beyond
+ * the last 7 (less with `keep` when GitHub holds copies). Named backups (e.g.
+ * "topic-fix-…", made by hand before a data fix) are never removed here.
+ */
+export async function cleanupOld(
+  db: Firestore,
+  now = new Date(),
+  keep: { backups: number; snapshotDays: number } = { backups: KEEP_BACKUPS, snapshotDays: KEEP_SNAPSHOT_DAYS },
+): Promise<Record<string, number>> {
   const cutoff = (days: number) => new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
   const removed = { syncRuns: 0, snapshots: 0, backups: 0 };
   for (const d of await db.listRaw("syncRuns")) {
     if (docId(d.name).slice(0, 10) < cutoff(KEEP_RUN_DAYS)) { await db.delete(`syncRuns/${docId(d.name)}`); removed.syncRuns++; }
   }
   for (const d of await db.listRaw("snapshots")) {
-    if (docId(d.name).slice(0, 10) < cutoff(KEEP_SNAPSHOT_DAYS)) { await db.delete(`snapshots/${docId(d.name)}`); removed.snapshots++; }
+    if (docId(d.name).slice(0, 10) < cutoff(keep.snapshotDays)) { await db.delete(`snapshots/${docId(d.name)}`); removed.snapshots++; }
   }
   const backups = await db.listRaw("masterDataBackups");
-  const runs = [...new Set(backups.map((d) => docId(d.name).split("__")[0]))].sort();
-  const drop = new Set(runs.slice(0, Math.max(0, runs.length - KEEP_BACKUPS)));
+  // Sync backups are named by their run time ("2026-10-06T…"); others are kept.
+  const runs = [...new Set(backups.map((d) => docId(d.name).split("__")[0]))].filter((r) => /^\d{4}-\d{2}-\d{2}T/.test(r)).sort();
+  const drop = new Set(runs.slice(0, Math.max(0, runs.length - keep.backups)));
   for (const d of backups) {
     if (drop.has(docId(d.name).split("__")[0])) { await db.delete(`masterDataBackups/${docId(d.name)}`); removed.backups++; }
   }

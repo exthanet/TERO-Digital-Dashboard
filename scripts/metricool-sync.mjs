@@ -49,6 +49,7 @@ import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessTok
 import {
   backupMasterData,
   cleanupOld,
+  KEEP_WITH_GITHUB,
   restoreMasterData,
   runIdFor,
   verifyMasterData,
@@ -567,7 +568,8 @@ try {
 }
 await notifyRun(finish(report));
 await writeRunReport(fsdb, report);
-const removed = await cleanupOld(fsdb);
+// GITHUB_BACKUP=1 (set by the workflow when the repo is private and each run is backed up there): keep less in Firestore.
+const removed = await cleanupOld(fsdb, new Date(), process.env.GITHUB_BACKUP === "1" ? KEEP_WITH_GITHUB : undefined);
 console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
 }
 

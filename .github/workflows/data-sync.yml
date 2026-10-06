@@ -41,6 +41,17 @@ jobs:
 
       - run: npm ci --ignore-scripts --no-audit --no-fund
 
+      # Backups go to GitHub only while the repo is private: artifacts of a
+      # public repo can be downloaded by anyone with a GitHub account.
+      - name: Check the repo is private
+        id: repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private=$(gh api "repos/${{ github.repository }}" --jq .private 2>/dev/null || echo false)
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+          echo "repo private: $private"
+
       - name: Sync
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -58,6 +69,8 @@ jobs:
           NOTIFY_TOKEN: ${{ secrets.NOTIFY_TOKEN }}
           MODE: ${{ inputs.mode || 'write' }}
           SINCE: ${{ inputs.since }}
+          # Each run is backed up to GitHub below, so Firestore keeps fewer copies.
+          GITHUB_BACKUP: ${{ steps.repo.outputs.private == 'true' && '1' || '' }}
         run: |
           if [ -z "$SINCE" ]; then SINCE=$(date -u -d "90 days ago" +%F); fi
           if [ "$MODE" = "test-email" ]; then
@@ -68,8 +81,34 @@ jobs:
             node scripts/metricool-sync.mjs --since="$SINCE" --baseline=firestore
           fi
 
-      # No report artifact: the repo is public. The full report is in Firestore
-      # syncRuns (admins only) and shows in the dashboard.
+      # Backup (private repo only): every data collection as CSV / JSON plus this
+      # run's report files, kept 90 days. Also after a blocked or failed sync.
+      - name: Export backup
+        id: export
+        if: always() && steps.repo.outputs.private == 'true' && (inputs.mode || 'write') != 'test-email'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/backup-export.mjs --out=backup
+
+      - name: Upload backup
+        id: upload
+        if: always() && steps.export.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90
+          compression-level: 9
+
+      - name: List backup in the dashboard
+        if: always() && steps.upload.outcome == 'success'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SYNC_OUTCOME: ${{ job.status }}
+        run: node scripts/backup-record.mjs --dir=backup
 
       - name: Alert Discord
         if: failure()

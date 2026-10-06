@@ -81,3 +81,6 @@ next-env.d.ts
 /public/master-data.json
 /public/affiliate-data.json
 /public/youtube-revenue.json
+
+# Local runs of scripts/backup-export.mjs
+backup/

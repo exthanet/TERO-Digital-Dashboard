@@ -84,6 +84,26 @@ export async function loadSyncRuns(count = 30): Promise<SyncRun[]> {
   return snap.docs.map((d) => d.data() as SyncRun);
 }
 
+// ---------- Backups in GitHub (written by the workflow, admins read) ----------
+
+/** One daily backup artifact (scripts/backup-record.mjs); GitHub deletes the file after 90 days. */
+export interface BackupEntry {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  artifactUrl: string;
+  runUrl: string;
+  syncOutcome: string;
+  sizeBytes: number;
+  masterDataRows: number;
+  files: string[];
+}
+
+export async function loadBackups(count = 90): Promise<BackupEntry[]> {
+  const snap = await getDocs(query(collection(db, "backups"), orderBy("createdAt", "desc"), limit(count)));
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BackupEntry, "id">) }));
+}
+
 // ---------- TV workbook sources (admins edit, the sync reads) ----------
 
 export interface TvSourceConfig {

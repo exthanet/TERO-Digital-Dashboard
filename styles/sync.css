@@ -359,3 +359,10 @@
 .notify-modes small {
   color: #7b879a;
 }
+
+/* Backups in GitHub (SyncStatusModal). */
+.sync-note {
+  margin: 4px 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}

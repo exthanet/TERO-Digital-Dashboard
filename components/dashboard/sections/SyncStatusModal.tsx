@@ -5,7 +5,9 @@ import { num } from "@/lib/dashboard/format";
 import {
   SYNC_WORKFLOW_URL,
   isStale,
+  loadBackups,
   loadSyncRuns,
+  type BackupEntry,
   nextScheduledRun,
   type SyncRun,
   type SyncState,
@@ -51,10 +53,16 @@ export function SyncStatusModal({
   const [runs, setRuns] = useState<SyncRun[] | null>(null);
   const [error, setError] = useState("");
   const [showChecks, setShowChecks] = useState(false);
+  const [backups, setBackups] = useState<BackupEntry[] | null>(null);
+  const [showBackups, setShowBackups] = useState(false);
 
   const refresh = () => {
     setRuns(null);
     setError("");
+    // Backups are optional: an error (e.g. none yet) just leaves the list empty.
+    track(loadBackups())
+      .then(setBackups)
+      .catch(() => setBackups([]));
     track(loadSyncRuns(30))
       .then(setRuns)
       .catch(() => {
@@ -203,6 +211,60 @@ export function SyncStatusModal({
             </div>
           </>
         )}
+
+        <h3>
+          Backup ใน GitHub (เก็บ 90 วัน)
+          {backups && backups.length > 0 && (
+            <button className="sync-toggle" onClick={() => setShowBackups((v) => !v)}>
+              {showBackups ? "ซ่อน" : `ดูทั้งหมด ${backups.length} รายการ`}
+            </button>
+          )}
+        </h3>
+        {backups === null ? (
+          <p className="sync-note">กำลังโหลด…</p>
+        ) : backups.length === 0 ? (
+          <p className="sync-note">ยังไม่มี backup · เริ่มเก็บอัตโนมัติทุกรอบ sync เมื่อ repo บน GitHub เป็น private</p>
+        ) : (
+          <div className="table-scroll sync-history">
+            <table>
+              <thead>
+                <tr>
+                  <th>เวลา</th>
+                  <th>sync</th>
+                  <th className="num">masterData</th>
+                  <th className="num">ขนาด</th>
+                  <th>ลบอัตโนมัติ</th>
+                  <th>ดาวน์โหลด</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(showBackups ? backups : backups.slice(0, 5)).map((b) => (
+                  <tr key={b.id} title={b.files.join(", ")}>
+                    <td>{thTime(b.createdAt)}</td>
+                    <td className={`sync-state ${b.syncOutcome === "success" ? "ok" : "warn"}`}>{b.syncOutcome === "success" ? "สำเร็จ" : b.syncOutcome || "-"}</td>
+                    <td className="num">{num(b.masterDataRows)} แถว</td>
+                    <td className="num">{(b.sizeBytes / 1048576).toFixed(1)} MB</td>
+                    <td>{thTime(b.expiresAt)}</td>
+                    <td>
+                      {b.artifactUrl ? (
+                        <a href={b.artifactUrl} target="_blank" rel="noreferrer">
+                          ไฟล์ zip <ExternalLink size={11} />
+                        </a>
+                      ) : (
+                        <a href={b.runUrl} target="_blank" rel="noreferrer">
+                          หน้ารัน <ExternalLink size={11} />
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="sync-note">
+          ในไฟล์ zip: masterData.csv, growthDaily.csv, snapshot-latest.csv, ytAnalytics-videos.csv, accMonthly.csv, revenue-monthly.csv, thumbnails.csv, ข้อมูลอื่นเป็น JSON และไฟล์ตรวจสอบของรอบนั้น (sync-report/) · ต้องล็อกอิน GitHub ด้วยบัญชีที่มีสิทธิ์ใน repo ก่อนกดดาวน์โหลด · CSV เปิดใน Excel ได้ (ภาษาไทยแสดงถูก)
+        </p>
       </section>
     </div>
   );
