@@ -902,3 +902,61 @@
 .invite-result small {
   color: #047857;
 }
+
+/* Sign in with Microsoft (company accounts) */
+.auth-btn-microsoft {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #8c8c8c;
+  border-radius: 10px;
+  background: #fff;
+  color: #262626;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-btn-microsoft:hover:not(:disabled) {
+  background: #f3f3f3;
+}
+
+.auth-btn-microsoft:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-ms-note {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.auth-link-note {
+  margin: 0 0 4px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}

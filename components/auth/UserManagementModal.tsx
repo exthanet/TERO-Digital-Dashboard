@@ -17,6 +17,7 @@ import {
 import type { AuthState } from "@/hooks/useAuth";
 import type { LoginEvent, UserRole } from "@/lib/auth/types";
 import { inviteMessage, isValidEmail } from "@/lib/auth/validation";
+import { isCompanyEmail } from "@/lib/auth/microsoft";
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -113,6 +114,11 @@ export function UserManagementModal({
     e.preventDefault();
     if (!isValidEmail(email)) {
       setError("รูปแบบอีเมลไม่ถูกต้อง");
+      return;
+    }
+    // Company accounts sign in with Microsoft and get a viewer profile by themselves.
+    if (isCompanyEmail(email)) {
+      setError("ไม่ต้องสร้างบัญชีให้ @terodigital.com · ให้กด “เข้าสู่ระบบด้วย Microsoft” ที่หน้าล็อกอิน จะได้สิทธิ์ viewer อัตโนมัติ แล้วปรับสิทธิ์ในรายการด้านล่างได้");
       return;
     }
     setError(null);
@@ -245,6 +251,9 @@ export function UserManagementModal({
                     <UserPlus size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: "6px" }} />
                     เชิญผู้ใช้ใหม่
                   </div>
+                  <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
+                    สำหรับคนนอกบริษัทเท่านั้น · พนักงาน @terodigital.com ไม่ต้องเชิญ ให้กด “เข้าสู่ระบบด้วย Microsoft” ครั้งแรกจะได้สิทธิ์ viewer อัตโนมัติ แล้วปรับเป็น admin หรือปิดบัญชีในรายการด้านล่าง
+                  </p>
 
                   <div className="auth-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                     <div className="auth-field">

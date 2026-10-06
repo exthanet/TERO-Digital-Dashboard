@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
-import type { AuthState } from "@/hooks/useAuth";
+import type { AuthState, PendingLink } from "@/hooks/useAuth";
 import { isValidEmail } from "@/lib/auth/validation";
 import { BRAND } from "@/lib/brand";
 
@@ -11,6 +11,18 @@ interface AuthScreenProps {
   /** After setting a password: the account's email and a note to show. */
   initialEmail?: string;
   initialInfo?: string;
+}
+
+/** The four-square Microsoft logo (brand colours), for the sign-in button. */
+function MicrosoftLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
 }
 
 export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenProps) {
@@ -22,6 +34,40 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
   // Login form state
   const [loginEmail, setLoginEmail] = useState(initialEmail);
   const [loginPassword, setLoginPassword] = useState("");
+  // Microsoft found an existing password account with the same email: link once with the password.
+  const [link, setLink] = useState<PendingLink | null>(null);
+  const [linkPassword, setLinkPassword] = useState("");
+
+  const handleMicrosoft = async () => {
+    setError(null);
+    setInfo(null);
+    setLoading(true);
+    try {
+      const res = await auth.loginWithMicrosoft();
+      if (res.link) {
+        setLink(res.link);
+        setLinkPassword("");
+      } else if (!res.success && res.error) {
+        setError(res.error);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!link || !linkPassword) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await auth.linkMicrosoft(link, linkPassword);
+      if (res.success) setLink(null);
+      else setError(res.error || "ผูกบัญชีไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +142,53 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
           </div>
         )}
 
+        {link ? (
+          <form className="auth-form" onSubmit={handleLink}>
+            <p className="auth-link-note">
+              อีเมล <b>{link.email}</b> มีบัญชีที่ใช้รหัสผ่านอยู่แล้ว · ใส่รหัสผ่านเดิม <b>ครั้งเดียว</b> เพื่อผูกกับบัญชี Microsoft
+              (สิทธิ์และข้อมูลเดิมยังอยู่ ครั้งต่อไปกดปุ่ม Microsoft ได้เลย)
+            </p>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="link-password">
+                รหัสผ่านเดิม
+              </label>
+              <div className="auth-input-wrap">
+                <Lock className="auth-input-icon" />
+                <input
+                  id="link-password"
+                  type="password"
+                  className="auth-input"
+                  value={linkPassword}
+                  onChange={(e) => setLinkPassword(e.target.value)}
+                  autoComplete="current-password"
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+            <button type="submit" className="auth-btn-primary" disabled={loading}>
+              <LogIn size={18} />
+              {loading ? "กำลังผูกบัญชี..." : "ผูกบัญชีและเข้าสู่ระบบ"}
+            </button>
+            <button type="button" className="auth-link-btn" onClick={() => setLink(null)} disabled={loading}>
+              ยกเลิก
+            </button>
+          </form>
+        ) : (
+          <>
+            <button type="button" className="auth-btn-microsoft" onClick={handleMicrosoft} disabled={loading}>
+              <MicrosoftLogo />
+              เข้าสู่ระบบด้วย Microsoft
+            </button>
+            <p className="auth-ms-note">สำหรับพนักงาน (บัญชี @terodigital.com)</p>
+            <div className="auth-divider">
+              <span>หรือใช้อีเมลและรหัสผ่าน</span>
+            </div>
+          </>
+        )}
+
         {/* Login Form */}
+        {!link && (
         <form className="auth-form" onSubmit={handleLogin}>
           <div className="auth-field">
             <label className="auth-label" htmlFor="login-email">
@@ -163,6 +255,7 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
             ลืมรหัสผ่าน?
           </button>
         </form>
+        )}
       </div>
     </div>
   );

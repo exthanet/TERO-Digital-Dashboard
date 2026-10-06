@@ -39,6 +39,7 @@ import type {
   UserRole,
 } from "./types";
 import { normalizeEmail, tempPassword } from "./validation";
+import { createCompanyProfile, isCompanyEmail, viaMicrosoft } from "./microsoft";
 
 const usersCol = collection(db, "users");
 const loginEventsCol = collection(db, "loginEvents");
@@ -75,10 +76,28 @@ export function watchSession(
       onChange(null);
       return;
     }
+    // Microsoft only (no password on the account): company accounts only.
+    const microsoftOnly = viaMicrosoft(fbUser) && !fbUser.providerData.some((p) => p.providerId === "password");
+    if (microsoftOnly && !isCompanyEmail(fbUser.email)) {
+      void signOut(auth);
+      onChange(null, `ใช้ได้เฉพาะบัญชีบริษัท @terodigital.com`);
+      return;
+    }
+    let creating = false;
     stopProfile = onSnapshot(
       doc(db, "users", fbUser.uid),
       (snap) => {
         const profile = snap.exists() ? toUser(snap.id, snap.data()) : null;
+        // First Microsoft sign-in of a company account: create its viewer profile; this snapshot fires again.
+        if (!profile && microsoftOnly && !creating) {
+          creating = true;
+          createCompanyProfile(fbUser).catch(() => {
+            void signOut(auth);
+            onChange(null, "สร้างสิทธิ์ใช้งานไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ");
+          });
+          return;
+        }
+        if (!profile && creating) return;
         if (!profile || !profile.active) {
           void signOut(auth);
           onChange(

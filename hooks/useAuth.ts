@@ -23,6 +23,23 @@ import {
   watchSession,
 } from "@/lib/auth/users";
 import { authErrorMessage } from "@/lib/auth/validation";
+import { LinkNeeded, linkMicrosoftWithPassword, signInWithMicrosoft } from "@/lib/auth/microsoft";
+import type { AuthCredential } from "firebase/auth";
+
+/** Microsoft sign-in found a password account with the same email: link it with the password once. */
+export interface PendingLink {
+  email: string;
+  credential: AuthCredential;
+}
+
+function microsoftError(e: unknown): string {
+  const code = (e as { code?: string }).code || "";
+  if (code === "auth/not-company-account") return "ใช้ได้เฉพาะบัญชีบริษัท @terodigital.com";
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return "";
+  if (code === "auth/popup-blocked") return "เบราว์เซอร์บล็อกหน้าต่างล็อกอิน กรุณาอนุญาต pop-up ของเว็บนี้แล้วลองใหม่";
+  if (code === "auth/operation-not-allowed") return "ยังไม่ได้เปิดการล็อกอินด้วย Microsoft ในระบบ กรุณาติดต่อผู้ดูแลระบบ";
+  return authErrorMessage(e, "เข้าสู่ระบบด้วย Microsoft ไม่สำเร็จ");
+}
 import { track } from "@/lib/loadingBar";
 
 export interface AuthState {
@@ -32,6 +49,9 @@ export interface AuthState {
   /** Why the session ended on its own (deactivated, no profile, ...). */
   notice: string | null;
   login: (creds: LoginCredentials) => Promise<AuthResult>;
+  /** Company Microsoft account; `link` when a password account already has this email. */
+  loginWithMicrosoft: () => Promise<AuthResult & { link?: PendingLink }>;
+  linkMicrosoft: (link: PendingLink, password: string) => Promise<AuthResult>;
   logout: () => void;
   requestPasswordReset: (email: string) => Promise<AuthResult>;
   changePassword: (data: ChangePasswordData) => Promise<AuthResult>;
@@ -73,6 +93,28 @@ export function useAuth(): AuthState {
       return { success: true };
     } catch (e) {
       return { success: false, error: authErrorMessage(e, "เข้าสู่ระบบไม่สำเร็จ") };
+    }
+  }, []);
+
+  const loginWithMicrosoft = useCallback(async (): Promise<AuthResult & { link?: PendingLink }> => {
+    try {
+      setNotice(null);
+      await signInWithMicrosoft();
+      return { success: true };
+    } catch (e) {
+      if (e instanceof LinkNeeded) return { success: false, link: { email: e.email, credential: e.credential } };
+      return { success: false, error: microsoftError(e) };
+    }
+  }, []);
+
+  const linkMicrosoft = useCallback(async (link: PendingLink, password: string): Promise<AuthResult> => {
+    try {
+      await linkMicrosoftWithPassword(link.email, password, link.credential);
+      return { success: true };
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") return { success: false, error: "รหัสผ่านไม่ถูกต้อง" };
+      return { success: false, error: authErrorMessage(e, "ผูกบัญชี Microsoft ไม่สำเร็จ") };
     }
   }, []);
 
@@ -124,6 +166,8 @@ export function useAuth(): AuthState {
     isLoading,
     notice,
     login,
+    loginWithMicrosoft,
+    linkMicrosoft,
     logout,
     requestPasswordReset,
     changePassword,
