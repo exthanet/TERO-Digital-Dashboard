@@ -1823,3 +1823,177 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* รายงาน → Trending Hashtag (TrendingHashtagsSection). */
+.trend-controls,
+.trend-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.trend-options label {
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.trend-options small {
+  color: #94a3b8;
+}
+
+.trend-table td {
+  vertical-align: middle;
+}
+
+.trend-rank b {
+  display: inline-block;
+  min-width: 22px;
+  font-size: 15px;
+}
+
+.trend-up,
+.trend-down,
+.trend-new,
+.trend-same {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.trend-up {
+  color: #16a34a;
+}
+
+.trend-down {
+  color: #dc2626;
+}
+
+.trend-same {
+  color: #94a3b8;
+}
+
+.trend-new {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.trend-tag {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.trend-tag:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.trend-table td small {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.trend-table td.num small {
+  display: inline;
+}
+
+.trend-platforms {
+  display: flex;
+  width: 90px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #f1f5f9;
+}
+
+.trend-platforms i {
+  display: block;
+  height: 100%;
+}
+
+.trend-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.trend-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.trend-detail-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 20px;
+}
+
+.trend-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.trend-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.trend-detail .growth-table {
+  margin-bottom: 12px;
+}
+
+.trend-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trend-related button {
+  padding: 3px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.trend-related small {
+  color: #64748b;
+}
