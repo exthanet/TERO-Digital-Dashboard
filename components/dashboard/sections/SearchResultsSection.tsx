@@ -23,9 +23,11 @@ interface Props {
   startDate: string;
   endDate: string;
   latestDate: string;
+  /** Permission "download". */
+  canDownload?: boolean;
 }
 
-export function SearchResultsSection({ rows, allRows, search, startDate, endDate, latestDate }: Props) {
+export function SearchResultsSection({ rows, allRows, search, startDate, endDate, latestDate, canDownload = true }: Props) {
   const [opened, setOpened] = useState<RecordRow | null>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
   const online = useMemo(() => rows.filter((r) => r.platform !== "TV"), [rows]);
@@ -88,7 +90,7 @@ export function SearchResultsSection({ rows, allRows, search, startDate, endDate
             {thDate(startDate)} – {thDate(endDate)} · ตามตัวกรองด้านบน
           </p>
         </div>
-        {online.length > 0 && (
+        {online.length > 0 && canDownload && (
           <button type="button" className="acc-export" onClick={downloadCsv}>
             <Download size={15} /> ดาวน์โหลด CSV ({num(online.length)} โพสต์)
           </button>

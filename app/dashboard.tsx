@@ -21,6 +21,7 @@ import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
 import { Freeze } from "@/components/dashboard/shared/Freeze";
 import { CollapseControls } from "@/components/dashboard/shared/CollapseControls";
+import { effectivePerms } from "@/lib/auth/permissions";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
@@ -93,6 +94,8 @@ export default function Dashboard() {
   }, [setPlatform, setVdoType, setTopicType, setSearch, setMenuOpen]);
 
   const isAdmin = auth.user?.role === "admin";
+  // What this person may see (role + their own switches; lib/auth/permissions.ts).
+  const perms = auth.user ? effectivePerms(auth.user.role, auth.user.perms) : { advanced: false, deepDive: false, revenue: false, download: false };
 
   // "?" links beside section headings point at #help-{topic}: open the help
   // page and scroll to that topic once it is on screen.
@@ -186,10 +189,11 @@ export default function Dashboard() {
         <SectionTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          canRevenue={perms.revenue}
         />
         <CollapseControls />
 
-        {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || activeTab === "trending" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "youtube" || activeTab === "advice") && isAdmin)) && (
+        {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || activeTab === "trending" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "advice") && perms.advanced) || (activeTab === "youtube" && perms.deepDive)) && (
             <DashboardFilters
               program={model.filterInputs.program}
               setProgram={model.setProgram}
@@ -218,6 +222,7 @@ export default function Dashboard() {
         <Freeze frozen={model.filtering} keep={activeTab}>
         {activeTab === "search" && (
           <SearchResultsSection
+            canDownload={perms.download}
             rows={model.filtered}
             allRows={model.rows}
             search={model.search}
@@ -228,7 +233,7 @@ export default function Dashboard() {
         )}
 
         {activeTab === "trending" && (
-          <TrendingHashtagsSection rows={model.platformReportRows} allRows={model.rows} latestDate={model.dataLatestDate} />
+          <TrendingHashtagsSection rows={model.platformReportRows} allRows={model.rows} latestDate={model.dataLatestDate} canDownload={perms.download} />
         )}
 
         {activeTab === "platform" && (
@@ -243,7 +248,7 @@ export default function Dashboard() {
           />
         )}
 
-        {activeTab === "growth" && isAdmin && (
+        {activeTab === "growth" && perms.advanced && (
           <GrowthSection
             rows={model.growthRows}
             allRows={model.rows}
@@ -253,9 +258,9 @@ export default function Dashboard() {
           />
         )}
 
-        {activeTab === "help" && <HelpSection isAdmin={isAdmin} />}
+        {activeTab === "help" && <HelpSection isAdmin={isAdmin || perms.advanced} />}
 
-        {activeTab === "advice" && isAdmin && (
+        {activeTab === "advice" && perms.advanced && (
           <AdviceSection
             rows={model.filtered}
             allRows={model.rankingRows}
@@ -266,11 +271,11 @@ export default function Dashboard() {
           />
         )}
 
-        {activeTab === "youtube" && isAdmin && (
-          <YouTubeDeepDiveSection rows={model.filtered} allRows={model.rows} latestDate={model.dataLatestDate} />
+        {activeTab === "youtube" && perms.deepDive && (
+          <YouTubeDeepDiveSection rows={model.filtered} allRows={model.rows} latestDate={model.dataLatestDate} canRevenue={perms.revenue} />
         )}
 
-        {activeTab === "thumbnail" && isAdmin && (
+        {activeTab === "thumbnail" && perms.advanced && (
           <ThumbnailSection
             rows={model.filtered}
             startDate={model.startDate}
@@ -279,7 +284,7 @@ export default function Dashboard() {
           />
         )}
 
-        {activeTab === "quality" && isAdmin && (
+        {activeTab === "quality" && perms.advanced && (
           <QualitySection
             rows={model.filtered}
             allRows={model.rankingRows}
@@ -348,6 +353,7 @@ export default function Dashboard() {
               q4Plan={model.q4Plan}
             />
             <PerformanceSections
+              canDownload={perms.download}
               topTopicType={model.topTopicType}
               setTopTopicType={model.setTopTopicType}
               topicType={model.topicType}
@@ -387,6 +393,7 @@ export default function Dashboard() {
               }
             />
             <CompareTable
+              canDownload={perms.download}
               comparePage={model.comparePage}
               setComparePage={model.setComparePage}
               comparePageSize={model.comparePageSize}
@@ -405,19 +412,19 @@ export default function Dashboard() {
           </>
         )}
 
-        {activeTab === "revenue" && (
+        {activeTab === "revenue" && perms.revenue && (
           <div style={{ marginTop: 8 }}>
             <RevenueReport currentUser={auth.user} />
           </div>
         )}
 
-        {activeTab === "acc" && isAdmin && (
+        {activeTab === "acc" && perms.revenue && (
           <div style={{ marginTop: 8 }}>
-            <AccMonthlyReport />
+            <AccMonthlyReport canDownload={perms.download} />
           </div>
         )}
 
-        {activeTab === "affiliate" && (
+        {activeTab === "affiliate" && perms.revenue && (
           <div style={{ marginTop: 8 }}>
             <AffiliateReport currentUser={auth.user} />
           </div>

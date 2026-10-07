@@ -42,7 +42,8 @@ export function PerformanceSections({
   download,
   audienceReport,
   tvCompetitors,
-}: { audienceReport?: React.ReactNode; tvCompetitors?: React.ReactNode } & Pick<
+  canDownload = true,
+}: { audienceReport?: React.ReactNode; tvCompetitors?: React.ReactNode; canDownload?: boolean } & Pick<
   DashboardModel,
   | "topTopicType"
   | "setTopTopicType"
@@ -90,10 +91,12 @@ export function PerformanceSections({
                   </select>
                 </label>
               )}
-              <button onClick={download}>
-                <Download />
-                ดาวน์โหลด
-              </button>
+              {canDownload && (
+                <button onClick={download}>
+                  <Download />
+                  ดาวน์โหลด
+                </button>
+              )}
             </div>
           </div>
           <div className="table-scroll">

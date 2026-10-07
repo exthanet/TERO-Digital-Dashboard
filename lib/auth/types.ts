@@ -1,4 +1,6 @@
-export type UserRole = "admin" | "viewer";
+import type { PermOverrides, Role } from "./permissions";
+
+export type UserRole = Role;
 
 /** Profile stored in Firestore at users/{uid}; the password lives in Firebase Auth. */
 export interface User {
@@ -6,6 +8,8 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  /** Single permissions switched on / off for this person, on top of the role (lib/auth/permissions.ts). */
+  perms?: PermOverrides;
   active: boolean;
   createdAt: string;
   /** Signed in with a temporary password: must set their own before using the dashboard. */

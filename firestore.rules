@@ -26,12 +26,25 @@ service cloud.firestore {
     function isAdmin() {
       return isActive() && profile().role == 'admin';
     }
+    // Role presets; keep in step with PRESET in lib/auth/permissions.ts.
+    function preset(role, name) {
+      return role == 'admin'
+        || (role == 'executive' && name in ['advanced', 'deepDive', 'revenue', 'download'])
+        || (role == 'content' && name in ['advanced', 'deepDive', 'download'])
+        || (role == 'finance' && name in ['revenue', 'download']);
+    }
+    // A permission of the signed-in person: admin always; else their own switch, else the role's.
+    function can(name) {
+      return isActive()
+        && (profile().role == 'admin' || profile().get('perms', {}).get(name, preset(profile().role, name)) == true);
+    }
     function validProfile() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['email', 'name', 'role', 'active', 'createdAt', 'mustChangePassword'])
+      return d.keys().hasOnly(['email', 'name', 'role', 'active', 'createdAt', 'mustChangePassword', 'perms'])
         && d.email is string
         && d.name is string
-        && d.role in ['admin', 'viewer']
+        && d.role in ['admin', 'executive', 'content', 'finance', 'viewer']
+        && (!('perms' in d) || (d.perms is map && d.perms.keys().hasOnly(['advanced', 'deepDive', 'revenue', 'download'])))
         && d.active is bool
         && (!('mustChangePassword' in d) || d.mustChangePassword is bool);
     }
@@ -81,6 +94,12 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'kind', 'file', 'rows', 'at']);
       allow read: if isAdmin();
     }
+    // Who changed whose access (lib/auth/users.ts logPermissionChange): admins only.
+    match /permissionChanges/{id} {
+      allow create: if isAdmin() && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
     match /loginEvents/{id} {
       allow create: if isActive()
         && request.resource.data.uid == request.auth.uid
@@ -108,12 +127,12 @@ service cloud.firestore {
     // which is not bound by these rules, touches them.
     // YouTube Deep Dive (watch time, revenue, search terms) from the sync: admins read, nobody writes from a browser.
     match /ytAnalytics/{doc} {
-      allow read: if isAdmin();
+      allow read: if can('deepDive');
       allow write: if false;
     }
     // รายได้ → Monthly ACC (channel views and revenue per month) from the sync: admins read, nobody writes from a browser.
     match /accMonthly/{doc} {
-      allow read: if isAdmin();
+      allow read: if can('revenue');
       allow write: if false;
     }
     // Daily backups in GitHub (download links), listed by the sync workflow: admins read, nobody writes from a browser.
@@ -180,11 +199,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /affiliateData/{doc} {
-      allow read: if isActive();
+      allow read: if can('revenue');
       allow write: if isAdmin();
     }
     match /revenueData/{doc} {
-      allow read: if isActive();
+      allow read: if can('revenue');
       allow write: if isAdmin();
     }
   }

@@ -34,6 +34,7 @@ import {
   Users,
   X, MonitorPlay } from "lucide-react";
 import { BRAND } from "@/lib/brand";
+import { can, type Perm } from "@/lib/auth/permissions";
 
 type Tab = "overview" | "platform" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
 
@@ -52,7 +53,7 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
   onLogout?: () => void;
 }
 
-type NavItem = { id: string; label: string; icon: ReactNode; tab?: Tab; adminOnly?: boolean };
+type NavItem = { id: string; label: string; icon: ReactNode; tab?: Tab; adminOnly?: boolean; perm?: Perm };
 
 const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean }[] = [
   {
@@ -76,22 +77,21 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     // Advanced mode: analysis pages, admins only while it is being tried out.
     id: "advanced",
     label: "วิเคราะห์เชิงลึก",
-    adminOnly: true,
     items: [
-      { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth" },
-      { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality" },
-      { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail" },
-      { id: "youtube", label: "YouTube Deep Dive", icon: <MonitorPlay />, tab: "youtube" },
-      { id: "advice", label: "คำแนะนำ", icon: <ListChecks />, tab: "advice" },
+      { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth", perm: "advanced" },
+      { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality", perm: "advanced" },
+      { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail", perm: "advanced" },
+      { id: "youtube", label: "YouTube Deep Dive", icon: <MonitorPlay />, tab: "youtube", perm: "deepDive" },
+      { id: "advice", label: "คำแนะนำ", icon: <ListChecks />, tab: "advice", perm: "advanced" },
     ],
   },
   {
     id: "revenue",
     label: "รายได้",
     items: [
-      { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue" },
-      { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate" },
-      { id: "acc", label: "Monthly ACC", icon: <FileSpreadsheet />, tab: "acc", adminOnly: true },
+      { id: "revenue", label: "YouTube Revenue", icon: <BadgeDollarSign />, tab: "revenue", perm: "revenue" },
+      { id: "affiliate", label: "Affiliate Program", icon: <BadgeDollarSign />, tab: "affiliate", perm: "revenue" },
+      { id: "acc", label: "Monthly ACC", icon: <FileSpreadsheet />, tab: "acc", perm: "revenue" },
     ],
   },
   {
@@ -153,6 +153,7 @@ export function DashboardSidebar({
   onLogout,
 }: DashboardSidebarProps) {
   const isAdmin = currentUser?.role === "admin";
+  const allowed = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.perm || can(currentUser, item.perm));
   const [section, setSection] = useState("overview");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -250,7 +251,7 @@ export function DashboardSidebar({
         </div>
 
         <div className="sidebar-scroll">
-          {GROUPS.filter((g) => !g.adminOnly || isAdmin).map((g) => (
+          {GROUPS.filter((g) => (!g.adminOnly || isAdmin) && g.items.some(allowed)).map((g) => (
             <div key={g.id} className="sidebar-group">
               <button type="button" className="sidebar-group-head" onClick={() => toggleGroup(g.id)} aria-expanded={!collapsed[g.id]}>
                 {g.label}
@@ -258,7 +259,7 @@ export function DashboardSidebar({
               </button>
               {!collapsed[g.id] && (
                 <nav>
-                  {g.items.filter((item) => !item.adminOnly || isAdmin).map((item) => (
+                  {g.items.filter(allowed).map((item) => (
                     <a
                       key={item.id}
                       href={item.tab ? undefined : `#${item.id}`}

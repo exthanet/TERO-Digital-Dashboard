@@ -5,11 +5,14 @@ import { BadgeDollarSign, LayoutDashboard } from "lucide-react";
 interface SectionTabsProps {
   activeTab: "overview" | "platform" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
   onTabChange: (tab: "overview" | "revenue" | "affiliate") => void;
+  /** Revenue and Affiliate tabs (permission "revenue"). */
+  canRevenue?: boolean;
 }
 
 export function SectionTabs({
   activeTab,
   onTabChange,
+  canRevenue = true,
 }: SectionTabsProps) {
   return (
     <nav className="top-tab-bar" aria-label="Dashboard sections">
@@ -38,6 +41,8 @@ export function SectionTabs({
           <span>Performance<span className="tab-label-long"> Dashboard</span></span>
         </button>
 
+        {canRevenue && (
+          <>
         <button
           type="button"
           className={`tab-btn ${activeTab === "revenue" ? "active" : ""}`}
@@ -85,6 +90,8 @@ export function SectionTabs({
           <BadgeDollarSign size={16} />
           <span>Affiliate<span className="tab-label-long"> Program Report</span></span>
         </button>
+          </>
+        )}
       </div>
 
     </nav>

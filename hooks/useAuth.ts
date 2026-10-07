@@ -19,9 +19,11 @@ import {
   sendResetEmail,
   signIn,
   signOutUser,
+  logPermissionChange,
   updateUser,
   watchSession,
 } from "@/lib/auth/users";
+import type { PermOverrides } from "@/lib/auth/permissions";
 import { authErrorMessage } from "@/lib/auth/validation";
 import { LinkNeeded, linkMicrosoftWithPassword, signInWithMicrosoft } from "@/lib/auth/microsoft";
 import type { AuthCredential } from "firebase/auth";
@@ -61,6 +63,8 @@ export interface AuthState {
   inviteUser: (data: NewUserData) => Promise<AuthResult>;
   setFirstPassword: (newPassword: string) => Promise<AuthResult>;
   setUserRole: (uid: string, role: UserRole) => Promise<AuthResult>;
+  /** Single permissions on top of the role; undefined = the role's own. */
+  setUserPerms: (uid: string, perms: PermOverrides | undefined) => Promise<AuthResult>;
   setUserActive: (uid: string, active: boolean) => Promise<AuthResult>;
   loadLoginEvents: (since: Date) => Promise<LoginEvent[]>;
 }
@@ -188,7 +192,19 @@ export function useAuth(): AuthState {
         return { success: false, error: authErrorMessage(e, "ตั้งรหัสผ่านไม่สำเร็จ") };
       }
     },
-    setUserRole: (uid, role) => adminAction(() => updateUser(uid, { role }), "เปลี่ยนสิทธิ์ไม่สำเร็จ"),
+    setUserRole: (uid, role) =>
+      adminAction(async () => {
+        const target = allUsers.find((u) => u.id === uid);
+        // A new role starts from its own permissions.
+        await updateUser(uid, { role, perms: null });
+        if (target) void logPermissionChange(target, { role: target.role, perms: target.perms }, { role });
+      }, "เปลี่ยนสิทธิ์ไม่สำเร็จ"),
+    setUserPerms: (uid, perms) =>
+      adminAction(async () => {
+        const target = allUsers.find((u) => u.id === uid);
+        await updateUser(uid, { perms: perms ?? null });
+        if (target) void logPermissionChange(target, { role: target.role, perms: target.perms }, { role: target.role, perms: perms ?? {} });
+      }, "เปลี่ยนสิทธิ์ไม่สำเร็จ"),
     setUserActive: (uid, active) =>
       adminAction(() => updateUser(uid, { active }), "เปลี่ยนสถานะบัญชีไม่สำเร็จ"),
     loadLoginEvents: listLoginEvents,

@@ -18,6 +18,7 @@ import {
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -41,6 +42,7 @@ import type {
 import { normalizeEmail, tempPassword } from "./validation";
 import { createCompanyProfile, isCompanyEmail, viaMicrosoft } from "./microsoft";
 import { recordVisit } from "./activity";
+import { cleanOverrides, normalizeRole, type PermOverrides } from "./permissions";
 
 const usersCol = collection(db, "users");
 const loginEventsCol = collection(db, "loginEvents");
@@ -55,7 +57,8 @@ function toUser(id: string, data: DocumentData): User {
     id,
     email: String(data.email ?? ""),
     name: String(data.name ?? data.email ?? ""),
-    role: data.role === "admin" ? "admin" : "viewer",
+    role: normalizeRole(data.role),
+    perms: cleanOverrides(data.perms),
     active: data.active === true,
     createdAt: toIso(data.createdAt),
     mustChangePassword: data.mustChangePassword === true,
@@ -213,9 +216,25 @@ export async function listUsers(): Promise<User[]> {
 
 export function updateUser(
   uid: string,
-  changes: Partial<{ role: UserRole; active: boolean; name: string }>,
+  changes: Partial<{ role: UserRole; active: boolean; name: string; perms: PermOverrides | null }>,
 ): Promise<void> {
-  return updateDoc(doc(db, "users", uid), changes);
+  // perms null = back to the role's own permissions.
+  const { perms, ...rest } = changes;
+  return updateDoc(doc(db, "users", uid), perms === undefined ? rest : { ...rest, perms: perms ?? deleteField() });
+}
+
+/** Who changed whose access, from what to what (admins read). */
+export function logPermissionChange(target: User, before: unknown, after: unknown): Promise<unknown> {
+  const by = auth.currentUser;
+  return addDoc(collection(db, "permissionChanges"), {
+    by: by?.uid ?? "",
+    byEmail: by?.email ?? "",
+    target: target.id,
+    targetEmail: target.email,
+    before: JSON.stringify(before),
+    after: JSON.stringify(after),
+    at: serverTimestamp(),
+  }).catch(() => undefined);
 }
 
 /** Login events since `since` (inclusive), newest first. */

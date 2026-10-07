@@ -35,7 +35,8 @@ export function CompareTable({
   compareRows,
   sortCompare,
   download,
-}: Pick<
+  canDownload = true,
+}: { canDownload?: boolean } & Pick<
   DashboardModel,
   | "comparePage"
   | "setComparePage"
@@ -99,10 +100,12 @@ export function CompareTable({
                 </button>
               ))}
             </div>
-            <Button variant="outline" onClick={download}>
-              <Download />
-              Export CSV
-            </Button>
+            {canDownload && (
+              <Button variant="outline" onClick={download}>
+                <Download />
+                Export CSV
+              </Button>
+            )}
           </div>
         </div>
         <div className="table-scroll">

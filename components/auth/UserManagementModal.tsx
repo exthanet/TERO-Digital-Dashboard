@@ -18,6 +18,7 @@ import type { AuthState } from "@/hooks/useAuth";
 import type { UserRole } from "@/lib/auth/types";
 import { inviteMessage, isValidEmail } from "@/lib/auth/validation";
 import { isCompanyEmail } from "@/lib/auth/microsoft";
+import { PERMS, PRESET, ROLES, effectivePerms, overridesFor, type Perm } from "@/lib/auth/permissions";
 import { bangkokDay, listDownloads, listVisits, usageByPerson, type Download, type Visit } from "@/lib/auth/activity";
 
 type Period = "month" | "last" | "3m";
@@ -77,6 +78,8 @@ export function UserManagementModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("month");
+  // Per-person permissions being edited: user id → wanted switches.
+  const [editing, setEditing] = useState<{ id: string; wanted: Record<Perm, boolean> } | null>(null);
   const [visits, setVisits] = useState<Visit[] | null>(null);
   const [downloads, setDownloads] = useState<Download[] | null>(null);
 
@@ -339,6 +342,34 @@ export function UserManagementModal({
                 </form>
               )}
 
+              <details className="perm-legend">
+                <summary>บทบาทและสิทธิ์ (กดเพื่อดู)</summary>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>บทบาท</th>
+                      {PERMS.map((p) => (
+                        <th key={p.id} title={p.note}>
+                          {p.label}
+                        </th>
+                      ))}
+                      <th>นำเข้า / sync / ผู้ใช้</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROLES.map((r) => (
+                      <tr key={r.id} title={r.note}>
+                        <td>{r.label}</td>
+                        {PERMS.map((p) => (
+                          <td key={p.id}>{PRESET[r.id].includes(p.id) ? "✅" : "–"}</td>
+                        ))}
+                        <td>{r.id === "admin" ? "✅" : "–"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <small>ทุกบทบาทเห็นรายงานพื้นฐาน · คนที่เข้าครั้งแรกผ่าน Microsoft เป็น Viewer · กด “ปรับสิทธิ์” เพื่อเปิด / ปิดสิทธิ์รายคน · ทุกการเปลี่ยนถูกบันทึก</small>
+              </details>
               <div className="auth-users-table-wrap" style={{ maxHeight: 360 }}>
                 <table className="auth-users-table">
                   <thead>
@@ -362,14 +393,71 @@ export function UserManagementModal({
                             <select
                               value={u.role}
                               disabled={isSelf || busy !== null}
-                              title={isSelf ? "เปลี่ยนสิทธิ์ของตัวเองไม่ได้" : undefined}
+                              title={isSelf ? "เปลี่ยนสิทธิ์ของตัวเองไม่ได้" : ROLES.find((r) => r.id === u.role)?.note}
                               onChange={(e) =>
-                                run(`role-${u.id}`, () => auth.setUserRole(u.id, e.target.value as UserRole), `เปลี่ยนสิทธิ์ของ ${u.email} แล้ว`)
+                                run(`role-${u.id}`, () => auth.setUserRole(u.id, e.target.value as UserRole), `เปลี่ยนบทบาทของ ${u.email} แล้ว`)
                               }
                             >
-                              <option value="viewer">viewer</option>
-                              <option value="admin">admin</option>
+                              {ROLES.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.label}
+                                </option>
+                              ))}
                             </select>
+                            {u.perms && Object.keys(u.perms).length > 0 && <small className="perm-custom">ปรับรายคน</small>}
+                            {u.role !== "admin" && (
+                              <button
+                                type="button"
+                                className="auth-mini-btn"
+                                style={{ marginTop: 4 }}
+                                disabled={busy !== null}
+                                onClick={() => setEditing(editing?.id === u.id ? null : { id: u.id, wanted: effectivePerms(u.role, u.perms) })}
+                              >
+                                {editing?.id === u.id ? "ปิด" : "ปรับสิทธิ์"}
+                              </button>
+                            )}
+                            {editing?.id === u.id && (
+                              <div className="perm-editor">
+                                {PERMS.map((p) => {
+                                  const preset = PRESET[u.role].includes(p.id);
+                                  return (
+                                    <label key={p.id} title={p.note}>
+                                      <input
+                                        type="checkbox"
+                                        checked={editing.wanted[p.id]}
+                                        onChange={(e) => setEditing({ id: u.id, wanted: { ...editing.wanted, [p.id]: e.target.checked } })}
+                                      />
+                                      {p.label}
+                                      {editing.wanted[p.id] !== preset && <small> (ต่างจากบทบาท)</small>}
+                                    </label>
+                                  );
+                                })}
+                                <div className="perm-editor-actions">
+                                  <button
+                                    type="button"
+                                    className="auth-mini-btn"
+                                    disabled={busy !== null}
+                                    onClick={async () => {
+                                      const ok = await run(`perms-${u.id}`, () => auth.setUserPerms(u.id, overridesFor(u.role, editing.wanted)), `บันทึกสิทธิ์ของ ${u.email} แล้ว`);
+                                      if (ok) setEditing(null);
+                                    }}
+                                  >
+                                    บันทึก
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="auth-mini-btn"
+                                    disabled={busy !== null}
+                                    onClick={async () => {
+                                      const ok = await run(`perms-${u.id}`, () => auth.setUserPerms(u.id, undefined), `ใช้สิทธิ์ตามบทบาทของ ${u.email} แล้ว`);
+                                      if (ok) setEditing(null);
+                                    }}
+                                  >
+                                    ใช้ตามบทบาท
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </td>
                           <td>
                             <span className={`auth-status-pill ${u.active ? "on" : "off"}`}>

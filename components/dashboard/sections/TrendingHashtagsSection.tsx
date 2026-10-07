@@ -46,9 +46,11 @@ interface Props {
   rows: RecordRow[];
   allRows: RecordRow[];
   latestDate: string;
+  /** Permission "download". */
+  canDownload?: boolean;
 }
 
-export function TrendingHashtagsSection({ rows, allRows, latestDate }: Props) {
+export function TrendingHashtagsSection({ rows, allRows, latestDate, canDownload = true }: Props) {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(7);
   const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("ALL");
   const [hideCommon, setHideCommon] = useState(true);
@@ -222,9 +224,11 @@ export function TrendingHashtagsSection({ rows, allRows, latestDate }: Props) {
               <a className="trend-more" href={creativeCenterUrl(selected)} target="_blank" rel="noreferrer" title="เทรนด์ของ hashtag นี้ในทั้ง TikTok (ต้องล็อกอิน TikTok)">
                 ดูใน TikTok Creative Center <ExternalLink size={12} />
               </a>
-              <button type="button" className="acc-export" onClick={downloadCsv}>
-                <Download size={14} /> CSV
-              </button>
+              {canDownload && (
+                <button type="button" className="acc-export" onClick={downloadCsv}>
+                  <Download size={14} /> CSV
+                </button>
+              )}
             </div>
           </div>
 

@@ -47,6 +47,8 @@ interface Props {
   /** Every row, for the clip analysis panel. */
   allRows: RecordRow[];
   latestDate: string;
+  /** Permission "revenue": the Revenue tab. */
+  canRevenue?: boolean;
 }
 
 function ClipLink({ x, onOpen }: { x: DeepItem; onOpen: (r: RecordRow) => void }) {
@@ -62,7 +64,7 @@ function ClipLink({ x, onOpen }: { x: DeepItem; onOpen: (r: RecordRow) => void }
   );
 }
 
-export function YouTubeDeepDiveSection({ rows, allRows, latestDate }: Props) {
+export function YouTubeDeepDiveSection({ rows, allRows, latestDate, canRevenue = true }: Props) {
   const [data, setData] = useState<YtDeepDiveData | null | undefined>(undefined);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("retention");
@@ -130,7 +132,7 @@ export function YouTubeDeepDiveSection({ rows, allRows, latestDate }: Props) {
       </div>
 
       <div className="segmented yt-deep-tabs">
-        {TABS.map((t) => (
+        {TABS.filter((t) => canRevenue || t.key !== "revenue").map((t) => (
           <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>
             {t.label}
           </button>
@@ -422,7 +424,7 @@ export function YouTubeDeepDiveSection({ rows, allRows, latestDate }: Props) {
         </>
       )}
 
-      {data && tab === "revenue" && (
+      {data && tab === "revenue" && canRevenue && (
         <>
           <div className="yt-deep-cards">
             <article>

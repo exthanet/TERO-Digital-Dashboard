@@ -15,7 +15,7 @@ const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateStri
 const thDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("th-TH", { day: "numeric", month: "short", timeZone: "UTC" });
 const thTime = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "-");
 
-export function AccMonthlyReport() {
+export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean }) {
   const [months, setMonths] = useState<AccMonth[] | null>(null);
   const [rates, setRates] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
@@ -139,6 +139,7 @@ export function AccMonthlyReport() {
                 </button>
               ))}
             </div>
+            {canDownload && (
             <div className="acc-export-wrap">
               <button type="button" className="acc-export" onClick={() => setExportOpen((o) => !o)} aria-expanded={exportOpen}>
                 <Download size={15} /> Export Excel
@@ -167,6 +168,7 @@ export function AccMonthlyReport() {
                 </div>
               )}
             </div>
+            )}
           </div>
           {running && <p className="acc-note">เดือนนี้ยังไม่จบ ตัวเลขถึงวันที่ {thDay(month.through)} และจะอัปเดตทุกวัน</p>}
           {!running && <p className="acc-note">ข้อมูลครบเดือน (ถึง {thDay(month.through)}) · YouTube อาจปรับรายได้ย้อนหลังได้ราว 2 สัปดาห์ ระบบจึงอัปเดตเดือนก่อนให้ด้วย</p>}
