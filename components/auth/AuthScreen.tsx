@@ -36,6 +36,9 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
   const [loginPassword, setLoginPassword] = useState("");
   // Microsoft found an existing password account with the same email: link once with the password.
   const [link, setLink] = useState<PendingLink | null>(null);
+  // Everyone signs in with Microsoft; the email form is for the few outside accounts, opened on request.
+  // Already open when the page comes back with an email (after setting a password).
+  const [showEmailForm, setShowPasswordForm] = useState(!!initialEmail);
   const [linkPassword, setLinkPassword] = useState("");
 
   const handleMicrosoft = async () => {
@@ -181,14 +184,20 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
               เข้าสู่ระบบด้วย Microsoft
             </button>
             <p className="auth-ms-note">สำหรับพนักงาน (บัญชี @terodigital.com)</p>
-            <div className="auth-divider">
-              <span>หรือใช้อีเมลและรหัสผ่าน</span>
-            </div>
+            {showEmailForm ? (
+              <div className="auth-divider">
+                <span>หรือใช้อีเมลและรหัสผ่าน</span>
+              </div>
+            ) : (
+              <button type="button" className="auth-link-btn auth-other-login" onClick={() => setShowPasswordForm(true)}>
+                เข้าสู่ระบบด้วยอีเมล
+              </button>
+            )}
           </>
         )}
 
-        {/* Login Form */}
-        {!link && (
+        {/* Login Form (outside accounts only) */}
+        {!link && showEmailForm && (
         <form className="auth-form" onSubmit={handleLogin}>
           <div className="auth-field">
             <label className="auth-label" htmlFor="login-email">

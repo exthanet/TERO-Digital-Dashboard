@@ -1040,3 +1040,10 @@
 .perm-legend small {
   color: #64748b;
 }
+
+/* Opens the email form for outside accounts. */
+.auth-other-login {
+  display: block;
+  margin: 18px auto 0;
+  font-size: 12.5px;
+}
