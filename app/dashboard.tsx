@@ -215,6 +215,7 @@ export default function Dashboard() {
               applyDatePreset={model.applyDatePreset}
               dataFirstDate={model.dataFirstDate}
               onSearch={() => setActiveTab("search")}
+              busy={model.filtering}
             />
         )}
 

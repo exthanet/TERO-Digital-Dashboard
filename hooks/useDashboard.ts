@@ -28,7 +28,7 @@ import type {
   RawRow,
   RecordRow,
 } from "@/lib/dashboard/types";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/loadingBar";
 
 
@@ -131,10 +131,13 @@ export function useDashboard(enabled = true) {
     if (inputsKey === appliedKey) return;
     const next = JSON.parse(inputsKey) as typeof inputs;
     let done = false;
+    // A plain update, not a transition: a transition can be put off again and
+    // again by other updates, leaving the page showing the old numbers. The bar
+    // is already painted and keeps moving while this one works.
     const apply = () => {
       if (done) return;
       done = true;
-      startTransition(() => setApplied(next));
+      setApplied(next);
     };
     let second = 0;
     const first = requestAnimationFrame(() => {
