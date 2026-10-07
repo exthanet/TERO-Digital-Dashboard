@@ -127,7 +127,7 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
           </div>
           <h1 className="auth-title">{BRAND.productShort.toUpperCase()}</h1>
           <p className="auth-subtitle">
-            ระบบรายงานวิเคราะห์ Performance & Rating สำหรับผู้บริหาร
+            ระบบรายงานวิเคราะห์ Performance & Rating สำหรับผู้บริหารและทีมงาน
           </p>
         </div>
 
