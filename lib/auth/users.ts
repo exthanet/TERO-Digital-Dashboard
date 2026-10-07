@@ -90,7 +90,12 @@ export function watchSession(
     let creating = false;
     stopProfile = onSnapshot(
       doc(db, "users", fbUser.uid),
+      // Metadata changes too: a profile just written here first shows up as a local,
+      // not-yet-saved copy. Reading data before the server has it is refused
+      // (firestore.rules checks the profile), so wait for the saved one.
+      { includeMetadataChanges: true },
       (snap) => {
+        if (snap.metadata.hasPendingWrites) return;
         const profile = snap.exists() ? toUser(snap.id, snap.data()) : null;
         // First Microsoft sign-in of a company account: create its viewer profile; this snapshot fires again.
         if (!profile && microsoftOnly && !creating) {

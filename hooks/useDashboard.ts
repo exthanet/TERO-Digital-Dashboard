@@ -175,7 +175,13 @@ export function useDashboard(enabled = true) {
       try {
         if (!isStaticHost) {
           // Compact copy / this browser when they match masterData, else masterData itself.
-          const cloudResult = await track(loadDashboardRows()).catch(() => null);
+          // One more try after a moment: right after a first sign-in the server may
+          // not have the new profile yet and refuses the first read.
+          let cloudResult = await track(loadDashboardRows()).catch(() => null);
+          if (!cloudResult || !cloudResult.rows.length) {
+            await new Promise((r) => setTimeout(r, 2500));
+            cloudResult = await track(loadDashboardRows()).catch(() => null);
+          }
           if (cloudResult && cloudResult.rows.length > 0) {
             setRawRows(cloudResult.rows);
             const nonPlain = countNonPlainDates(cloudResult.rows);
