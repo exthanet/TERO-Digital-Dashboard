@@ -9,6 +9,7 @@ import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { searchByMonth, searchSummary, searchTerms } from "@/lib/dashboard/search";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
+import { recordDownload } from "@/lib/auth/activity";
 
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 const thMonth = (m: string) => new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", month: "short", year: "numeric" }).format(new Date(`${m}-01T00:00:00Z`));
@@ -49,6 +50,7 @@ export function SearchResultsSection({ rows, allRows, search, startDate, endDate
     a.download = `search-${terms.join("_").replace(/[^\p{L}\p{N}_]+/gu, "") || "all"}-${startDate}-${endDate}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+    recordDownload("csv-search", a.download, online.length);
   }
 
   const Clip = ({ r, metric }: { r: RecordRow; metric: React.ReactNode }) => (

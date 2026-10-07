@@ -960,3 +960,14 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* Usage tab: people who joined in the last 30 days (e.g. first Microsoft sign-in). */
+.auth-new-pill {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 10.5px;
+  font-weight: 700;
+}

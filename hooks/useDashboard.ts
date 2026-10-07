@@ -10,6 +10,7 @@ import { parseCsv } from "@/lib/dashboard/csv";
 import { getCompareRange, getDatePresetRange, isoDate } from "@/lib/dashboard/dates";
 import { loadDashboardRows } from "@/lib/dashboardCache";
 import { matchesSearch, searchTerms } from "@/lib/dashboard/search";
+import { recordDownload } from "@/lib/auth/activity";
 import { compact, num, pct } from "@/lib/dashboard/format";
 import {
   countNonPlainDates,
@@ -1279,6 +1280,7 @@ export function useDashboard(enabled = true) {
     a.href = URL.createObjectURL(blob);
     a.download = `performance-${startDate}-${endDate}.csv`;
     a.click();
+    recordDownload("csv-performance", a.download, body.length);
     URL.revokeObjectURL(a.href);
   }
   function reset() {

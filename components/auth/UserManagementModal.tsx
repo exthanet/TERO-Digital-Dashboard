@@ -15,9 +15,31 @@ import {
   X,
 } from "lucide-react";
 import type { AuthState } from "@/hooks/useAuth";
-import type { LoginEvent, UserRole } from "@/lib/auth/types";
+import type { UserRole } from "@/lib/auth/types";
 import { inviteMessage, isValidEmail } from "@/lib/auth/validation";
 import { isCompanyEmail } from "@/lib/auth/microsoft";
+import { bangkokDay, listDownloads, listVisits, usageByPerson, type Download, type Visit } from "@/lib/auth/activity";
+
+type Period = "month" | "last" | "3m";
+/** First day (Bangkok) of the period, and the day it ends (inclusive). */
+function periodRange(p: Period): { from: string; to: string; label: string } {
+  const today = bangkokDay();
+  const [y, m] = today.split("-").map(Number);
+  const first = (yy: number, mm: number) => new Date(Date.UTC(yy, mm - 1, 1)).toISOString().slice(0, 10);
+  if (p === "last") {
+    const from = first(y, m - 1);
+    const to = new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10);
+    return { from, to, label: "เดือนที่แล้ว" };
+  }
+  if (p === "3m") return { from: first(y, m - 2), to: today, label: "3 เดือนล่าสุด" };
+  return { from: first(y, m), to: today, label: "เดือนนี้" };
+}
+const KIND_LABEL: Record<string, string> = {
+  "csv-performance": "CSV ผลงานรายเทป",
+  "csv-search": "CSV ผลการค้นหา",
+  "excel-monthly-acc": "Excel Monthly ACC",
+  "backup-zip": "Backup zip (GitHub)",
+};
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -37,11 +59,6 @@ const dateTime = (iso: string) =>
       }).format(new Date(iso))
     : "-";
 
-function startOfMonth() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
 export function UserManagementModal({
   isOpen,
   onClose,
@@ -58,9 +75,11 @@ export function UserManagementModal({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [events, setEvents] = useState<LoginEvent[] | null>(null);
+  const [period, setPeriod] = useState<Period>("month");
+  const [visits, setVisits] = useState<Visit[] | null>(null);
+  const [downloads, setDownloads] = useState<Download[] | null>(null);
 
-  const { refreshUsers, loadLoginEvents } = auth;
+  const { refreshUsers } = auth;
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
@@ -69,28 +88,31 @@ export function UserManagementModal({
 
   useEffect(() => {
     if (!isOpen || tab !== "usage") return;
-    setEvents(null);
-    loadLoginEvents(startOfMonth())
-      .then(setEvents)
+    const { from, to } = periodRange(period);
+    setVisits(null);
+    setDownloads(null);
+    listVisits(from)
+      .then((v) => setVisits(v.filter((x) => x.day <= to)))
       .catch(() => {
-        setEvents([]);
+        setVisits([]);
         setError("โหลดประวัติการเข้าใช้ไม่สำเร็จ");
       });
-  }, [isOpen, tab, loadLoginEvents]);
+    listDownloads(new Date(`${from}T00:00:00+07:00`))
+      .then((d) => setDownloads(d.filter((x) => bangkokDay(new Date(x.at)) <= to)))
+      .catch(() => setDownloads([]));
+  }, [isOpen, tab, period]);
 
   const usage = useMemo(() => {
-    const byUser = new Map<string, { count: number; last: string }>();
-    (events || []).forEach((e) => {
-      const x = byUser.get(e.uid) || { count: 0, last: "" };
-      x.count += 1;
-      if (e.at > x.last) x.last = e.at;
-      byUser.set(e.uid, x);
-    });
+    const byUser = usageByPerson(visits || []);
+    const recent = new Date(Date.now() - 30 * 86400000).toISOString();
     return auth.allUsers
       .filter((u) => u.active)
-      .map((u) => ({ user: u, ...(byUser.get(u.id) || { count: 0, last: "" }) }))
-      .sort((a, b) => b.count - a.count);
-  }, [events, auth.allUsers]);
+      .map((u) => {
+        const x = byUser.get(u.id);
+        return { user: u, count: x?.days || 0, opens: x?.opens || 0, last: x?.last || "", methods: [...(x?.methods || [])], isNew: !!u.createdAt && u.createdAt >= recent };
+      })
+      .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last));
+  }, [visits, auth.allUsers]);
 
   if (!isOpen) return null;
 
@@ -392,17 +414,29 @@ export function UserManagementModal({
 
           {tab === "usage" && (
             <>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "#334155" }}>
-                {events === null
-                  ? "กำลังโหลด..."
-                  : `เข้าใช้แล้ว ${usedCount} จาก ${activeCount} คน ตั้งแต่วันที่ 1 ของเดือนนี้`}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", justifyContent: "space-between" }}>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "#334155" }}>
+                  {visits === null ? "กำลังโหลด..." : `เข้าใช้แล้ว ${usedCount} จาก ${activeCount} คน · ${periodRange(period).label}`}
+                </p>
+                <div className="segmented" aria-label="ช่วงเวลา">
+                  {(["month", "last", "3m"] as const).map((p) => (
+                    <button key={p} type="button" className={period === p ? "active" : ""} onClick={() => setPeriod(p)}>
+                      {periodRange(p).label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>
+                นับวันที่เปิด dashboard (ทั้งล็อกอินใหม่และที่ยังล็อกอินค้างไว้) · 1 วันนับครั้งเดียว · เริ่มเก็บตั้งแต่ ต.ค. 2026 ข้อมูลก่อนหน้านั้นไม่มี
               </p>
-              <div className="auth-users-table-wrap" style={{ maxHeight: 360 }}>
+              <div className="auth-users-table-wrap" style={{ maxHeight: 320 }}>
                 <table className="auth-users-table">
                   <thead>
                     <tr>
                       <th>ผู้ใช้</th>
-                      <th>จำนวนครั้ง</th>
+                      <th>จำนวนวัน</th>
+                      <th>เปิด (ครั้ง)</th>
+                      <th>เข้าด้วย</th>
                       <th>เข้าใช้ล่าสุด</th>
                     </tr>
                   </thead>
@@ -410,18 +444,59 @@ export function UserManagementModal({
                     {usage.map((x) => (
                       <tr key={x.user.id} style={x.count ? undefined : { background: "#fff7ed" }}>
                         <td className="auth-user-cell">
-                          <strong>{x.user.name}</strong>
-                          <small>{x.user.email}</small>
+                          <strong>
+                            {x.user.name}
+                            {x.isNew && <span className="auth-new-pill">ใหม่ · {dateTime(x.user.createdAt)}</span>}
+                          </strong>
+                          <small>
+                            {x.user.email} · {x.user.role}
+                          </small>
                         </td>
                         <td>{x.count}</td>
-                        <td style={{ color: x.count ? "#334155" : "#c2410c" }}>
-                          {x.count ? dateTime(x.last) : "ยังไม่เข้าใช้เดือนนี้"}
-                        </td>
+                        <td>{x.opens}</td>
+                        <td>{x.methods.map((m) => (m === "microsoft" ? "Microsoft" : m === "password" ? "รหัสผ่าน" : m)).join(", ") || "-"}</td>
+                        <td style={{ color: x.count ? "#334155" : "#c2410c" }}>{x.count ? dateTime(x.last) : "ยังไม่เข้าใช้ในช่วงนี้"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f1b31", marginTop: "0.5rem" }}>ดาวน์โหลดไฟล์ · {periodRange(period).label}</div>
+              {downloads === null ? (
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>กำลังโหลด...</p>
+              ) : downloads.length === 0 ? (
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>ยังไม่มีการดาวน์โหลดในช่วงนี้</p>
+              ) : (
+                <div className="auth-users-table-wrap" style={{ maxHeight: 260 }}>
+                  <table className="auth-users-table">
+                    <thead>
+                      <tr>
+                        <th>เวลา</th>
+                        <th>ผู้ใช้</th>
+                        <th>ไฟล์</th>
+                        <th>แถว</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {downloads.map((d) => (
+                        <tr key={d.id}>
+                          <td>{dateTime(d.at)}</td>
+                          <td className="auth-user-cell">
+                            <strong>{d.name || d.email}</strong>
+                            {d.name && <small>{d.email}</small>}
+                          </td>
+                          <td className="auth-user-cell">
+                            <strong>{KIND_LABEL[d.kind] || d.kind}</strong>
+                            <small>{d.file}</small>
+                          </td>
+                          <td>{d.rows ?? "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
         </div>

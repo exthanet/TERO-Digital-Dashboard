@@ -6,6 +6,7 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { num } from "@/lib/dashboard/format";
 import { track } from "@/lib/loadingBar";
 import { loadAccMonths } from "@/lib/accMonthlyData";
+import { recordDownload } from "@/lib/auth/activity";
 import { loadRevenueDataFromFirebase } from "@/lib/firebase";
 import { accSheetRows, accTotals, monthEnd, rowNote, type AccMonth, type AccNums } from "@/lib/dashboard/accMonthly";
 
@@ -78,6 +79,7 @@ export function AccMonthlyReport() {
     );
     const name = list.length === 1 ? list[0].month : `${list[0].month}_to_${list[list.length - 1].month}`;
     XLSX.writeFile(wb, `Monthly-ACC-${name}-${currency}.xlsx`);
+    recordDownload("excel-monthly-acc", `Monthly-ACC-${name}-${currency}.xlsx`, list.length);
     setExportOpen(false);
   }
 

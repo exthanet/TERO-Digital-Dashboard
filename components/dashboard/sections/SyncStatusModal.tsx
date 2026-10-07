@@ -14,6 +14,7 @@ import {
   type SyncStatus,
 } from "@/lib/sync/status";
 import { track } from "@/lib/loadingBar";
+import { recordDownload } from "@/lib/auth/activity";
 
 const thTime = (iso?: string) =>
   iso
@@ -247,7 +248,7 @@ export function SyncStatusModal({
                     <td>{thTime(b.expiresAt)}</td>
                     <td>
                       {b.artifactUrl ? (
-                        <a href={b.artifactUrl} target="_blank" rel="noreferrer">
+                        <a href={b.artifactUrl} target="_blank" rel="noreferrer" onClick={() => recordDownload("backup-zip", b.id)}>
                           ไฟล์ zip <ExternalLink size={11} />
                         </a>
                       ) : (

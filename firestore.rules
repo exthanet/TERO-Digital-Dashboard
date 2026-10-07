@@ -59,6 +59,28 @@ service cloud.firestore {
     }
 
     // One document per login, written by the person logging in.
+    // One per person per day the dashboard was opened (lib/auth/activity.ts): own entry only, admins read.
+    match /visits/{id} {
+      allow get: if isAdmin() || (isActive() && id.matches(request.auth.uid + '_.*'));
+      allow list: if isAdmin();
+      allow create: if isActive()
+        && id == request.auth.uid + '_' + request.resource.data.day
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'day', 'method', 'firstAt', 'lastAt', 'opens'])
+        && request.resource.data.opens == 1;
+      allow update: if isActive()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastAt', 'opens', 'method'])
+        && request.resource.data.opens == resource.data.opens + 1;
+    }
+    // Files taken from the dashboard: each person adds their own, admins read.
+    match /downloads/{id} {
+      allow create: if isActive()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'kind', 'file', 'rows', 'at']);
+      allow read: if isAdmin();
+    }
     match /loginEvents/{id} {
       allow create: if isActive()
         && request.resource.data.uid == request.auth.uid

@@ -40,6 +40,7 @@ import type {
 } from "./types";
 import { normalizeEmail, tempPassword } from "./validation";
 import { createCompanyProfile, isCompanyEmail, viaMicrosoft } from "./microsoft";
+import { recordVisit } from "./activity";
 
 const usersCol = collection(db, "users");
 const loginEventsCol = collection(db, "loginEvents");
@@ -107,6 +108,8 @@ export function watchSession(
           return;
         }
         onChange(profile);
+        // Today's visit, whether signed in now or still signed in from before.
+        void recordVisit(profile, fbUser);
       },
       () => {
         void signOut(auth);
