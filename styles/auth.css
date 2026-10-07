@@ -1047,3 +1047,8 @@
   margin: 18px auto 0;
   font-size: 12.5px;
 }
+
+/* The space under the Microsoft button (where its note used to be). */
+.auth-ms-gap {
+  height: 24px;
+}

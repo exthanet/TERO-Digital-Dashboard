@@ -183,7 +183,7 @@ export function AuthScreen({ auth, initialEmail = "", initialInfo }: AuthScreenP
               <MicrosoftLogo />
               เข้าสู่ระบบด้วย Microsoft
             </button>
-            <p className="auth-ms-note">สำหรับพนักงาน (บัญชี @terodigital.com)</p>
+            <div className="auth-ms-gap" aria-hidden="true" />
             {showEmailForm ? (
               <div className="auth-divider">
                 <span>หรือใช้อีเมลและรหัสผ่าน</span>
