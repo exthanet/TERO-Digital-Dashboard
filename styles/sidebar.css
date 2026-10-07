@@ -212,3 +212,8 @@
   color: #94a3b8;
   word-break: break-all;
 }
+
+/* Sync badge for non-admins: information only, not a button. */
+.sidebar-sync.sidebar-sync-static {
+  cursor: default;
+}

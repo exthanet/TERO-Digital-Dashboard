@@ -280,11 +280,17 @@ export function DashboardSidebar({
         </div>
 
         <div className="sidebar-foot">
-          {isAdmin && (
+          {isAdmin ? (
             <button type="button" className={`sidebar-sync ${badge.tone}`} onClick={run(openSyncStatus)} title="เปิดสถานะการ Sync">
               <i />
               <span>{badge.text}</span>
             </button>
+          ) : (
+            // Everyone else: the latest sync at a glance, without the details.
+            <div className={`sidebar-sync sidebar-sync-static ${badge.tone}`} title="สถานะการอัปเดตข้อมูลล่าสุด">
+              <i />
+              <span>{badge.text}</span>
+            </div>
           )}
 
           {isAdmin && (

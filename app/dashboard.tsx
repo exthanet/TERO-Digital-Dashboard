@@ -120,13 +120,15 @@ export default function Dashboard() {
     return () => window.removeEventListener("hashchange", open);
   }, []);
 
-  // Admins get the latest sync result (one read) for the warning banner.
+  // The latest sync result (one read): everyone sees the badge in the sidebar;
+  // the warning banner and the details stay with admins.
+  const signedIn = auth.isAuthenticated && !auth.user?.mustChangePassword;
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!signedIn) return;
     track(loadSyncStatus())
       .then(setSyncStatus)
       .catch(() => setSyncStatus(undefined));
-  }, [isAdmin]);
+  }, [signedIn]);
 
   if (passwordAction) {
     return (
