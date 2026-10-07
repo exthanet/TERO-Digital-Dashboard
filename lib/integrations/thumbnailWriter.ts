@@ -1,6 +1,8 @@
 // Cover-image links for the thumbnail page: thumbnails/{platform} = gzipped
-// JSON { "Platform|postId": url }. Kept out of masterData so the dashboard
-// stays light. YouTube needs none (the link is built from the video id).
+// JSON { "Platform|postId": url }, split into thumbnails/{platform}__1, __2 …
+// when one document would be too big (the first one says how many parts).
+// Kept out of masterData so the dashboard stays light. YouTube needs none
+// (the link is built from the video id).
 //
 // - TikTok covers are hosted by Metricool and do not expire: kept and added to.
 // - Facebook / Instagram links are Meta CDN links that expire after a few days
@@ -50,8 +52,26 @@ export function mergeThumbs(
 }
 
 const MAX_BYTES = 900_000;
+const MAX_PARTS = 20;
 
-/** Write one document per platform. Analysis only: callers must not fail a run on errors here. */
+const unzip = (doc: { fields?: Record<string, unknown> } | null): Record<string, string> => {
+  const f = doc?.fields?.data as { bytesValue?: string } | undefined;
+  return f?.bytesValue ? (JSON.parse(gunzipSync(Buffer.from(f.bytesValue, "base64")).toString("utf8")) as Record<string, string>) : {};
+};
+
+/** Links split into gzipped parts that each fit in a document. */
+export function packThumbs(links: Record<string, string>, maxBytes = MAX_BYTES): Buffer[] {
+  const entries = Object.entries(links);
+  for (let parts = 1; parts <= MAX_PARTS; parts++) {
+    const size = Math.ceil(entries.length / parts) || 1;
+    const out: Buffer[] = [];
+    for (let i = 0; i < Math.max(1, entries.length); i += size) out.push(gzipSync(JSON.stringify(Object.fromEntries(entries.slice(i, i + size))), { level: 9 }));
+    if (out.every((b) => b.length <= maxBytes)) return out;
+  }
+  throw new Error(`cover links do not fit in ${MAX_PARTS} documents`);
+}
+
+/** Write each platform's links (in parts when needed). Analysis only: callers must not fail a run on errors here. */
 export async function writeThumbnails(
   db: Firestore,
   fresh: Map<string, string>,
@@ -66,17 +86,22 @@ export async function writeThumbnails(
   for (const [platform, links] of Object.entries(byPlatform)) {
     const path = `thumbnails/${platform}`;
     const existing = await db.get(path);
-    const bytes = existing?.fields?.data && "bytesValue" in existing.fields.data ? String(existing.fields.data.bytesValue) : "";
-    const old = bytes ? (JSON.parse(gunzipSync(Buffer.from(bytes, "base64")).toString("utf8")) as Record<string, string>) : {};
+    const oldParts = Number((existing?.fields?.parts as { integerValue?: string } | undefined)?.integerValue || 1);
+    const old = unzip(existing);
+    for (let i = 1; i < oldParts; i++) Object.assign(old, unzip(await db.get(`${path}__${i}`)));
     const merged = mergeThumbs(old, links, keep);
-    const data = gzipSync(JSON.stringify(merged), { level: 9 });
-    if (data.length > MAX_BYTES) throw new Error(`${path} is ${data.length} bytes, over the document limit`);
-    await db.set(path, {
-      platform: { stringValue: platform },
-      count: { integerValue: String(Object.keys(merged).length) },
-      updatedAt: { stringValue: new Date().toISOString() },
-      data: { bytesValue: data.toString("base64") },
-    });
+    const parts = packThumbs(merged);
+    const updatedAt = new Date().toISOString();
+    for (let i = parts.length - 1; i >= 0; i--) {
+      // Extra parts first, the first document last: a reader never sees a part count whose parts are missing.
+      await db.set(i ? `${path}__${i}` : path, {
+        platform: { stringValue: platform },
+        ...(i ? { part: { integerValue: String(i) } } : { parts: { integerValue: String(parts.length) }, count: { integerValue: String(Object.keys(merged).length) } }),
+        updatedAt: { stringValue: updatedAt },
+        data: { bytesValue: parts[i].toString("base64") },
+      });
+    }
+    for (let i = parts.length; i < oldParts; i++) await db.delete(`${path}__${i}`);
     counts[platform] = Object.keys(merged).length;
   }
   return counts;

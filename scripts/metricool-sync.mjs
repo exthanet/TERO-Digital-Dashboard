@@ -525,8 +525,13 @@ try {
   // would count them again). Analysis only: a failure here never fails the run.
   // Cover links for posts in masterData; analysis only, never fails the run.
   try {
-    const inMaster = new Set(finalRows.map((r) => rowKey(r)).filter(Boolean));
-    const counts = await writeThumbnails(fsdb, thumbs, (k) => inMaster.has(k));
+    // Facebook / Instagram links expire within days anyway: keep them for recent posts only (120 days).
+    const coverFrom = new Date(Date.parse(`${today}T00:00:00Z`) - 120 * 86400000).toISOString().slice(0, 10);
+    const postDate = new Map(finalRows.map((r) => [rowKey(r), toIso(r.Date)]).filter(([k]) => k));
+    const counts = await writeThumbnails(fsdb, thumbs, (k) => {
+      if (!postDate.has(k)) return false;
+      return !/^(Facebook|Instagram)\|/.test(k) || postDate.get(k) >= coverFrom;
+    });
     console.log(`thumbnails: ${JSON.stringify(counts)}`);
   } catch (e) {
     console.error(`thumbnails not written: ${e.message}`);

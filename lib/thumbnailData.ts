@@ -9,7 +9,7 @@ async function gunzip(bytes: Uint8Array): Promise<string> {
 
 let cached: Promise<Map<string, string>> | null = null;
 
-/** Every stored cover link by post key (three reads, once per session). YouTube links are built, not stored. */
+/** Every stored cover link by post key (one read per platform, more when split; once per session). YouTube links are built, not stored. */
 export function loadThumbnails(): Promise<Map<string, string>> {
   cached ||= (async () => {
     const out = new Map<string, string>();
@@ -17,8 +17,15 @@ export function loadThumbnails(): Promise<Map<string, string>> {
       const snap = await getDoc(doc(db, "thumbnails", platform));
       const data = snap.exists() ? snap.data() : null;
       if (!data?.data) continue;
-      const links = JSON.parse(await gunzip((data.data as Bytes).toUint8Array())) as Record<string, string>;
-      for (const [k, v] of Object.entries(links)) out.set(k, v);
+      const docs = [data];
+      for (let i = 1; i < (Number(data.parts) || 1); i++) {
+        const part = await getDoc(doc(db, "thumbnails", `${platform}__${i}`));
+        if (part.exists()) docs.push(part.data());
+      }
+      for (const d of docs) {
+        const links = JSON.parse(await gunzip((d.data as Bytes).toUint8Array())) as Record<string, string>;
+        for (const [k, v] of Object.entries(links)) out.set(k, v);
+      }
     }
     return out;
   })().catch((e) => {

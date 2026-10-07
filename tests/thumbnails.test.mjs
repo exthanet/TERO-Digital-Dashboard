@@ -57,3 +57,17 @@ test("clips are ranked by raw views, most first; fresh and zero-view clips wait"
   assert.deepEqual(clips.map((c) => c.row.topic), ["full1", "full0", "short2", "short1", "short0"]);
   assert.equal(clips[0].row.views, 20000);
 });
+
+test("cover links split into parts that each fit a document", async () => {
+  const { packThumbs } = await import("../lib/integrations/thumbnailWriter.ts");
+  const { gunzipSync } = await import("node:zlib");
+  const { randomBytes } = await import("node:crypto");
+  // Random-looking links so gzip cannot shrink them much.
+  const links = Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`Facebook|${i}`, `https://scontent.example/${randomBytes(40).toString("hex")}`]));
+  const parts = packThumbs(links, 60_000);
+  assert.ok(parts.length > 1);
+  assert.ok(parts.every((p) => p.length <= 60_000));
+  const back = Object.assign({}, ...parts.map((p) => JSON.parse(gunzipSync(p).toString("utf8"))));
+  assert.deepEqual(back, links);
+  assert.equal(packThumbs({}).length, 1);
+});
