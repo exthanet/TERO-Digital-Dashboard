@@ -2141,3 +2141,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* A filter the open page does not use (e.g. รายการ on รวมรายการ). */
+.filter-locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.filter-locked select {
+  cursor: not-allowed;
+}

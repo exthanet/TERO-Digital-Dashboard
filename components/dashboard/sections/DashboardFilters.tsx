@@ -39,7 +39,10 @@ export function DashboardFilters({
   dataFirstDate,
   onSearch,
   busy = false,
+  programLocked = false,
 }: {
+  /** The page shows every program (รวมรายการ): the program filter is locked. */
+  programLocked?: boolean;
   /** Enter in the search box / the button beside it: open รายงาน → ผลการค้นหา. */
   onSearch?: () => void;
   /** The report is being worked out for new filters (shown in words, not only the thin top bar). */
@@ -76,7 +79,7 @@ export function DashboardFilters({
       label: `ค้นหา: ${t}`,
       clear: () => setSearch(terms.filter((x) => x !== t).join(", ")),
     })),
-    ...(program !== DEFAULT_PROGRAM ? [{ key: "program", label: `รายการ: ${program === "ALL" ? "ทั้งหมด" : program}`, clear: () => setProgram(DEFAULT_PROGRAM) }] : []),
+    ...(!programLocked && program !== DEFAULT_PROGRAM ? [{ key: "program", label: `รายการ: ${program === "ALL" ? "ทั้งหมด" : program}`, clear: () => setProgram(DEFAULT_PROGRAM) }] : []),
     ...(platform !== "ALL" ? [{ key: "platform", label: `แพลตฟอร์ม: ${platform}`, clear: () => setPlatform("ALL") }] : []),
     ...(vdoType !== "ALL" ? [{ key: "vdo", label: `VDO Type: ${vdoType}`, clear: () => setVdoType("ALL") }] : []),
     ...(topicType !== "ALL" ? [{ key: "topic", label: `Topic Type: ${topicType}`, clear: () => setTopicType("ALL") }] : []),
@@ -97,6 +100,7 @@ export function DashboardFilters({
           value={program}
           onChange={setProgram}
           options={options.programs}
+          locked={programLocked ? "ทุกรายการ (หน้านี้แสดงทุกรายการ)" : undefined}
         />
         <label className="filter-box date-filter">
           <span>วันเดือนปี</span>

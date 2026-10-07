@@ -217,6 +217,7 @@ export default function Dashboard() {
               dataFirstDate={model.dataFirstDate}
               onSearch={() => setActiveTab("search")}
               busy={model.filtering}
+              programLocked={activeTab === "programs"}
             />
         )}
 
