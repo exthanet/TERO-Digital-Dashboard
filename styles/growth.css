@@ -2082,3 +2082,62 @@
     opacity: 0.55;
   }
 }
+
+/* รายงาน → รวมรายการ (ProgramReportSection). */
+.program-report .panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.program-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.program-table th.sortable.active {
+  color: #1d4ed8;
+}
+
+.program-detail-row td {
+  background: #f8fafc;
+  white-space: normal !important;
+}
+
+.program-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 6px 4px;
+  font-size: 13px;
+}
+
+.program-list {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+}
+
+.program-list small,
+.program-tag small {
+  color: #64748b;
+}
+
+.program-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.program-charts {
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .program-detail {
+    grid-template-columns: 1fr;
+  }
+}

@@ -25,6 +25,7 @@ import { effectivePerms } from "@/lib/auth/permissions";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
 import { RankingSection } from "@/components/dashboard/sections/RankingSection";
+import { ProgramReportSection } from "@/components/dashboard/sections/ProgramReportSection";
 import { TrendingHashtagsSection } from "@/components/dashboard/sections/TrendingHashtagsSection";
 import { SearchResultsSection } from "@/components/dashboard/sections/SearchResultsSection";
 import { PlatformReportSection } from "@/components/dashboard/sections/PlatformReportSection";
@@ -55,7 +56,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -193,7 +194,7 @@ export default function Dashboard() {
         />
         <CollapseControls />
 
-        {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || activeTab === "trending" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "advice") && perms.advanced) || (activeTab === "youtube" && perms.deepDive)) && (
+        {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || activeTab === "trending" || activeTab === "programs" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "advice") && perms.advanced) || (activeTab === "youtube" && perms.deepDive)) && (
             <DashboardFilters
               program={model.filterInputs.program}
               setProgram={model.setProgram}
@@ -230,6 +231,22 @@ export default function Dashboard() {
             startDate={model.startDate}
             endDate={model.endDate}
             latestDate={model.dataLatestDate}
+          />
+        )}
+
+        {activeTab === "programs" && (
+          <ProgramReportSection
+            rows={model.programReportRows}
+            allRows={model.rows}
+            startDate={model.startDate}
+            endDate={model.endDate}
+            comparePeriod={model.comparePeriod}
+            latestDate={model.dataLatestDate}
+            canDownload={perms.download}
+            onOpenProgram={(p) => {
+              model.setProgram(p);
+              setActiveTab("overview");
+            }}
           />
         )}
 

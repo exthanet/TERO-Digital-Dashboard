@@ -39,6 +39,7 @@ const KIND_LABEL: Record<string, string> = {
   "csv-performance": "CSV ผลงานรายเทป",
   "csv-search": "CSV ผลการค้นหา",
   "csv-hashtag": "CSV Trending Hashtag",
+  "csv-programs": "CSV รวมรายการ",
   "excel-monthly-acc": "Excel Monthly ACC",
   "backup-zip": "Backup zip (GitHub)",
 };

@@ -966,6 +966,19 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, vdoType, topicType, terms],
   );
+  // รวมรายการ: the filters except program and date (every program side by side; the range comes from the dates).
+  const programReportRows = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          r.date &&
+          (platform === "ALL" || r.platform === platform) &&
+          (vdoType === "ALL" || r.vdoType === vdoType) &&
+          (topicType === "ALL" || r.topicType === topicType) &&
+          matchesSearch(r, terms),
+      ),
+    [rows, platform, vdoType, topicType, terms],
+  );
   const dataLatestDate = useMemo(
     () => rows.reduce((max, r) => (r.date > max ? r.date : max), ""),
     [rows],
@@ -1411,6 +1424,7 @@ export function useDashboard(enabled = true) {
     insights,
     rankingRows,
     platformReportRows,
+    programReportRows,
     dataLatestDate,
     comparePeriod,
     growth,
