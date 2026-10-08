@@ -139,6 +139,20 @@ node scripts/metricool-sync.mjs --since=2026-09-01 --baseline=firestore --tv-fil
      สถานะ TikTok ขึ้นสีแดงพร้อมเหตุผล และเตือนเมื่อสิทธิ์จะหมดอายุภายใน 30 วัน (token อายุ 1 ปี)
 5. **ทดสอบเทียบตัวเลข (อ่านอย่างเดียว):** `node scripts/tiktok-api-test.mjs --since=2026-07-01` (ใช้ token จาก `.env.local`)
 
+## ส่วนที่ 10: แจ้งเตือนผ่าน Telegram
+
+ส่งทุกรอบ sync: ✅ สรุปสั้น (อัปเดต / ใหม่ / เวลาที่ใช้ / ขั้นที่นานสุด) เมื่อสำเร็จ · ⚠️ เมื่อไม่สำเร็จ ไม่ผ่านการตรวจ หรือเกินเวลา
+และ backup ลงเครื่องตอน 19:00 แจ้งเฉพาะเมื่อไม่สำเร็จ · แจ้ง Discord เดิมยังทำงานเหมือนเดิม
+
+1. Telegram → **@BotFather** → `/newbot` → ตั้งชื่อ → ได้ **token** (กุญแจ ห้ามแชร์ ห้าม commit)
+2. เชิญ bot เข้ากลุ่มทีม แล้วพิมพ์ข้อความ 1 ข้อความในกลุ่ม
+3. เปิด `https://api.telegram.org/bot<TOKEN>/getUpdates` (ทำเองคนเดียว) → ค่า `"chat":{"id": ...}` คือ chat id (กลุ่มเป็นเลขติดลบ)
+4. GitHub → Settings → Secrets → Actions: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+5. เครื่อง office (สำหรับแจ้ง backup ล้มเหลว): ไฟล์ `.secrets/telegram.json` = `{"token": "...", "chatId": "..."}` (`.secrets/` อยู่ใน `.gitignore`)
+6. ทดสอบ: Actions → Data sync → Run workflow → mode `test-alert` (หรือในเครื่อง `node scripts/notify-telegram.mjs --test`)
+
+ถ้ายังไม่ได้ตั้ง secret ขั้นนี้จะข้ามไปเฉย ๆ · ปัญหาของ Telegram ไม่ทำให้ sync หรือ backup ล้มเหลว
+
 ## ทดสอบในเครื่อง (test-run)
 
 ```bash

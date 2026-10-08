@@ -5,6 +5,8 @@
 //   node scripts/backup-local.mjs --firestore-backups  also every sync backup in Firestore (masterDataBackups)
 //   node scripts/backup-local.mjs --keep=30            daily folders kept (default 30; older ones are removed)
 //
+// A failure is sent to Telegram when .secrets/telegram.json {"token","chatId"} exists.
+//
 // backups/ is in .gitignore: real data, never commit it.
 //   backups/daily/YYYY-MM-DD/           CSV + JSON (as backup-export.mjs) and masterData.raw.json.gz
 //   backups/firestore-backups/{run}.json.gz   one sync backup, documents exactly as stored (never removed here)
@@ -12,6 +14,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { connect, exportBackup } from "./backup-export.mjs";
+import { telegramTarget } from "./notify-telegram.mjs";
+import { sendTelegram } from "../lib/integrations/telegram.ts";
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "1"]));
 const root = args.root || path.join("backups", "daily");
@@ -96,7 +100,15 @@ async function main() {
   if (removed.length) console.log(`removed old daily folders (keep ${keep}): ${removed.join(", ")}`);
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(`local backup failed: ${e.message}`);
+  // Only a failure is announced (Telegram, when .secrets/telegram.json is set up).
+  const target = telegramTarget();
+  if (target) {
+    const problem = await sendTelegram(target, `⚠️ Backup ลงเครื่องไม่สำเร็จ (${bangkok().slice(0, 16).replace("T", " ")})
+${String(e.message).slice(0, 300)}
+ดู backups/backup-local.log บนเครื่อง office`);
+    console.error(problem ? `telegram: ${problem}` : "telegram: sent");
+  }
   process.exit(1);
 });

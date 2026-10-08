@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "write = update Firestore · test-run = check only · test-email = send a test email"
+        description: "write = update Firestore · test-run = check only · test-email = send a test email · test-alert = send a test Telegram message"
         type: choice
-        options: [write, test-run, test-email]
+        options: [write, test-run, test-email, test-alert]
         default: write
       since:
         description: "First day to fetch (YYYY-MM-DD). Blank = last 90 days"
@@ -43,6 +43,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Sync
+        if: (inputs.mode || 'write') != 'test-alert'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           METRICOOL_API_TOKEN: ${{ secrets.METRICOOL_API_TOKEN }}
@@ -67,6 +68,22 @@ jobs:
             node scripts/metricool-sync.mjs --since="$SINCE" --write
           else
             node scripts/metricool-sync.mjs --since="$SINCE" --baseline=firestore
+          fi
+
+      # Every run to Telegram: ✅ summary on success, ⚠️ on a failure, a blocked
+      # run or the time limit. Skipped when the secrets are not set.
+      - name: Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          JOB_STATUS: ${{ job.status }}
+          MODE: ${{ inputs.mode || 'write' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$MODE" = "test-alert" ]; then node scripts/notify-telegram.mjs --test
+          elif [ "$MODE" != "test-email" ]; then node scripts/notify-telegram.mjs --sync
           fi
 
       # Backups to files run apart from the sync: scripts/backup-local.mjs on the

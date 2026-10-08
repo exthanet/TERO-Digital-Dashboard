@@ -163,6 +163,8 @@ export interface RunReport {
   backupId?: string;
   snapshotDocs?: number;
   githubRunUrl?: string;
+  /** Seconds per step (scripts/metricool-sync.mjs mark()). */
+  timings?: { step: string; sec: number }[];
 }
 
 /** Full report for admins, and the short status every signed-in user reads. */
