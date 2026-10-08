@@ -166,6 +166,32 @@ export class Firestore {
     return out;
   }
 
+  /**
+   * Document ids of a collection without their contents (field mask): one read
+   * per document but no download, for cleanups that only look at names.
+   */
+  async listNames(collection: string): Promise<string[]> {
+    return (await this.listStamps(collection)).map((d) => docId(d.name));
+  }
+
+  /** Like listNames, with each document's update time (fields left empty). */
+  async listStamps(collection: string): Promise<RawDoc[]> {
+    const out: RawDoc[] = [];
+    let pageToken = "";
+    do {
+      const url = new URL(`${this.base}/${collection}`);
+      url.searchParams.set("pageSize", "300");
+      url.searchParams.set("mask.fieldPaths", "__name__");
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
+      const res = await fetchRetry(url, { headers: this.headers() });
+      const body = (await res.json()) as { documents?: { name: string; updateTime?: string }[]; nextPageToken?: string; error?: { message: string } };
+      if (!res.ok) throw new Error(`list ${collection}: ${body.error?.message || res.status}`);
+      for (const d of body.documents || []) out.push({ name: d.name, fields: {}, updateTime: d.updateTime });
+      pageToken = body.nextPageToken || "";
+    } while (pageToken);
+    return out;
+  }
+
   async get(path: string): Promise<RawDoc | null> {
     const res = await fetchRetry(`${this.base}/${path}`, { headers: this.headers() });
     if (res.status === 404) return null;

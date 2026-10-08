@@ -11,9 +11,6 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Firestore, decodeFields, docId, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 
-const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "1"]));
-const outDir = args.out || "backup";
-const reportDir = args.report || path.join("output", "metricool-test-run");
 
 /** Collections in the backup. syncSecrets and users are left out on purpose. */
 export const BACKUP_COLLECTIONS = ["masterData", "growthDaily", "snapshots", "ytAnalytics", "accMonthly", "revenueData", "affiliateData", "tvCompetitors", "thumbnails", "syncStatus"];
@@ -43,11 +40,19 @@ const gz = (fields, key) => {
   return b ? JSON.parse(gunzipSync(Buffer.from(b, "base64")).toString("utf8")) : null;
 };
 
-async function main() {
+/** Firestore with the sync's service account (env FIREBASE_SERVICE_ACCOUNT or .secrets/firebase-sync.json). */
+export async function connect() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT || (fs.existsSync(".secrets/firebase-sync.json") && fs.readFileSync(".secrets/firebase-sync.json", "utf8"));
   if (!raw) throw new Error("No service account: set FIREBASE_SERVICE_ACCOUNT or add .secrets/firebase-sync.json");
   const projectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(fs.readFileSync(".firebaserc", "utf8")).projects.default;
-  const db = new Firestore(projectId, await getAccessToken(JSON.parse(raw)));
+  return { db: new Firestore(projectId, await getAccessToken(JSON.parse(raw))), projectId };
+}
+
+/**
+ * Write the backup files into `outDir`. Returns the manifest and the raw
+ * documents read (backup-local.mjs keeps masterData's exactly as stored).
+ */
+export async function exportBackup(db, projectId, outDir, reportDir = path.join("output", "metricool-test-run")) {
   fs.mkdirSync(path.join(outDir, "json"), { recursive: true });
   const write = (name, text) => fs.writeFileSync(path.join(outDir, name), text);
   const files = {};
@@ -135,6 +140,13 @@ async function main() {
   const manifest = { createdAt: new Date().toISOString(), project: projectId, collections: BACKUP_COLLECTIONS, files };
   write("manifest.json", JSON.stringify(manifest, null, 2));
   console.log(`backup: ${Object.keys(files).length} files in ${outDir} · masterData ${master.length} rows`);
+  return { manifest, docs };
+}
+
+async function main() {
+  const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "1"]));
+  const { db, projectId } = await connect();
+  await exportBackup(db, projectId, args.out || "backup", args.report);
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("backup-export.mjs")) {

@@ -1,0 +1,70 @@
+name: Backup (GitHub artifact)
+
+# Firestore → CSV / JSON files kept 90 days as an artifact, apart from the sync.
+# Runs only while the repo is private: artifacts of a public repo can be
+# downloaded by anyone with a GitHub account. The daily copy on the office PC
+# is scripts/backup-local.mjs. Read-only: nothing in Firestore is changed.
+on:
+  schedule:
+    - cron: "47 4 * * *" # 11:47 Bangkok, after the morning sync
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check the repo is private
+        id: repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private=$(gh api "repos/${{ github.repository }}" --jq .private 2>/dev/null || echo false)
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+          echo "repo private: $private"
+
+      - uses: actions/checkout@v4
+        if: steps.repo.outputs.private == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.repo.outputs.private == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.repo.outputs.private == 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Export backup
+        id: export
+        if: steps.repo.outputs.private == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/backup-export.mjs --out=backup
+
+      - name: Upload backup
+        id: upload
+        if: steps.export.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90
+          compression-level: 9
+
+      - name: List backup in the dashboard
+        if: steps.upload.outcome == 'success'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SYNC_OUTCOME: success
+        run: node scripts/backup-record.mjs --dir=backup

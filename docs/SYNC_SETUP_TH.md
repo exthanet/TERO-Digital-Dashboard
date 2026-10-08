@@ -159,11 +159,15 @@ node scripts/metricool-sync.mjs --since=2026-08-01
   และ `DISCORD_WEBHOOK_URL` (ไม่บังคับ: แจ้งเตือนเมื่อ sync ไม่สำเร็จ)
 
 ทุกรอบที่เขียนข้อมูล ระบบจะ:
-1. สำรอง masterData ไว้ใน `masterDataBackups` ก่อน (เก็บ 7 รอบล่าสุด)
+1. สำรอง masterData ไว้ใน `masterDataBackups` ก่อน (เก็บ **3 รอบล่าสุด** ไว้กู้คืน · ประวัติยาวกว่านั้นอยู่ใน backup ลงเครื่อง)
 2. ตรวจความถูกต้อง 11 ข้อ ถ้าไม่ผ่านข้อใดข้อหนึ่ง **จะไม่เขียนอะไรเลย**
 3. เขียนแบบมีเงื่อนไข: ถ้ามีคนแก้ masterData ระหว่างรัน จะหยุด ไม่เขียนทับ
 4. อ่านกลับมาตรวจ ถ้าไม่ตรง จะกู้คืนจากสำรองอัตโนมัติ
 5. บันทึกรายงานใน `syncRuns` (เก็บ 90 วัน, admin เห็นในหน้า "สถานะการ Sync") และสถานะสั้นใน `syncStatus/latest`
+   รายงานมี `timings` = วินาทีที่ใช้ในแต่ละขั้น (log ของ GitHub มีบรรทัด `⏱` เดียวกัน)
+6. ล้างของเก่าโดยอ่านแค่ชื่อเอกสาร ไม่ดาวน์โหลดเนื้อหา
+
+เวลาจำกัดของงาน: **45 นาที** (ปกติ 15–30 นาที) ถ้าเกินเวลา หรือ sync ไม่สำเร็จ จะแจ้งเตือนใน Discord · ดูใน `syncRuns` ว่าเขียนข้อมูลแล้วหรือยัง
 
 กู้คืนเอง (ถ้าจำเป็น) ใช้ runId จากหน้า "สถานะการ Sync":
 
@@ -172,6 +176,30 @@ node scripts/metricool-sync.mjs --restore-backup=2026-09-30T08-14-25Z
 ```
 
 หลังแก้ `firestore.rules` ต้อง deploy ครั้งเดียว: `firebase deploy --only firestore:rules`
+
+## Backup ลงเครื่อง (แยกจาก sync)
+
+sync ไม่ทำไฟล์ backup แล้ว ไฟล์ backup ทำแยกบนเครื่อง office ทุกวัน (อ่านอย่างเดียว ไม่แก้ Firestore):
+
+```bash
+node scripts/backup-local.mjs
+```
+
+- ได้โฟลเดอร์ `backups/daily/YYYY-MM-DD/`: CSV ทุก collection (เปิดใน Excel ได้), JSON และ `masterData.raw.json.gz` (เหมือนที่เก็บใน Firestore ทุกตัวอักษร)
+- เก็บ 30 วันล่าสุด (`--keep=30`) โฟลเดอร์ที่เก่ากว่าถูกลบ · ไฟล์อื่นใน `backups/` ไม่ถูกแตะ
+- `--firestore-backups`: โหลด backup ของ sync ใน `masterDataBackups` ลง `backups/firestore-backups/{run}.json.gz` ด้วย (รอบที่โหลดแล้วข้าม · ไม่ถูกลบอัตโนมัติ)
+- `backups/` อยู่ใน `.gitignore`: เป็นข้อมูลจริง ห้าม commit และควรคัดลอกเก็บอีกที่ (OneDrive / SharePoint ของบริษัท)
+
+ตั้งให้รันเองทุกวัน 12:00 (หลัง sync เช้า · ถ้าเครื่องปิดอยู่ จะรันเมื่อเปิดเครื่อง) ใน PowerShell:
+
+```powershell
+$cmd = Join-Path (Get-Location) "scriptsackup-local.cmd"
+Register-ScheduledTask -TaskName "TERO Dashboard backup" -Action (New-ScheduledTaskAction -Execute $cmd) -Trigger (New-ScheduledTaskTrigger -Daily -At 12:00) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
+```
+
+ผลแต่ละวันอยู่ใน `backups/backup-local.log` · ยกเลิก: `Unregister-ScheduledTask -TaskName "TERO Dashboard backup"`
+
+GitHub ก็ทำ backup แยกได้ (`backup.yml`, ทุกวัน 11:47 · เก็บ 90 วัน) **เฉพาะตอน repo เป็น private** เพราะ artifact ของ repo public ใครก็โหลดได้
 
 ## ปัญหาที่อาจเจอ
 
@@ -183,7 +211,7 @@ node scripts/metricool-sync.mjs --restore-backup=2026-09-30T08-14-25Z
 ## การเก็บข้อมูล (ที่ตกลงกันไว้)
 
 - `masterData`: ข้อมูลล่าสุดที่ dashboard อ่าน
-- `snapshots/{YYYY-MM-DD}__{nn}`: ตัวเลขรายวันของแต่ละโพสต์ ไม่เขียนทับวันก่อน (รันซ้ำวันเดียวกันจะรวมเข้าด้วยกัน) เก็บย้อนหลัง **1 ปี**
+- `snapshots/{YYYY-MM-DD}__{nn}`: ตัวเลขรายวันของแต่ละโพสต์ ไม่เขียนทับวันก่อน (รันซ้ำวันเดียวกันจะรวมเข้าด้วยกัน) เก็บใน Firestore **60 วัน** (ย้อนหลังนานกว่านั้นอยู่ใน backup ลงเครื่อง)
   บันทึกเฉพาะโพสต์ที่ตัวเลขเปลี่ยนจากวันก่อน ใช้คำนวณยอดเพิ่มรายวัน/รายสัปดาห์
 - Metricool อัปเดตเฉพาะตัวเลข (Views, Likes, Comments, Shares, Engagement)
   คอลัมน์ที่ทีมกรอก (Program, Topic, Topic_Type, VDO_Type, Episode_ID, Best_of_Month, Revenue, Notes) ไม่ถูกเขียนทับ

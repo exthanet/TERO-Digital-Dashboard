@@ -14,11 +14,11 @@ import { chunkSnapshot, rowKey, type SnapshotRow } from "./metricoolSync.ts";
 type Row = Record<string, unknown>;
 
 export const CHUNK_ROWS = 250;
-export const KEEP_BACKUPS = 7;
+// Spark plan: 1 GB of storage. Longer history lives in the daily local backup
+// (scripts/backup-local.mjs), so Firestore keeps only what a rollback needs.
+export const KEEP_BACKUPS = 3;
 export const KEEP_RUN_DAYS = 90;
-export const KEEP_SNAPSHOT_DAYS = 365;
-/** Once every run is also backed up to GitHub (90 days), Firestore keeps less (Spark plan: 1 GB). */
-export const KEEP_WITH_GITHUB = { backups: 2, snapshotDays: 60 } as const;
+export const KEEP_SNAPSHOT_DAYS = 60;
 
 export const runIdFor = (d = new Date()) => d.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
 
@@ -42,8 +42,12 @@ export async function backupMasterData(db: Firestore, docs: RawDoc[], runId: str
 
 /** Put masterData back exactly as it was in backup `runId`. */
 export async function restoreMasterData(db: Firestore, runId: string): Promise<number> {
-  const all = await db.listRaw("masterDataBackups");
-  const copies = all.filter((d) => docId(d.name).startsWith(`${runId}__`));
+  // Only this run's copies are downloaded, not every backup.
+  const copies: RawDoc[] = [];
+  for (const id of (await db.listNames("masterDataBackups")).filter((n) => n.startsWith(`${runId}__`))) {
+    const d = await db.get(`masterDataBackups/${id}`);
+    if (d) copies.push(d);
+  }
   if (!copies.length) throw new Error(`no backup ${runId}`);
   const keep = new Set<string>();
   for (const c of copies) {
@@ -52,7 +56,7 @@ export async function restoreMasterData(db: Firestore, runId: string): Promise<n
     await db.set(`masterData/${source}`, data);
     keep.add(source);
   }
-  for (const d of await db.listRaw("masterData")) if (!keep.has(docId(d.name))) await db.delete(`masterData/${docId(d.name)}`);
+  for (const id of await db.listNames("masterData")) if (!keep.has(id)) await db.delete(`masterData/${id}`);
   return copies.length;
 }
 
@@ -62,7 +66,8 @@ export async function restoreMasterData(db: Firestore, runId: string): Promise<n
  * same way the dashboard's own "บันทึกขึ้น Cloud" does it.
  */
 export async function writeMasterData(db: Firestore, rows: Row[], readDocs: RawDoc[]): Promise<number> {
-  const current = await db.listRaw("masterData");
+  // Update times only: the documents themselves were read for the baseline.
+  const current = await db.listStamps("masterData");
   const readAt = new Map(readDocs.map((d) => [docId(d.name), d.updateTime]));
   const changed = current.filter((d) => readAt.get(docId(d.name)) !== d.updateTime).map((d) => docId(d.name));
   const added = current.filter((d) => !readAt.has(docId(d.name))).map((d) => docId(d.name));
@@ -94,7 +99,12 @@ export async function writeMasterData(db: Firestore, rows: Row[], readDocs: RawD
  * win per post) so the morning's rows are kept; earlier days are never touched.
  */
 export async function writeSnapshot(db: Firestore, date: string, runId: string, rows: SnapshotRow[]): Promise<number> {
-  const existing = (await db.listRaw("snapshots")).filter((d) => docId(d.name).startsWith(`${date}__`));
+  // Names first, then only today's parts: the other days are never downloaded.
+  const existing: RawDoc[] = [];
+  for (const id of (await db.listNames("snapshots")).filter((n) => n.startsWith(`${date}__`))) {
+    const d = await db.get(`snapshots/${id}`);
+    if (d) existing.push(d);
+  }
   const byKey = new Map<string, SnapshotRow>();
   for (const d of existing) {
     const data = decodeFields(d.fields || {});
@@ -176,9 +186,9 @@ export async function writeRunReport(db: Firestore, report: RunReport): Promise<
 }
 
 /**
- * Drop run logs after 90 days, snapshots after a year and sync backups beyond
- * the last 7 (less with `keep` when GitHub holds copies). Named backups (e.g.
- * "topic-fix-…", made by hand before a data fix) are never removed here.
+ * Drop run logs after 90 days, snapshots after 60 days and sync backups beyond
+ * the last 3. Named backups (e.g. "topic-fix-…", made by hand before a data
+ * fix) are never removed here. Reads names only, never the documents.
  */
 export async function cleanupOld(
   db: Firestore,
@@ -187,18 +197,18 @@ export async function cleanupOld(
 ): Promise<Record<string, number>> {
   const cutoff = (days: number) => new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
   const removed = { syncRuns: 0, snapshots: 0, backups: 0 };
-  for (const d of await db.listRaw("syncRuns")) {
-    if (docId(d.name).slice(0, 10) < cutoff(KEEP_RUN_DAYS)) { await db.delete(`syncRuns/${docId(d.name)}`); removed.syncRuns++; }
+  for (const id of await db.listNames("syncRuns")) {
+    if (id.slice(0, 10) < cutoff(KEEP_RUN_DAYS)) { await db.delete(`syncRuns/${id}`); removed.syncRuns++; }
   }
-  for (const d of await db.listRaw("snapshots")) {
-    if (docId(d.name).slice(0, 10) < cutoff(keep.snapshotDays)) { await db.delete(`snapshots/${docId(d.name)}`); removed.snapshots++; }
+  for (const id of await db.listNames("snapshots")) {
+    if (id.slice(0, 10) < cutoff(keep.snapshotDays)) { await db.delete(`snapshots/${id}`); removed.snapshots++; }
   }
-  const backups = await db.listRaw("masterDataBackups");
+  const backups = await db.listNames("masterDataBackups");
   // Sync backups are named by their run time ("2026-10-06T…"); others are kept.
-  const runs = [...new Set(backups.map((d) => docId(d.name).split("__")[0]))].filter((r) => /^\d{4}-\d{2}-\d{2}T/.test(r)).sort();
+  const runs = [...new Set(backups.map((id) => id.split("__")[0]))].filter((r) => /^\d{4}-\d{2}-\d{2}T/.test(r)).sort();
   const drop = new Set(runs.slice(0, Math.max(0, runs.length - keep.backups)));
-  for (const d of backups) {
-    if (drop.has(docId(d.name).split("__")[0])) { await db.delete(`masterDataBackups/${docId(d.name)}`); removed.backups++; }
+  for (const id of backups) {
+    if (drop.has(id.split("__")[0])) { await db.delete(`masterDataBackups/${id}`); removed.backups++; }
   }
   return removed;
 }

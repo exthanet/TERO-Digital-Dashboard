@@ -49,7 +49,6 @@ import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessTok
 import {
   backupMasterData,
   cleanupOld,
-  KEEP_WITH_GITHUB,
   restoreMasterData,
   runIdFor,
   verifyMasterData,
@@ -152,6 +151,15 @@ const integrations = {};
 let ytDeepDive = null;
 // รายได้ → Monthly ACC: this month and the one before, per CMS channel, written after masterData.
 const accMonths = [];
+// Seconds per step, in the log and on the run report (syncRuns), to see what makes a run long.
+const timings = [];
+let lastMark = Date.now();
+function mark(step) {
+  const now = Date.now();
+  timings.push({ step, sec: Math.round((now - lastMark) / 1000) });
+  lastMark = now;
+  console.log(`⏱ ${step}: ${timings.at(-1).sec}s (รวม ${Math.round((now - Date.parse(startedAt)) / 1000)}s)`);
+}
 
 async function main() {
 const api = new MetricoolApi({
@@ -270,6 +278,7 @@ for (const brand of brands) {
   } else {
     incoming.push(...brandYouTube);
   }
+  mark(`ดึง ${brand.label}`);
 }
 
 // --baseline=firestore (and --write) reads live production data with the
@@ -289,6 +298,7 @@ async function loadBaseline() {
   return rows;
 }
 const original = await loadBaseline();
+mark("อ่าน masterData เดิม");
 // The same post imported twice was counted twice; keep one row per post first.
 const dedupe = dedupeDigitalRows(original);
 const baseline = dedupe.rows;
@@ -432,7 +442,9 @@ for (const c of validation.checks) {
 console.log(`  dashboard load: ${validation.stats.dashboardLoadMB.before} → ${validation.stats.dashboardLoadMB.after} MB · reads per open: ${validation.stats.readsPerDashboardOpen.before} → ${validation.stats.readsPerDashboardOpen.after}`);
 
 // ---------- TV rating workbook ----------
+mark("รวมและตรวจข้อมูล");
 const tvRun = await tvStep(result.merged);
+mark("TV");
 const finalRows = tvRun.result ? tvRun.result.rows : result.merged;
 const tvChecks = tvRun.result ? validateTv(result.merged, tvRun.result, tvRun.episodes) : [];
 
@@ -464,6 +476,7 @@ if (ytCms && !onlyBrands) {
     console.log(`Monthly ACC not collected: ${e.message}`);
     integrations["Monthly ACC"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem(e.message) };
   }
+  mark("ดึง Monthly ACC");
 }
 for (const c of tvChecks) {
   console.log(`  ${c.pass ? "✔" : "✖"} ${c.name} — ${c.detail}`);
@@ -494,6 +507,7 @@ const fsdb = await firestore();
 const backed = await backupMasterData(fsdb, rawDocs, runId);
 report.backupId = runId;
 console.log(`backup: masterDataBackups/${runId} (${backed} documents)`);
+mark("สำรอง masterData");
 try {
   // The dashboard copy stops matching before masterData changes, so a run that
   // stops halfway can never leave the dashboard showing old numbers.
@@ -501,6 +515,7 @@ try {
   const chunks = await writeMasterData(fsdb, finalRows, rawDocs);
   const problem = await verifyMasterData(fsdb, finalRows);
   if (problem) throw new Error(problem);
+  mark("เขียนและตรวจ masterData");
   report.snapshotDocs = await writeSnapshot(fsdb, today, runId, snapshot);
   // Compact copy for opening the dashboard fast; if it fails the dashboard
   // reads masterData as before, so it never fails the run.
@@ -511,6 +526,7 @@ try {
   } catch (e) {
     console.error(`dashboard copy not written (dashboard will read masterData): ${e.message}`);
   }
+  mark("snapshot และสำเนา dashboard");
   report.message = `อัปเดต ${result.updated.length} · ใหม่ ${result.inserted.length} · ลบแถวซ้ำ ${dedupe.removed.length} · รอตรวจ ${review.length}` +
     (tvRun.result ? ` · TV อัปเดต ${tvRun.result.updated.length} เทป ใหม่ ${tvRun.result.inserted.length}` : "");
   await writeCompetitors(fsdb, tvRun.competitors);
@@ -521,6 +537,7 @@ try {
     await saveAccount(fsdb, a).catch((e) => console.error(`TikTok baseline flag not saved for ${a.brand}: ${e.message}`));
   }
   console.log(`written: ${chunks} masterData documents · snapshot ${report.snapshotDocs} document(s)`);
+  mark("คู่แข่ง TV และ TikTok");
   // Last, so a run that is rolled back never leaves gains behind (the next run
   // would count them again). Analysis only: a failure here never fails the run.
   // Cover links for posts in masterData; analysis only, never fails the run.
@@ -536,6 +553,7 @@ try {
   } catch (e) {
     console.error(`thumbnails not written: ${e.message}`);
   }
+  mark("ภาพปก");
   // YouTube Deep Dive (admins only); analysis, never fails the run.
   if (ytDeepDive) {
     try {
@@ -547,6 +565,7 @@ try {
       if (yta) Object.assign(yta, { ok: false, error: analyticsProblem(`deep dive not written: ${e.message}`) });
     }
   }
+  mark("เขียน YouTube Deep Dive");
   // Monthly ACC (admins only); never fails the run.
   for (const m of accMonths) {
     try {
@@ -559,6 +578,7 @@ try {
       break;
     }
   }
+  mark("เขียน Monthly ACC");
   if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);
   else try {
     const g = await writeGrowth(fsdb, growthDay, today, runId, growth);
@@ -574,10 +594,12 @@ try {
   report.message = `เขียนไม่สำเร็จ กู้คืนข้อมูลเดิมจากสำรองแล้ว: ${e.message}`;
   process.exitCode = 1;
 }
+mark("growth");
 await notifyRun(finish(report));
 await writeRunReport(fsdb, report);
-// GITHUB_BACKUP=1 (set by the workflow when the repo is private and each run is backed up there): keep less in Firestore.
-const removed = await cleanupOld(fsdb, new Date(), process.env.GITHUB_BACKUP === "1" ? KEEP_WITH_GITHUB : undefined);
+// Old run logs, snapshots and backups: names only, so it stays quick however many there are.
+const removed = await cleanupOld(fsdb, new Date());
+mark("ล้างข้อมูลเก่า");
 console.log(`run report: syncRuns/${runId} (${report.status}) · cleanup ${JSON.stringify(removed)}`);
 }
 
@@ -776,7 +798,7 @@ function baseReport(status) {
     runId, status, trigger, startedAt, finishedAt: "",
     window: { since, until }, message: "", platforms: {}, sources: fetchStats, tvSources: tvStatus,
     integrations: Object.fromEntries(Object.entries(integrations).map(([k, { count, ...s }]) => [k, s])),
-    totals: {}, checks: [], ...(githubRunUrl ? { githubRunUrl } : {}),
+    totals: {}, checks: [], timings, ...(githubRunUrl ? { githubRunUrl } : {}),
   };
 }
 
