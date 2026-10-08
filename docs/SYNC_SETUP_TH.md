@@ -190,11 +190,11 @@ node scripts/backup-local.mjs
 - `--firestore-backups`: โหลด backup ของ sync ใน `masterDataBackups` ลง `backups/firestore-backups/{run}.json.gz` ด้วย (รอบที่โหลดแล้วข้าม · ไม่ถูกลบอัตโนมัติ)
 - `backups/` อยู่ใน `.gitignore`: เป็นข้อมูลจริง ห้าม commit และควรคัดลอกเก็บอีกที่ (OneDrive / SharePoint ของบริษัท)
 
-ตั้งให้รันเองทุกวัน 12:00 (หลัง sync เช้า · ถ้าเครื่องปิดอยู่ จะรันเมื่อเปิดเครื่อง) ใน PowerShell:
+ตั้งให้รันเองทุกวัน 19:00 (หลัง sync เช้า · ถ้าเครื่องปิดอยู่ จะรันเมื่อเปิดเครื่อง) ใน PowerShell:
 
 ```powershell
 $cmd = Join-Path (Get-Location) "scriptsackup-local.cmd"
-Register-ScheduledTask -TaskName "TERO Dashboard backup" -Action (New-ScheduledTaskAction -Execute $cmd) -Trigger (New-ScheduledTaskTrigger -Daily -At 12:00) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
+Register-ScheduledTask -TaskName "TERO Dashboard backup" -Action (New-ScheduledTaskAction -Execute $cmd) -Trigger (New-ScheduledTaskTrigger -Daily -At 19:00) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
 ```
 
 ผลแต่ละวันอยู่ใน `backups/backup-local.log` · ยกเลิก: `Unregister-ScheduledTask -TaskName "TERO Dashboard backup"`
