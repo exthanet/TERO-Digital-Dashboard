@@ -42,6 +42,7 @@ const KIND_LABEL: Record<string, string> = {
   "csv-programs": "CSV รวมรายการ",
   "excel-monthly-acc": "Excel Monthly ACC",
   "backup-zip": "Backup zip (GitHub)",
+  "monthly-report-pdf": "PDF รายงานประจำเดือน",
 };
 
 interface UserManagementModalProps {

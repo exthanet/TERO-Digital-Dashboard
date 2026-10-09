@@ -1,0 +1,710 @@
+"use client";
+// รายงานประจำเดือน: the meeting deck inside the dashboard. Numbers are frozen
+// per month in monthlyReports/{YYYY-MM} (lib/monthlyReportData.ts) and only
+// people with the monthlyReport permission read them (firestore.rules).
+// Admins make / replace a month's report and take the PDF; every page of the
+// PDF carries the downloader's name, and each download is logged (downloads).
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, FileDown, Maximize, RefreshCw, X } from "lucide-react";
+import type { RecordRow } from "@/lib/dashboard/types";
+import {
+  buildMonthlyReport,
+  compactNumber,
+  lastFullMonth,
+  monthLabel,
+  monthPeriod,
+  type ChannelTv,
+  type CompetitorBlock,
+  type MonthlyReport,
+} from "@/lib/dashboard/monthlyReport";
+import { listMonthlyReports, saveMonthlyReport, type SavedReport } from "@/lib/monthlyReportData";
+import { loadTvCompetitors } from "@/lib/tvCompetitorData";
+import { recordDownload } from "@/lib/auth/activity";
+import { track } from "@/lib/loadingBar";
+import "@/styles/monthly-report.css";
+
+interface Props {
+  rows: RecordRow[];
+  latestDate: string;
+  isAdmin: boolean;
+  userName: string;
+}
+
+const PLATFORM_COLORS: Record<string, string> = { YouTube: "#ef4444", Facebook: "#3b82f6", Instagram: "#d946ef", TikTok: "#111827" };
+/** "14 ก.ย." / "14 ก.ย. 2026" (Gregorian year, as the rest of the report). */
+const dateLabel = (d: string, year = false) =>
+  d ? new Date(`${d}T00:00:00`).toLocaleDateString("th-TH-u-ca-gregory", { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) }) : "-";
+const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
+const rating = (v: number | null | undefined) => (v === null || v === undefined ? "–" : v.toFixed(3));
+
+function Change({ value }: { value: number | null }) {
+  if (value === null) return <span className="mr-muted">–</span>;
+  if (value > 3) return <span className="mr-up">▲ &gt;300%</span>;
+  return <span className={value >= 0 ? "mr-up" : "mr-down"}>{value >= 0 ? "▲" : "▼"} {Math.abs(value * 100).toFixed(0)}%</span>;
+}
+
+function Bar({ value, max, color }: { value: number; max: number; color: string }) {
+  return (
+    <div className="mr-bar">
+      <span style={{ width: `${max ? Math.max(2, (value / max) * 100) : 0}%`, background: color }} />
+    </div>
+  );
+}
+
+function Slide({ report, n, total, title, children, watermark }: { report: MonthlyReport; n: number; total: number; title?: string; children: React.ReactNode; watermark: string }) {
+  return (
+    <section className="mr-slide">
+      <header className="mr-slide-head">
+        <span>TERO Digital · รายงานประจำเดือน {monthLabel(report.month)}</span>
+        <span>
+          เอกสารภายใน · {n}/{total}
+        </span>
+      </header>
+      {title && <h2>{title}</h2>}
+      <div className="mr-slide-body">{children}</div>
+      {watermark && (
+        <div className="mr-watermark" aria-hidden>
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i}>{watermark}</span>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CompetitorTable({ block, rows: limit }: { block: CompetitorBlock; rows: number }) {
+  // The best `limit`, with ถกไม่เถียง always in the table.
+  const top = block.ranking.slice(0, limit);
+  const own = block.ranking.find((r) => r.own);
+  const list = own && !top.includes(own) ? [...top.slice(0, limit - 1), own] : top;
+  return (
+    <div>
+      <h3>{block.mode === "slot" ? "รายการข่าว / ทอล์กที่ใช้เทียบ" : "ช่องคู่แข่งช่วงเวลาเดียวกัน"}</h3>
+      <table className="mr-table">
+        <thead>
+          <tr>
+            <th>{block.mode === "slot" ? "รายการ" : "ช่อง"}</th>
+            <th className="n">เฉลี่ย</th>
+            <th className="n">วัน</th>
+            <th className="n">เราชนะ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((r) => (
+            <tr key={r.key} className={r.own ? "mr-own" : ""}>
+              <td>{r.own ? `${r.key} (เรา)` : r.key}</td>
+              <td className="n">
+                <b>{r.avg.toFixed(3)}</b>
+              </td>
+              <td className="n">{r.days}</td>
+              <td className="n">{r.winShare === null ? "" : pct(r.winShare)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TvSlide({ ch, blocks }: { ch: ChannelTv; blocks: CompetitorBlock[] }) {
+  return (
+    <div className="mr-grid2">
+      <div>
+        <p className="mr-lead">
+          เฉลี่ย <b>{rating(ch.avg)}</b> · เดือนก่อน {rating(ch.prevAvg)} · {ch.episodes} เทป · ผู้ชมรวม {compactNumber(ch.audience)}
+        </p>
+        <h3>Top 5 เทป · Rating {ch.channel}</h3>
+        <table className="mr-table">
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th className="n">Rating</th>
+              <th>ประเด็น</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ch.top.map((e) => (
+              <tr key={e.date}>
+                <td className="nowrap">{dateLabel(e.date)}</td>
+                <td className="n">
+                  <b>{e.rating.toFixed(3)}</b>
+                </td>
+                <td>{e.topic}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mr-stack mr-compact">
+        {blocks.length ? blocks.map((b) => <CompetitorTable key={b.mode} block={b} rows={blocks.length > 1 ? 6 : 10} />) : <p className="mr-muted">ยังไม่มีข้อมูลคู่แข่งของช่องนี้ในเดือนนี้</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Every page of one report, in order. */
+function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: React.ReactNode }[] {
+  const period = monthPeriod(r.month);
+  const prevName = monthLabel(r.prevMonth);
+  const maxPlat = Math.max(1, ...r.platforms.map((p) => p.views));
+  const maxProg = Math.max(1, ...r.programs.map((p) => p.views));
+  const maxTopic = Math.max(1, ...r.topics.map((t) => t.medianViews));
+  const top = r.platforms[0];
+  const second = r.platforms[1];
+  const topProgram = r.programs[0];
+  const viewsChange = r.onlinePrev.views > 0 ? (r.online.views - r.onlinePrev.views) / r.onlinePrev.views : null;
+  const pages: { title?: string; cover?: boolean; body: React.ReactNode }[] = [];
+
+  pages.push({
+    cover: true,
+    body: (
+      <div className="mr-cover">
+        <p>TERO Digital</p>
+        <h1>
+          รายงานประจำเดือน
+          <br />
+          {monthLabel(r.month)}
+        </h1>
+        <p>
+          โพสต์ที่ลงวันที่ {dateLabel(period.start)} – {dateLabel(period.end, true)} เทียบกับ{prevName}
+        </p>
+        <small>ข้อมูลจาก Metricool / YouTube API / Nielsen · ตัวเลข ณ วันที่ {dateLabel(r.dataAt, true)} · เอกสารภายใน ห้ามเผยแพร่</small>
+      </div>
+    ),
+  });
+
+  pages.push({
+    title: "สรุปในหน้าเดียว",
+    body: (
+      <>
+        <div className="mr-kpis">
+          <div>
+            <small>วิวรวม (ออนไลน์)</small>
+            <b>{compactNumber(r.online.views)}</b>
+            <Change value={viewsChange} />
+          </div>
+          <div>
+            <small>จำนวนโพสต์</small>
+            <b>{r.online.posts.toLocaleString("en-US")}</b>
+            <Change value={r.onlinePrev.posts ? (r.online.posts - r.onlinePrev.posts) / r.onlinePrev.posts : null} />
+          </div>
+          <div>
+            <small>วิวต่อโพสต์ (ค่ากลาง)</small>
+            <b>{compactNumber(r.online.medianViews ?? 0)}</b>
+            <Change value={r.onlinePrev.medianViews ? ((r.online.medianViews ?? 0) - r.onlinePrev.medianViews) / r.onlinePrev.medianViews : null} />
+          </div>
+          <div>
+            <small>Engagement Rate</small>
+            <b>{pct(r.online.er, 1)}</b>
+            <span className="mr-muted">เดือนก่อน {pct(r.onlinePrev.er, 1)}</span>
+          </div>
+        </div>
+        {r.tvChannels.length > 0 && (
+          <div className="mr-kpis">
+            {r.tvChannels.map((c) => (
+              <div key={c.channel}>
+                <small>TV Rating เฉลี่ย {c.channel}</small>
+                <b>{rating(c.avg)}</b>
+                <span className="mr-muted">
+                  เดือนก่อน {rating(c.prevAvg)} · {c.episodes} เทป
+                </span>
+              </div>
+            ))}
+            <div>
+              <small>ผู้ชมทีวีรวม</small>
+              <b>{compactNumber(r.tvChannels.reduce((a, c) => a + c.audience, 0))}</b>
+              <span className="mr-muted">One31 + GMM25</span>
+            </div>
+          </div>
+        )}
+        <ul className="mr-say">
+          <li>
+            วิวรวมของโพสต์ที่ลงเดือนนี้ {compactNumber(r.online.views)} {viewsChange === null ? "" : `${viewsChange >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(viewsChange))} จาก${prevName}`}
+          </li>
+          {top && second && (
+            <li>
+              {top.platform} เป็นแพลตฟอร์มหลัก สัดส่วนวิว {pct(top.share)} ตามด้วย {second.platform} {pct(second.share)}
+            </li>
+          )}
+          {topProgram && (
+            <li>
+              รายการที่มีวิวมากที่สุดคือ “{topProgram.program}” {compactNumber(topProgram.views)} วิว ({pct(topProgram.share)} ของทั้งหมด)
+            </li>
+          )}
+        </ul>
+        <p className="mr-note">วิว = วิวสะสมของโพสต์ที่ลงในเดือนนั้น ณ วันที่ทำรายงาน · โพสต์เดือนก่อนมีเวลาสะสมวิวนานกว่า การเทียบจึงเอียงไปทางเดือนก่อนเล็กน้อย</p>
+      </>
+    ),
+  });
+
+  pages.push({
+    title: "แต่ละแพลตฟอร์ม",
+    body: (
+      <>
+        <table className="mr-table">
+          <thead>
+            <tr>
+              <th>แพลตฟอร์ม</th>
+              <th>วิวรวม</th>
+              <th className="n" />
+              <th className="n">สัดส่วน</th>
+              <th className="n">เทียบเดือนก่อน</th>
+              <th className="n">โพสต์</th>
+              <th className="n">วิว/โพสต์</th>
+              <th className="n">ER</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.platforms.map((p) => (
+              <tr key={p.platform}>
+                <td>
+                  <i className="mr-dot" style={{ background: PLATFORM_COLORS[p.platform] || "#94a3b8" }} />
+                  {p.platform}
+                </td>
+                <td className="mr-barcell">
+                  <Bar value={p.views} max={maxPlat} color={PLATFORM_COLORS[p.platform] || "#94a3b8"} />
+                </td>
+                <td className="n">
+                  <b>{compactNumber(p.views)}</b>
+                </td>
+                <td className="n">{pct(p.share)}</td>
+                <td className="n">
+                  <Change value={p.growth} />
+                </td>
+                <td className="n">{p.posts.toLocaleString("en-US")}</td>
+                <td className="n">{compactNumber(p.medianViews)}</td>
+                <td className="n">{pct(p.er, 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3>รูปแบบวิดีโอ</h3>
+        <table className="mr-table">
+          <thead>
+            <tr>
+              <th>รูปแบบ</th>
+              <th className="n">สัดส่วนโพสต์</th>
+              <th className="n">สัดส่วนวิว</th>
+              <th className="n">วิว/โพสต์</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.formats.map((f) => (
+              <tr key={f.vdoType}>
+                <td>{f.vdoType}</td>
+                <td className="n">{pct(f.postShare)}</td>
+                <td className="n">{pct(f.viewShare)}</td>
+                <td className="n">{compactNumber(f.medianViews)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mr-note">วิว/โพสต์ = ค่ากลาง (median) ไม่ให้คลิปแมสคลิปเดียวดึงตัวเลข · ER = (ไลก์ + คอมเมนต์ + แชร์) ÷ วิว</p>
+      </>
+    ),
+  });
+
+  pages.push({
+    title: "แต่ละรายการ (10 อันดับแรก)",
+    body: (
+      <>
+        <table className="mr-table">
+          <thead>
+            <tr>
+              <th>รายการ</th>
+              <th>วิวรวม</th>
+              <th className="n" />
+              <th className="n">สัดส่วน</th>
+              <th className="n">เทียบเดือนก่อน</th>
+              <th className="n">โพสต์</th>
+              <th className="n">วิว/โพสต์</th>
+              <th className="n">ทีวี</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.programs.map((p) => (
+              <tr key={p.program}>
+                <td>{p.program}</td>
+                <td className="mr-barcell">
+                  <Bar value={p.views} max={maxProg} color="#4f7db8" />
+                </td>
+                <td className="n">
+                  <b>{compactNumber(p.views)}</b>
+                </td>
+                <td className="n">{pct(p.share, 1)}</td>
+                <td className="n">
+                  <Change value={p.growth} />
+                </td>
+                <td className="n">{p.posts.toLocaleString("en-US")}</td>
+                <td className="n">{compactNumber(p.medianViews)}</td>
+                <td className="n">{p.tvEpisodes ? `${p.tvEpisodes} เทป · ${rating(p.tvRating)}` : "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mr-note">ทีวี = จำนวนเทปและ Rating เฉลี่ย One31 · รายการที่มีโพสต์ไม่ถึง 5 ชิ้นรวมอยู่ใน “อื่นๆ”</p>
+      </>
+    ),
+  });
+
+  for (const ch of r.tvChannels) {
+    pages.push({ title: `TV Rating · ${ch.channel}`, body: <TvSlide ch={ch} blocks={r.competitors.filter((b) => b.channel === ch.channel)} /> });
+  }
+
+  pages.push({
+    title: "คลิปเด่นและประเด็นที่ได้ผล",
+    body: (
+      <div className="mr-grid2">
+        <div>
+          <h3>Top 5 คลิป</h3>
+          <table className="mr-table">
+            <tbody>
+              {r.topClips.map((c, i) => (
+                <tr key={`${c.platform}${c.url}${i}`}>
+                  <td>
+                    <b>{i + 1}</b>
+                  </td>
+                  <td>
+                    {c.topic}
+                    <br />
+                    <small className="mr-muted">
+                      {c.platform} · {c.program} · {dateLabel(c.date)}
+                    </small>
+                  </td>
+                  <td className="n">
+                    <b>{compactNumber(c.views)}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Topic Type ที่ได้ผลดี</h3>
+          <table className="mr-table">
+            <thead>
+              <tr>
+                <th>ประเด็น</th>
+                <th>วิว/โพสต์</th>
+                <th className="n" />
+                <th className="n">โพสต์</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.topics.map((t) => (
+                <tr key={t.topicType}>
+                  <td>{t.topicType}</td>
+                  <td className="mr-barcell">
+                    <Bar value={t.medianViews} max={maxTopic} color={t.index >= 1 ? "#459d71" : "#e0a03a"} />
+                  </td>
+                  <td className="n">
+                    {compactNumber(t.medianViews)} <small className="mr-muted">({t.index.toFixed(1)}×)</small>
+                  </td>
+                  <td className="n">{t.posts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mr-note">× = เทียบกับค่ากลางทั้งเดือน {compactNumber(r.overallMedian)} วิวต่อโพสต์ · นับประเด็นที่มีอย่างน้อย 10 โพสต์</p>
+        </div>
+      </div>
+    ),
+  });
+
+  pages.push({
+    title: "Hashtag และเวลาโพสต์",
+    body: (
+      <div className="mr-grid2">
+        <div>
+          <h3>Hashtag ที่มีวิวสูงสุด</h3>
+          <table className="mr-table">
+            <thead>
+              <tr>
+                <th>แท็ก</th>
+                <th className="n">โพสต์</th>
+                <th className="n">วิว</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.hashtags.map((t) => (
+                <tr key={t.tag}>
+                  <td>
+                    <span className="mr-tag">{t.tag}</span>
+                  </td>
+                  <td className="n">{t.posts}</td>
+                  <td className="n">{compactNumber(t.views)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mr-note">โพสต์ที่มี Hashtag {pct(r.taggedShare)} ของทั้งหมด · ไม่นับแท็กของช่อง / รายการ</p>
+        </div>
+        <div>
+          <h3>ช่วงเวลาที่ได้ผลดีที่สุด</h3>
+          <table className="mr-table">
+            <thead>
+              <tr>
+                <th>วัน · เวลา</th>
+                <th className="n">วิว/โพสต์</th>
+                <th className="n">โพสต์</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.slots.map((s) => (
+                <tr key={`${s.day}${s.hour}`}>
+                  <td>
+                    <b>
+                      {s.day} {String(s.hour).padStart(2, "0")}:00–{String(s.hour + 1).padStart(2, "0")}:00
+                    </b>
+                  </td>
+                  <td className="n">{compactNumber(s.medianViews)}</td>
+                  <td className="n">{s.posts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mr-note">ค่ากลางทั้งเดือน {compactNumber(r.overallMedian)} วิวต่อโพสต์ · นับช่วงที่มีอย่างน้อย 10 โพสต์ · เป็นความสัมพันธ์ ควรทดลองยืนยัน</p>
+        </div>
+      </div>
+    ),
+  });
+
+  pages.push({
+    title: "คำแนะนำจากตัวเลขเดือนนี้",
+    body: (
+      <>
+        <ol className="mr-recs">
+          {r.recommendations.map((x) => (
+            <li key={x.title}>
+              <h3>{x.title}</h3>
+              <p>{x.because}</p>
+              <p className="mr-act">→ {x.action}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mr-note">คำแนะนำสร้างจากกฎที่ตั้งไว้กับตัวเลขในรายงาน (ไม่ใช้ AI) · ควรดูร่วมกับบริบทของทีม</p>
+      </>
+    ),
+  });
+  return pages;
+}
+
+export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Props) {
+  const [saved, setSaved] = useState<SavedReport[] | null>(null);
+  const [error, setError] = useState("");
+  const [month, setMonth] = useState("");
+  const [draft, setDraft] = useState<MonthlyReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState("");
+  const [present, setPresent] = useState<number | null>(null);
+  const [watermark, setWatermark] = useState("");
+  const presentRef = useRef<HTMLDivElement>(null);
+
+  const reload = useCallback(() => {
+    track(listMonthlyReports())
+      .then((list) => {
+        setSaved(list);
+        setMonth((m) => m || list[0]?.month || "");
+      })
+      .catch((e) => setError(String(e?.message || e)));
+  }, []);
+  useEffect(reload, [reload]);
+
+  const suggested = latestDate ? lastFullMonth(latestDate) : "";
+  const current = saved?.find((s) => s.month === month);
+  const report = draft && draft.month === month ? draft : current?.report || null;
+  const slides = useMemo(() => (report ? slidesOf(report) : []), [report]);
+
+  const make = async (m: string) => {
+    setBusy(true);
+    setInfo("");
+    setError("");
+    try {
+      const sources = await track(loadTvCompetitors()).catch(() => []);
+      const r = buildMonthlyReport(rows, m, sources, { createdAt: new Date().toISOString(), createdBy: userName, dataAt: latestDate });
+      setDraft(r);
+      setMonth(m);
+      setInfo(`ร่างรายงาน ${monthLabel(m)} ยังไม่ได้บันทึก · ตรวจแล้วกด "บันทึกรายงาน" เพื่อให้คนที่มีสิทธิ์เห็น`);
+    } catch (e) {
+      setError(String((e as Error)?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    if (!draft) return;
+    const replacing = saved?.some((s) => s.month === draft.month);
+    if (replacing && !window.confirm(`มีรายงาน ${monthLabel(draft.month)} อยู่แล้ว บันทึกทับด้วยตัวเลข ณ วันที่ ${dateLabel(draft.dataAt, true)}?`)) return;
+    setBusy(true);
+    try {
+      await saveMonthlyReport(draft, userName);
+      setDraft(null);
+      setInfo(`บันทึกรายงาน ${monthLabel(draft.month)} แล้ว`);
+      reload();
+    } catch (e) {
+      setError(String((e as Error)?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // PDF: the browser's own print → "Save as PDF"; every page carries who took it.
+  const downloadPdf = () => {
+    if (!report) return;
+    const stamp = new Date().toLocaleString("th-TH-u-ca-gregory", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
+    setWatermark(`เอกสารภายใน TERO · ${userName} · ${stamp}`);
+    recordDownload("monthly-report-pdf", `รายงานประจำเดือน ${report.month}${draft && draft.month === month ? " (ร่าง)" : ""}`);
+    document.body.classList.add("mr-printing");
+    window.setTimeout(() => {
+      window.print();
+      document.body.classList.remove("mr-printing");
+      setWatermark("");
+    }, 300);
+  };
+
+  // Presenting: one page at a time, full screen; ← → or click to move, Esc to leave.
+  useEffect(() => {
+    if (present === null) return;
+    const el = presentRef.current;
+    if (el && !document.fullscreenElement) el.requestFullscreen?.().catch(() => undefined);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") setPresent((p) => (p === null ? p : Math.min(slides.length - 1, p + 1)));
+      if (e.key === "ArrowLeft" || e.key === "PageUp") setPresent((p) => (p === null ? p : Math.max(0, p - 1)));
+      if (e.key === "Escape") setPresent(null);
+    };
+    const onExit = () => {
+      if (!document.fullscreenElement) setPresent(null);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("fullscreenchange", onExit);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("fullscreenchange", onExit);
+    };
+  }, [present, slides.length]);
+  const closePresent = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    setPresent(null);
+  };
+
+  const months = [...new Set([...(saved || []).map((s) => s.month), ...(draft ? [draft.month] : [])])].sort().reverse();
+  const isDraft = !!draft && draft.month === month;
+
+  return (
+    <section className="panel growth-panel monthly-report" id="monthly-report">
+      <div className="panel-head mr-toolbar">
+        <div>
+          <h2>รายงานประจำเดือน</h2>
+          <p className="growth-sub">สรุปรายเดือนสำหรับประชุม · ตัวเลขถูกเก็บไว้ ณ วันที่ทำรายงาน ไม่ขยับตามข้อมูลใหม่ · เอกสารภายใน</p>
+        </div>
+        <div className="mr-actions">
+          {months.length > 0 && (
+            <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="เลือกเดือน">
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                  {draft && draft.month === m ? " (ร่าง)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          {report && (
+            <button type="button" onClick={() => setPresent(0)}>
+              <Maximize size={15} /> นำเสนอเต็มจอ
+            </button>
+          )}
+          {report && isAdmin && (
+            <button type="button" onClick={downloadPdf}>
+              <FileDown size={15} /> ดาวน์โหลด PDF
+            </button>
+          )}
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="mr-admin">
+          <span>admin:</span>
+          <button type="button" disabled={busy || !suggested || !rows.length} onClick={() => make(suggested)}>
+            <RefreshCw size={14} /> {saved?.some((s) => s.month === suggested) ? `ทำรายงาน ${monthLabel(suggested)} ใหม่` : `สร้างรายงาน ${suggested ? monthLabel(suggested) : ""}`}
+          </button>
+          <label>
+            เดือนอื่น
+            <input type="month" max={suggested} onChange={(e) => e.target.value && make(e.target.value)} disabled={busy} />
+          </label>
+          {isDraft && (
+            <button type="button" className="mr-primary" disabled={busy} onClick={save}>
+              บันทึกรายงาน
+            </button>
+          )}
+          {isDraft && (
+            <button type="button" disabled={busy} onClick={() => setDraft(null)}>
+              ยกเลิกร่าง
+            </button>
+          )}
+        </div>
+      )}
+      {info && <p className="growth-notice">{info}</p>}
+      {error && <p className="growth-notice warn">{error.includes("permission") ? "ไม่มีสิทธิ์ดูรายงานประจำเดือน ติดต่อ admin" : error}</p>}
+      {saved && !report && !error && (
+        <p className="growth-notice">{isAdmin ? `ยังไม่มีรายงานที่บันทึกไว้ · กด "สร้างรายงาน" เพื่อเริ่ม` : "ยังไม่มีรายงานประจำเดือน"}</p>
+      )}
+      {report && (
+        <p className="mr-meta">
+          {isDraft ? "ร่าง (ยังไม่บันทึก)" : `บันทึกโดย ${current?.savedByName || "-"}`} · ข้อมูล ณ วันที่ {dateLabel(report.dataAt, true)} · {slides.length} หน้า
+        </p>
+      )}
+
+      <div className="mr-deck">
+        {report &&
+          slides.map((s, i) =>
+            s.cover ? (
+              <section key={i} className="mr-slide mr-cover-slide">
+                {s.body}
+                {watermark && (
+                  <div className="mr-watermark" aria-hidden>
+                    {Array.from({ length: 6 }, (_, j) => (
+                      <span key={j}>{watermark}</span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            ) : (
+              <Slide key={i} report={report} n={i + 1} total={slides.length} title={s.title} watermark={watermark}>
+                {s.body}
+              </Slide>
+            ),
+          )}
+      </div>
+
+      {present !== null && report && (
+        <div className="mr-present" ref={presentRef} onClick={() => setPresent((p) => (p === null ? p : Math.min(slides.length - 1, p + 1)))}>
+          <div className="mr-present-stage">
+            {slides[present].cover ? (
+              <section className="mr-slide mr-cover-slide">{slides[present].body}</section>
+            ) : (
+              <Slide report={report} n={present + 1} total={slides.length} title={slides[present].title} watermark="">
+                {slides[present].body}
+              </Slide>
+            )}
+          </div>
+          <div className="mr-present-bar" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => setPresent(Math.max(0, present - 1))} aria-label="หน้าก่อน">
+              <ChevronLeft size={18} />
+            </button>
+            <span>
+              {present + 1} / {slides.length}
+            </span>
+            <button type="button" onClick={() => setPresent(Math.min(slides.length - 1, present + 1))} aria-label="หน้าถัดไป">
+              <ChevronRight size={18} />
+            </button>
+            <button type="button" onClick={closePresent} aria-label="ออกจากโหมดนำเสนอ">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}

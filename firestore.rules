@@ -29,7 +29,7 @@ service cloud.firestore {
     // Role presets; keep in step with PRESET in lib/auth/permissions.ts.
     function preset(role, name) {
       return role == 'admin'
-        || (role == 'executive' && name in ['advanced', 'deepDive', 'revenue', 'download'])
+        || (role == 'executive' && name in ['advanced', 'deepDive', 'revenue', 'download', 'monthlyReport'])
         || (role == 'content' && name in ['advanced', 'deepDive', 'download'])
         || (role == 'finance' && name in ['revenue', 'download']);
     }
@@ -44,7 +44,7 @@ service cloud.firestore {
         && d.email is string
         && d.name is string
         && d.role in ['admin', 'executive', 'content', 'finance', 'viewer']
-        && (!('perms' in d) || (d.perms is map && d.perms.keys().hasOnly(['advanced', 'deepDive', 'revenue', 'download'])))
+        && (!('perms' in d) || (d.perms is map && d.perms.keys().hasOnly(['advanced', 'deepDive', 'revenue', 'download', 'monthlyReport'])))
         && d.active is bool
         && (!('mustChangePassword' in d) || d.mustChangePassword is bool);
     }
@@ -197,6 +197,16 @@ service cloud.firestore {
     match /dashboardCache/{doc} {
       allow read: if isActive();
       allow write: if isAdmin();
+    }
+    // รายงานประจำเดือน (lib/monthlyReportData.ts): frozen numbers for the meeting.
+    // Read with the monthlyReport permission; only admins create or replace one.
+    match /monthlyReports/{month} {
+      allow read: if can('monthlyReport');
+      allow write: if isAdmin()
+        && month.matches('[0-9]{4}-[0-9]{2}')
+        && request.resource.data.month == month
+        && request.resource.data.savedBy == request.auth.uid
+        && request.resource.data.savedAt == request.time;
     }
     match /affiliateData/{doc} {
       allow read: if can('revenue');

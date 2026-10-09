@@ -29,6 +29,7 @@ import { ProgramReportSection } from "@/components/dashboard/sections/ProgramRep
 import { TrendingHashtagsSection } from "@/components/dashboard/sections/TrendingHashtagsSection";
 import { SearchResultsSection } from "@/components/dashboard/sections/SearchResultsSection";
 import { PlatformReportSection } from "@/components/dashboard/sections/PlatformReportSection";
+import { MonthlyReportSection } from "@/components/dashboard/sections/MonthlyReportSection";
 import { YouTubeDeepDiveSection } from "@/components/dashboard/sections/YouTubeDeepDiveSection";
 import { AccMonthlyReport } from "@/components/dashboard/AccMonthlyReport";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
@@ -56,7 +57,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -96,7 +97,7 @@ export default function Dashboard() {
 
   const isAdmin = auth.user?.role === "admin";
   // What this person may see (role + their own switches; lib/auth/permissions.ts).
-  const perms = auth.user ? effectivePerms(auth.user.role, auth.user.perms) : { advanced: false, deepDive: false, revenue: false, download: false };
+  const perms = auth.user ? effectivePerms(auth.user.role, auth.user.perms) : { advanced: false, deepDive: false, revenue: false, download: false, monthlyReport: false };
 
   // "?" links beside section headings point at #help-{topic}: open the help
   // page and scroll to that topic once it is on screen.
@@ -277,6 +278,10 @@ export default function Dashboard() {
             endDate={model.endDate}
             comparePeriod={model.comparePeriod}
           />
+        )}
+
+        {activeTab === "monthly" && perms.monthlyReport && (
+          <MonthlyReportSection rows={model.rows} latestDate={model.dataLatestDate} isAdmin={isAdmin} userName={auth.user?.name || auth.user?.email || ""} />
         )}
 
         {activeTab === "help" && <HelpSection isAdmin={isAdmin || perms.advanced} />}

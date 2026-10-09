@@ -3,7 +3,7 @@
 import { BadgeDollarSign, LayoutDashboard } from "lucide-react";
 
 interface SectionTabsProps {
-  activeTab: "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
+  activeTab: "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly";
   onTabChange: (tab: "overview" | "revenue" | "affiliate") => void;
   /** Revenue and Affiliate tabs (permission "revenue"). */
   canRevenue?: boolean;

@@ -4,6 +4,7 @@ import type { DashboardModel } from "@/hooks/useDashboard";
 import type { User as AuthUser } from "@/lib/auth/types";
 import { isStale, type SyncStatus } from "@/lib/sync/status";
 import {
+  Presentation,
   BadgeDollarSign,
   BarChart3,
   Bell,
@@ -37,7 +38,7 @@ import {
 import { BRAND } from "@/lib/brand";
 import { can, type Perm } from "@/lib/auth/permissions";
 
-type Tab = "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help";
+type Tab = "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -67,6 +68,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
       { id: "platform-report", label: "รายงานรายแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
       { id: "program-report", label: "รวมรายการ", icon: <LayoutList />, tab: "programs" },
+      { id: "monthly-report", label: "รายงานประจำเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
       { id: "search-results", label: "ผลการค้นหา", icon: <Search />, tab: "search" },
       { id: "trending-hashtags", label: "Trending Hashtag", icon: <Hash />, tab: "trending" },
       { id: "topics", label: "ประเภทเนื้อหา", icon: <Sparkles /> },

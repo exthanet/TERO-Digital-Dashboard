@@ -1,0 +1,404 @@
+/* รายงานประจำเดือน (components/dashboard/sections/MonthlyReportSection.tsx).
+   16:9 pages in the meeting deck's blue-grey tone; sizes follow the page width
+   (container units) so a page reads the same on screen, full screen and in the PDF. */
+.monthly-report {
+  --mr-ink: #2f2f2f;
+  --mr-blue: #4f7db8;
+  --mr-green: #459d71;
+  --mr-red: #c0504d;
+  --mr-muted: #6b7686;
+  --mr-paper: #e7ecf2;
+}
+.mr-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.mr-actions,
+.mr-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mr-actions select,
+.mr-actions button,
+.mr-admin button,
+.mr-admin input {
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  border-radius: 10px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.mr-admin {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.mr-admin label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.mr-admin .mr-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.mr-actions button:disabled,
+.mr-admin button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mr-meta {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin: 8px 0 12px;
+}
+
+.mr-deck {
+  display: grid;
+  gap: 18px;
+}
+.mr-slide {
+  container-type: inline-size;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: 14px;
+  color: var(--mr-ink);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(79, 125, 184, 0.28), transparent 18%),
+    radial-gradient(circle at 2% 98%, rgba(79, 125, 184, 0.22), transparent 20%),
+    var(--mr-paper);
+  padding: 3.2cqw 5cqw 3cqw;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 6px rgba(15, 27, 49, 0.08);
+  font-size: 1.45cqw;
+  line-height: 1.45;
+}
+.mr-slide-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.05cqw;
+  font-weight: 700;
+  color: #3a3a3a;
+  border-bottom: 0.15cqw solid #3a3a3a;
+  padding-bottom: 0.6cqw;
+}
+.mr-slide h2 {
+  font-size: 4cqw;
+  line-height: 1.1;
+  margin: 1.8cqw 0 1.4cqw;
+  color: var(--mr-ink);
+}
+.mr-slide h3 {
+  font-size: 1.6cqw;
+  margin: 1.2cqw 0 0.6cqw;
+}
+.mr-slide-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.mr-cover-slide {
+  justify-content: center;
+}
+.mr-cover p {
+  font-size: 2cqw;
+  font-weight: 700;
+  margin: 0.6cqw 0;
+  color: var(--mr-blue);
+}
+.mr-cover p:first-child {
+  color: var(--mr-ink);
+}
+.mr-cover h1 {
+  font-size: 6.4cqw;
+  line-height: 1.1;
+  margin: 1cqw 0 2cqw;
+}
+.mr-cover small {
+  display: block;
+  margin-top: 3cqw;
+  font-size: 1.15cqw;
+  color: var(--mr-muted);
+}
+
+.mr-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2cqw;
+  margin-bottom: 1.2cqw;
+}
+.mr-kpis > div {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 1cqw;
+  padding: 1.1cqw 1.3cqw;
+}
+.mr-kpis small {
+  display: block;
+  color: var(--mr-muted);
+  font-size: 1.15cqw;
+}
+.mr-kpis b {
+  display: block;
+  font-size: 3.4cqw;
+  line-height: 1.15;
+  color: var(--mr-blue);
+}
+.mr-say {
+  font-size: 1.7cqw;
+  margin: 1.6cqw 0 0;
+  padding-left: 2cqw;
+}
+.mr-lead {
+  font-size: 1.7cqw;
+  color: var(--mr-blue);
+  font-weight: 700;
+  margin: 0 0 0.6cqw;
+}
+.mr-up {
+  color: var(--mr-green);
+  font-weight: 700;
+}
+.mr-down {
+  color: var(--mr-red);
+  font-weight: 700;
+}
+.mr-muted {
+  color: var(--mr-muted);
+}
+.mr-note {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  font-size: 1cqw;
+  color: var(--mr-muted);
+  margin: 0;
+}
+.mr-grid2 .mr-note {
+  position: static;
+  margin-top: 0.8cqw;
+}
+
+.mr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.3cqw;
+}
+.mr-table th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--mr-blue);
+  padding: 0.45cqw 0.6cqw;
+  border-bottom: 0.12cqw solid rgba(47, 47, 47, 0.25);
+}
+.mr-table td {
+  padding: 0.45cqw 0.6cqw;
+  border-bottom: 0.08cqw solid rgba(47, 47, 47, 0.12);
+  vertical-align: middle;
+}
+.mr-table .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.mr-table .nowrap {
+  white-space: nowrap;
+}
+.mr-table tr.mr-own td {
+  background: rgba(255, 255, 255, 0.75);
+  font-weight: 700;
+}
+.mr-barcell {
+  width: 22%;
+}
+.mr-bar {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0.4cqw;
+  height: 1cqw;
+}
+.mr-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 0.4cqw;
+}
+.mr-dot {
+  display: inline-block;
+  width: 0.9cqw;
+  height: 0.9cqw;
+  border-radius: 50%;
+  margin-right: 0.6cqw;
+}
+.mr-tag {
+  color: var(--mr-blue);
+  font-weight: 700;
+}
+.mr-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3cqw;
+  height: 100%;
+}
+.mr-stack {
+  display: grid;
+  gap: 0.6cqw;
+  align-content: start;
+}
+.mr-grid2 h3:first-child,
+.mr-stack h3 {
+  margin-top: 0;
+}
+.mr-recs {
+  margin: 0;
+  padding-left: 2.4cqw;
+  display: grid;
+  gap: 0.7cqw;
+}
+.mr-recs h3 {
+  margin: 0;
+  font-size: 1.55cqw;
+}
+.mr-recs p {
+  margin: 0.1cqw 0;
+  font-size: 1.25cqw;
+}
+.mr-recs .mr-act {
+  color: var(--mr-blue);
+}
+
+/* Downloader's name on every page of the PDF (admins only take one). */
+.mr-watermark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  align-items: center;
+  justify-items: center;
+  transform: rotate(-18deg) scale(1.2);
+  color: rgba(47, 47, 47, 0.09);
+  font-size: 1.9cqw;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Full-screen presenting. */
+.mr-present {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #0b1220;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.mr-present-stage {
+  width: min(100vw, calc(100vh * 16 / 9));
+}
+.mr-present-stage .mr-slide {
+  border-radius: 0;
+  box-shadow: none;
+}
+.mr-present-bar {
+  position: fixed;
+  bottom: 14px;
+  right: 18px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #fff;
+  font-size: 14px;
+  opacity: 0.35;
+  cursor: default;
+}
+.mr-present-bar:hover {
+  opacity: 1;
+}
+.mr-present-bar button {
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .mr-slide {
+    border-radius: 8px;
+  }
+}
+
+/* PDF: only the deck, one page per slide, through the admin's button (it adds
+   the watermark and logs the download). Printing the page any other way leaves
+   the report out. */
+@page mr {
+  size: 13.333in 7.5in;
+  margin: 0;
+}
+@media print {
+  body:not(.mr-printing) .mr-deck {
+    display: none !important;
+  }
+  body.mr-printing *:not(:has(.mr-deck)):not(.mr-deck):not(.mr-deck *) {
+    display: none !important;
+  }
+  body.mr-printing,
+  body.mr-printing * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.mr-printing .mr-deck {
+    display: block;
+    page: mr;
+  }
+  body.mr-printing :has(.mr-deck) {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: none !important;
+    overflow: visible !important;
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  body.mr-printing .mr-slide {
+    width: 13.333in;
+    height: 7.5in;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+}
+
+.mr-compact .mr-table {
+  font-size: 1.15cqw;
+}
+.mr-compact .mr-table td,
+.mr-compact .mr-table th {
+  padding: 0.3cqw 0.5cqw;
+}
+.mr-compact h3 {
+  font-size: 1.4cqw;
+  margin-bottom: 0.3cqw;
+}

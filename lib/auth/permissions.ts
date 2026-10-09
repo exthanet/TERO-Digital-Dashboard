@@ -1,13 +1,13 @@
 // Who may see and do what. A role gives a set of permissions; an admin can
 // switch single permissions on or off for one person (users/{uid}.perms).
 // firestore.rules holds the same presets and enforces the data side
-// (revenue, Monthly ACC, Deep Dive); the UI hides what a person cannot use.
+// (revenue, Monthly ACC, Deep Dive, monthly reports); the UI hides what a person cannot use.
 // Importing files, the sync and user management stay with the admin role.
 //
 // Relative imports only: tests run this file directly with Node.
 
 export type Role = "admin" | "executive" | "content" | "finance" | "viewer";
-export type Perm = "advanced" | "deepDive" | "revenue" | "download";
+export type Perm = "advanced" | "deepDive" | "revenue" | "download" | "monthlyReport";
 
 export const ROLES: { id: Role; label: string; note: string }[] = [
   { id: "admin", label: "Admin", note: "ทุกอย่าง รวมนำเข้าไฟล์ sync และจัดการผู้ใช้" },
@@ -22,12 +22,13 @@ export const PERMS: { id: Perm; label: string; note: string }[] = [
   { id: "deepDive", label: "YouTube Deep Dive", note: "Retention, Hook, SEO (แท็บ Revenue ต้องมีสิทธิ์รายได้ด้วย)" },
   { id: "revenue", label: "รายได้", note: "YouTube Revenue, Affiliate, Monthly ACC และตัวเลขรายได้ทุกที่" },
   { id: "download", label: "ดาวน์โหลด / Export", note: "CSV / Excel จากทุกหน้า" },
+  { id: "monthlyReport", label: "รายงานประจำเดือน", note: "ดูรายงานสรุปรายเดือนสำหรับประชุม (PDF ดาวน์โหลดได้เฉพาะ admin)" },
 ];
 
 /** Keep in step with preset() in firestore.rules. */
 export const PRESET: Record<Role, Perm[]> = {
-  admin: ["advanced", "deepDive", "revenue", "download"],
-  executive: ["advanced", "deepDive", "revenue", "download"],
+  admin: ["advanced", "deepDive", "revenue", "download", "monthlyReport"],
+  executive: ["advanced", "deepDive", "revenue", "download", "monthlyReport"],
   content: ["advanced", "deepDive", "download"],
   finance: ["revenue", "download"],
   viewer: [],
