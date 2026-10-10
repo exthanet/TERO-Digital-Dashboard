@@ -44,6 +44,8 @@ import type { YtDeepDiveData } from "@/lib/dashboard/ytDeepDive";
 type Digital = "YouTube" | "TikTok" | "Facebook" | "Instagram";
 type Metric = "views" | "hours" | "subs" | "posts" | "medianViews" | "er" | "sharesPer1k" | "commentsPer1k" | "likes" | "comments" | "shares" | "engagement" | "impressions" | "linkClicks";
 
+/** Clips in each "เนื้อหายอดนิยม / โพสต์ยอดนิยม / Reels ยอดนิยม" box. */
+const TOP_POSTS = 12;
 const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const shortDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 const fullDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
@@ -275,7 +277,8 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
   }, [isYt, growth, growthKey, mine, days7]);
   const rowByKey = useMemo(() => new Map(mine.map((r) => [recordKey(r), r])), [mine]);
 
-  const top = useMemo(() => topPosts(cur, 8), [cur]);
+  /** Top posts shown on every platform. */
+  const top = useMemo(() => topPosts(cur, TOP_POSTS), [cur]);
   const topics = useMemo(() => (platform === "TikTok" ? groupStats(cur, (r) => r.topicType).slice(0, 8) : []), [cur, platform]);
   const rings = useMemo(() => reachRings(cur), [cur]);
   const hours = useMemo(() => (platform === "TikTok" ? hourMedians(cur) : []), [cur, platform]);
@@ -468,7 +471,7 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
           <div className="ps-grid g11">
             <div className="ps-card">
               <h3>โพสต์ยอดนิยม</h3>
-              <PostTiles rows={top.slice(0, 4)} stored={stored} onOpen={onOpen} />
+              <PostTiles rows={top} stored={stored} onOpen={onOpen} />
             </div>
             <div className="ps-card">
               <h3>การมีส่วนร่วม</h3>
@@ -543,7 +546,7 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
               <span className="n">ยอดดู</span>
               <span className="n">มีส่วนร่วม</span>
             </div>
-            {top.slice(0, 4).map((r, i) => (
+            {top.map((r, i) => (
               <button type="button" key={`${r.url || r.contentId}-${i}`} className="fb-row" onClick={() => onOpen(r)} title="วิเคราะห์คลิปนี้">
                 <span>{r.topic || "ไม่ระบุประเด็น"}</span>
                 <b className="n">{compact(r.views)}</b>
@@ -558,7 +561,7 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
         <div className="ps-grid g11">
           <div className="ps-card">
             <h3>Reels ยอดนิยม</h3>
-            {reels.length ? <PostTiles rows={topPosts(reels, 4)} stored={stored} onOpen={onOpen} /> : <p className="ps-muted">ไม่มี Reels ในช่วงนี้</p>}
+            {reels.length ? <PostTiles rows={topPosts(reels, TOP_POSTS)} stored={stored} onOpen={onOpen} /> : <p className="ps-muted">ไม่มี Reels ในช่วงนี้</p>}
           </div>
           <div className="ps-card">
             <h3>คนดูต่อหรือปัดทิ้ง (Reels)</h3>
