@@ -7,14 +7,22 @@ const QUERY = "(prefers-reduced-motion: reduce)";
 const subscribe = (cb: () => void) => {
   const mql = window.matchMedia(QUERY);
   mql.addEventListener("change", cb);
-  return () => mql.removeEventListener("change", cb);
+  document.addEventListener("visibilitychange", cb);
+  return () => {
+    mql.removeEventListener("change", cb);
+    document.removeEventListener("visibilitychange", cb);
+  };
 };
 
-/** False when the computer asks for less motion. */
+/**
+ * False when the computer asks for less motion, or while the tab is hidden:
+ * browsers pause animation frames there, and an animated chart would stay empty
+ * (bars and pies grow from nothing) until the tab is shown again.
+ */
 export function useMotion(): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => !window.matchMedia(QUERY).matches,
+    () => !window.matchMedia(QUERY).matches && document.visibilityState === "visible",
     () => false,
   );
 }

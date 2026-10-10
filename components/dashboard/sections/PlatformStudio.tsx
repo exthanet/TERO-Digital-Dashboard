@@ -9,7 +9,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, P
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { TOPIC_COLORS } from "@/lib/dashboard/constants";
-import { change, digitalKpis, tvKpis } from "@/lib/dashboard/platformReport";
+import { change, digitalKpis } from "@/lib/dashboard/platformReport";
 import {
   dailySeries,
   episodeRatings,
@@ -283,6 +283,23 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
   const bestHours = useMemo(() => new Set([...hours].filter((h) => h.medianViews !== null).sort((a, b) => (b.medianViews || 0) - (a.medianViews || 0)).slice(0, 4).map((h) => h.hour)), [hours]);
   const types = useMemo(() => (platform === "Facebook" || platform === "Instagram" ? groupStats(cur, (r) => r.vdoType) : []), [cur, platform]);
   const mix = useMemo(() => interactionMix(cur), [cur]);
+  const fb = useMemo(() => {
+    const reels = types.filter((t) => /reel/i.test(t.key));
+    const others = types.filter((t) => !/reel/i.test(t.key));
+    const items = [
+      { k: "Like", v: mix.total ? mix.likes / mix.total : 0, c: "#1877f2" },
+      { k: "Share", v: mix.total ? mix.shares / mix.total : 0, c: "#42b72a" },
+      { k: "Comment", v: mix.total ? mix.comments / mix.total : 0, c: "#f7b928" },
+    ].sort((x, y) => y.v - x.v);
+    return {
+      reelShare: reels.reduce((a, t) => a + t.viewShare, 0),
+      postShare: others.reduce((a, t) => a + t.viewShare, 0),
+      reels: reels.reduce((a, t) => a + t.posts, 0),
+      posts: others.reduce((a, t) => a + t.posts, 0),
+      mix: items,
+      mixMax: Math.max(0, ...items.map((x) => x.v)),
+    };
+  }, [types, mix]);
   const reels = useMemo(() => cur.filter((r) => /reel/i.test(r.vdoType)), [cur]);
   const skip = useMemo(() => (platform === "Instagram" ? skipStats(reels) : null), [reels, platform]);
   const motion = useMotion();
@@ -309,11 +326,6 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
       <MainChart data={series} metric={metric} color={skin.accent} grid={skin.grid} text={skin.text} />
     </div>
   );
-  const mixItems = [
-    { label: "Like", value: mix.total ? mix.likes / mix.total : 0 },
-    { label: "Comment", value: mix.total ? mix.comments / mix.total : 0 },
-    { label: "Share", value: mix.total ? mix.shares / mix.total : 0 },
-  ];
 
   return (
     <section className={`ps ${skin.cls}`} aria-label={`${platform} board`}>
@@ -485,35 +497,52 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
       {platform === "Facebook" && (
         <>
           <div className="ps-grid g2">
-            {chart}
+            <div className="ps-card ps-chart">
+              <h3>{METRICS[metric].label}</h3>
+              <MainChart data={series} metric={metric} color={skin.accent} grid={skin.grid} text={skin.text} studio />
+            </div>
             <div className="ps-card">
               <h3>Reels เทียบโพสต์ปกติ</h3>
-              {types.map((t) => (
-                <div key={t.key} className="ps-split">
-                  <div className="ps-split-head">
-                    <b>{t.key}</b>
-                    <span>
-                      {num(t.posts)} โพสต์ · ค่ากลาง {t.medianViews === null ? "-" : compact(t.medianViews)} วิว
-                    </span>
+              <div className="fb-split">
+                <span style={{ width: `${fb.reelShare * 100}%`, background: "#1877f2" }} />
+                <span style={{ width: `${fb.postShare * 100}%`, background: "#a6c8ff" }} />
+              </div>
+              <div className="pi-legend static fb-legend">
+                <span>
+                  <i style={{ background: "#1877f2" }} />
+                  Reels {pct(fb.reelShare, 0)} ของยอดดู ({num(fb.reels)} คลิป)
+                </span>
+                <span>
+                  <i style={{ background: "#a6c8ff" }} />
+                  โพสต์ปกติ {pct(fb.postShare, 0)} ({num(fb.posts)} โพสต์)
+                </span>
+              </div>
+              <h3 className="ps-gap">การมีส่วนร่วมแยกประเภท</h3>
+              <p className="ps-muted">Facebook ส่งมาเฉพาะยอด Like รวม ไม่แยกอีโมจิ</p>
+              {fb.mix.map((x) => (
+                <div key={x.k} className="fb-react">
+                  <span>{x.k}</span>
+                  <div>
+                    <span style={{ width: `${fb.mixMax ? (x.v / fb.mixMax) * 100 : 0}%`, background: x.c }} />
                   </div>
-                  <Bars
-                    items={[
-                      { label: "สัดส่วนโพสต์", value: t.postShare },
-                      { label: "สัดส่วนวิว", value: t.viewShare },
-                    ]}
-                    color={/reel/i.test(t.key) ? "#f02849" : skin.accent}
-                  />
+                  <b>{pct(x.v, 0)}</b>
                 </div>
               ))}
-              <h3 className="ps-gap">การมีส่วนร่วมแยกประเภท</h3>
-              <p className="ps-muted">Facebook ส่งมาเฉพาะยอด Like รวม ไม่แยกอีโมจิ จึงแสดงสัดส่วน Like / Comment / Share แทน</p>
-              <Bars items={mixItems} color={skin.accent} />
             </div>
           </div>
           <div className="ps-card">
             <h3>โพสต์ยอดนิยม</h3>
-            {top.map((r, i) => (
-              <PostRow key={`${r.url || r.contentId}-${i}`} row={r} stored={stored} i={i} onOpen={onOpen} extra={`ER ${pct(r.views > 0 ? (r.likes + r.comments + r.shares) / r.views : 0, 2)}`} />
+            <div className="fb-row fb-th">
+              <span>โพสต์</span>
+              <span className="n">ยอดดู</span>
+              <span className="n">มีส่วนร่วม</span>
+            </div>
+            {top.slice(0, 4).map((r, i) => (
+              <button type="button" key={`${r.url || r.contentId}-${i}`} className="fb-row" onClick={() => onOpen(r)} title="วิเคราะห์คลิปนี้">
+                <span>{r.topic || "ไม่ระบุประเด็น"}</span>
+                <b className="n">{compact(r.views)}</b>
+                <span className="n">{compact(r.likes + r.comments + r.shares)}</span>
+              </button>
             ))}
           </div>
         </>
@@ -601,10 +630,11 @@ export function TvStudio({ cur, prev, mine, startDate, endDate, compareText }: T
       alive = false;
     };
   }, []);
-  const t = useMemo(() => tvKpis(cur), [cur]);
-  const tp = useMemo(() => (prev.length ? tvKpis(prev) : null), [prev]);
   const eps = useMemo(() => episodeRatings(cur, ch), [cur, ch]);
+  const epsPrev = useMemo(() => episodeRatings(prev, ch), [prev, ch]);
   const zones = useMemo(() => zoneRatings(cur), [cur]);
+  // The channel's audience: One31 in audienceTotal, GMM25 in gmmAudience (merged TV rows).
+  const audience = useMemo(() => cur.reduce((a, r) => a + ((ch === "GMM25" ? r.gmmAudience : r.audienceTotal) || 0), 0), [cur, ch]);
   // Competitors of both channels, always (not tied to the One31 / GMM25 switch).
   const rankings = useMemo(
     () =>
@@ -619,48 +649,60 @@ export function TvStudio({ cur, prev, mine, startDate, endDate, compareText }: T
       }),
     [sources, mine, startDate, endDate],
   );
-  const color = ch === "GMM25" ? "#f59e0b" : "#10b981";
-
-  const tiles: { label: string; now: number | null; before: number | null | undefined; format: (v: number) => string }[] = [
-    { label: "จำนวนเทป", now: t.episodes, before: tp?.episodes, format: num },
-    { label: "เรตติ้งเฉลี่ย One31", now: t.rating, before: tp ? tp.rating : undefined, format: fixed(3) },
-    { label: "ผู้ชมรวม", now: t.audience, before: tp?.audience, format: compact },
-    { label: "GMM25 ช่วงเดียวกัน", now: t.gmmRating, before: tp ? tp.gmmRating : undefined, format: fixed(3) },
-  ];
+  const best = Math.max(0, ...eps.list.map((x) => x.rating));
+  const light = ch === "GMM25" ? "#c4b5fd" : "#93b4f5";
+  const ratingChange = eps.avg !== null && epsPrev.avg ? (eps.avg - epsPrev.avg) / epsPrev.avg : null;
+  const zoneMax = Math.max(0, ...zones.map((z) => z.rating || 0));
 
   return (
-    <section className="ps ps-tv" aria-label="TV board">
-      <div className="ps-tv-head">
-        <div className="segmented" role="group" aria-label="ช่อง">
+    <section className="ps ps-tv tvx" aria-label="TV board">
+      <div className="tvx-head">
+        <div className="ht-seg" role="group" aria-label="ช่อง">
           {(["One31", "GMM25"] as const).map((c) => (
-            <button key={c} className={ch === c ? "active" : ""} onClick={() => setCh(c)}>
+            <button key={c} className={ch === c ? "on" : ""} onClick={() => setCh(c)}>
               {c}
             </button>
           ))}
         </div>
-        <div className="ps-tiles">
-          {tiles.map((x) => (
-            <div key={x.label} className="ps-tile static">
-              <small>{x.label}</small>
-              <b>{x.now === null ? "-" : <CountUp value={x.now} format={x.format} />}</b>
-              <Growth value={x.before === undefined ? null : change(x.now, x.before ?? null)} title={compareText} />
-            </div>
-          ))}
+        <div className="tvx-kpis">
+          <div>
+            <small>Rating เฉลี่ย {ch}</small>
+            <b>{eps.avg === null ? "-" : <CountUp value={eps.avg} format={fixed(3)} />}</b>{" "}
+            {ratingChange !== null && (
+              <span className={`tvx-badge ${ratingChange >= 0 ? "up" : "down"}`} title={compareText}>
+                {ratingChange >= 0 ? "▲" : "▼"} {Math.abs(ratingChange * 100).toFixed(0)}% ช่วงก่อน
+              </span>
+            )}
+          </div>
+          <div>
+            <small>ผู้ชมรวม</small>
+            <b>
+              <CountUp value={audience} format={compact} />
+            </b>
+          </div>
+          <div>
+            <small>จำนวนเทป</small>
+            <b>{num(eps.list.length)}</b>
+          </div>
         </div>
       </div>
       <div className="ps-grid g2">
         <div className="ps-card">
-          <h3>Rating รายเทป · {ch}</h3>
-          <p className="ps-muted">เส้นประ = ค่าเฉลี่ยช่วงนี้{eps.avg !== null ? ` (${eps.avg.toFixed(3)})` : ""} · ชี้แท่งเพื่อดูประเด็น</p>
+          <h3>Rating รายเทป</h3>
+          <p className="ps-muted">เส้นประ = ค่าเฉลี่ยช่วงนี้ · ชี้แท่งเพื่อดูประเด็น · เปลี่ยนช่องแล้วแท่งจะยืด/หดไปค่าใหม่</p>
           {eps.list.length ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={eps.list} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={16} />
-                <YAxis tick={{ fontSize: 11 }} width={44} />
+                <XAxis dataKey="date" tickFormatter={(d: string) => String(Number(d.slice(8, 10)))} tick={{ fontSize: 9, fill: "#6a7892" }} stroke="none" interval={0} />
+                <YAxis tick={{ fontSize: 11, fill: "#6a7892" }} width={44} stroke="none" tickFormatter={(v: number) => v.toFixed(2)} />
                 <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, _n, p) => [Number(v).toFixed(3), (p?.payload as { topic: string })?.topic || "Rating"]} />
-                {eps.avg !== null && <ReferenceLine y={eps.avg} stroke="#64748b" strokeDasharray="5 4" />}
-                <Bar dataKey="rating" fill={color} radius={[3, 3, 0, 0]} isAnimationActive={motion} />
+                <Bar dataKey="rating" radius={[3, 3, 0, 0]} isAnimationActive={motion}>
+                  {eps.list.map((x) => (
+                    <Cell key={x.date} fill={x.rating === best ? "#0757e8" : light} />
+                  ))}
+                </Bar>
+                {eps.avg !== null && <ReferenceLine y={eps.avg} stroke="#0f1b31" strokeDasharray="5 4" strokeOpacity={0.55} />}
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -668,37 +710,62 @@ export function TvStudio({ cur, prev, mine, startDate, endDate, compareText }: T
           )}
         </div>
         <div className="ps-card">
-          <h3>Rating ตามพื้นที่ · One31</h3>
-          <p className="ps-muted">เฉลี่ยของเทปในช่วงนี้ · ไฟล์ TV มีแยกพื้นที่เฉพาะ One31</p>
-          <Bars items={zones.filter((z) => z.rating !== null).map((z) => ({ label: z.label, value: z.rating as number }))} color="#10b981" format={fixed(3)} />
-        </div>
-      </div>
-      <div className="ps-card">
-          <h3>เทียบคู่แข่งช่วงเวลาเดียวกัน</h3>
+          <h3>Rating ตามพื้นที่</h3>
+          <p className="ps-muted">เฉลี่ยของเทปในช่วงนี้{ch === "GMM25" ? " · ไฟล์ TV มีแยกพื้นที่เฉพาะ One31" : ""}</p>
+          {ch === "One31" ? (
+            zones
+              .filter((z) => z.rating !== null)
+              .map((z) => (
+                <div key={z.key} className="zone">
+                  <span>{z.label}</span>
+                  <div>
+                    <span style={{ width: `${zoneMax ? ((z.rating as number) / zoneMax) * 100 : 0}%`, background: "#0757e8" }} />
+                  </div>
+                  <b>{(z.rating as number).toFixed(2)}</b>
+                </div>
+              ))
+          ) : (
+            <p className="ps-muted">ไม่มีข้อมูลแยกพื้นที่ของ GMM25</p>
+          )}
+          <h3 className="ps-gap">เทียบคู่แข่งช่วงเวลาเดียวกัน</h3>
           <p className="ps-muted">แสดงทั้ง 2 ช่องเสมอ ไม่ขึ้นกับปุ่มเลือกช่องด้านบน</p>
-          <div className="ps-comp2">
-            {rankings.map(({ ch: c, list }) => (
-              <div key={c}>
-                <span className={`ps-chip ${c === "GMM25" ? "gmm" : "one"}`}>{c}</span>
-                {sources === null ? (
-                  <Skeleton lines={4} height={0} />
-                ) : list.length ? (
-                  <ol className="ps-rank-list">
-                    {list.map((x) => (
-                      <li key={x.key} className={x.own || x.key === OWN_KEY ? "own" : ""}>
-                        <b>{x.place}</b>
-                        <span>{x.key}</span>
-                        <strong>{x.avg.toFixed(3)}</strong>
-                        <small>{x.winShare === null ? `${x.days} วัน` : `ชนะ ${pct(x.winShare, 0)}`}</small>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="ps-muted">ไม่มีข้อมูลคู่แข่งของ {c} ในช่วงนี้</p>
-                )}
-              </div>
-            ))}
+          <div className="ps-comp2 tight">
+            {rankings.map(({ ch: c, list }) => {
+              const max = Math.max(0, ...list.map((x) => x.avg));
+              return (
+                <div key={c}>
+                  <span className={`ps-chip ${c === "GMM25" ? "gmm" : "one"}`}>{c}</span>
+                  {sources === null ? (
+                    <Skeleton lines={4} height={0} />
+                  ) : list.length ? (
+                    <div className="rank">
+                      {list.map((x) => {
+                        const own = x.own || x.key === OWN_KEY;
+                        return (
+                          <div key={x.key} className={`row${own ? " own" : ""}`} title={x.winShare === null ? `${x.days} วัน` : `ถกไม่เถียงชนะ ${pct(x.winShare, 0)} ของวันที่ออกอากาศพร้อมกัน`}>
+                            <span>{x.place}</span>
+                            <div>
+                              <div className="rank-name">
+                                {x.key}
+                                {own ? " (เรา)" : ""}
+                              </div>
+                              <div className="bar">
+                                <span style={{ width: `${max ? (x.avg / max) * 100 : 0}%` }} />
+                              </div>
+                            </div>
+                            <span className="n">{x.avg.toFixed(3)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="ps-muted">ไม่มีข้อมูลคู่แข่งของ {c} ในช่วงนี้</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
+        </div>
       </div>
     </section>
   );

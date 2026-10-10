@@ -348,3 +348,190 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Facebook board, as the demo. */
+.ps-fb .ps-tile .kpi-growth {
+  background: none;
+  padding: 0;
+}
+.fb-split {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e4e6eb;
+}
+.fb-split span {
+  display: block;
+  height: 100%;
+}
+.fb-legend {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+.fb-react {
+  display: grid;
+  grid-template-columns: 70px 1fr 46px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  margin: 4px 0;
+}
+.fb-react div {
+  height: 8px;
+  background: #e4e6eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fb-react div span {
+  display: block;
+  height: 100%;
+}
+.fb-react b {
+  text-align: right;
+}
+.fb-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid #f0f2f5;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.fb-row:hover span:first-child {
+  color: #1877f2;
+}
+.fb-row .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fb-th {
+  color: #65676b;
+  font-size: 12px;
+  cursor: default;
+}
+
+/* TV board, as the demo. */
+.tvx-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.tvx-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tvx-kpis div {
+  background: #fff;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+.tvx-kpis small {
+  color: #6a7892;
+  display: block;
+}
+.tvx-kpis b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.tvx-badge {
+  font-weight: 700;
+  font-size: 13px;
+}
+.tvx-badge.up {
+  color: #16a34a;
+}
+.tvx-badge.down {
+  color: #dc2626;
+}
+.zone {
+  display: grid;
+  grid-template-columns: 120px 1fr 54px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  margin: 6px 0;
+}
+.zone div {
+  height: 12px;
+  background: #eef2f8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.zone div span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+.zone b {
+  text-align: right;
+}
+.tvx .rank {
+  display: grid;
+  gap: 6px;
+}
+.tvx .rank .row {
+  display: grid;
+  grid-template-columns: 22px 1fr 56px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.tvx .rank-name {
+  font-size: 12px;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tvx .rank .bar {
+  height: 16px;
+  border-radius: 5px;
+  background: #e8f0ff;
+  overflow: hidden;
+}
+.tvx .rank .bar span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: #94a3b8;
+}
+.tvx .rank .row.own .bar span {
+  background: #0757e8;
+}
+.tvx .rank .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.tvx .rank .row.own .n {
+  color: #0757e8;
+}
+.ps-comp2.tight {
+  gap: 12px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fb-split span,
+  .fb-react div span,
+  .zone div span,
+  .tvx .rank .bar span {
+    animation: ps-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: left;
+  }
+}
+.fb-row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
