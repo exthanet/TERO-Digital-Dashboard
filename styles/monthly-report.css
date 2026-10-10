@@ -402,3 +402,54 @@
   font-size: 1.4cqw;
   margin-bottom: 0.3cqw;
 }
+
+.mr-card {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 1cqw;
+  padding: 1.2cqw 1.5cqw;
+}
+.mr-card h3 {
+  margin: 0 0 0.3cqw;
+  font-size: 1.9cqw;
+  color: var(--mr-blue);
+}
+.mr-card p {
+  margin: 0.2cqw 0;
+  font-size: 1.35cqw;
+}
+.mr-card ul {
+  margin: 0.6cqw 0 0;
+  padding-left: 1.6cqw;
+  font-size: 1.3cqw;
+}
+.mr-big {
+  display: block;
+  font-size: 3.2cqw;
+  line-height: 1.15;
+}
+.mr-cols3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.6cqw;
+}
+.mr-kpis.two {
+  grid-template-columns: 1fr 1fr;
+}
+.mr-barcell.wide {
+  width: 40%;
+}
+.mr-template {
+  margin: 0;
+  padding-left: 2.2cqw;
+  display: grid;
+  gap: 0.5cqw;
+  font-size: 1.45cqw;
+}
+
+.mr-grid2.auto {
+  height: auto;
+  margin: 0.8cqw 0;
+}
+.mr-grid2 > .mr-note {
+  grid-column: 1 / -1;
+}

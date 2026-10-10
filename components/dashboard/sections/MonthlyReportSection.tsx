@@ -15,9 +15,14 @@ import {
   monthPeriod,
   type ChannelTv,
   type CompetitorBlock,
+  type YoutubeGroup,
   type MonthlyReport,
 } from "@/lib/dashboard/monthlyReport";
 import { listMonthlyReports, saveMonthlyReport, type SavedReport } from "@/lib/monthlyReportData";
+import { loadYtAnalytics } from "@/lib/ytAnalyticsData";
+import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
+import { daysBetween } from "@/lib/dashboard/growth";
+import { TRAFFIC_LABEL } from "@/lib/dashboard/ytDeepDive";
 import { loadTvCompetitors } from "@/lib/tvCompetitorData";
 import { recordDownload } from "@/lib/auth/activity";
 import { track } from "@/lib/loadingBar";
@@ -36,6 +41,27 @@ const dateLabel = (d: string, year = false) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString("th-TH-u-ca-gregory", { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) }) : "-";
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 const rating = (v: number | null | undefined) => (v === null || v === undefined ? "–" : v.toFixed(3));
+
+/** 66 → "66 วินาที", 920 → "15 นาที 20 วินาที". */
+const duration = (sec: number) => (sec < 120 ? `${sec} วินาที` : `${Math.floor(sec / 60)} นาที ${sec % 60} วินาที`);
+
+function YoutubeCard({ title, g }: { title: string; g: YoutubeGroup }) {
+  return (
+    <div className="mr-card">
+      <h3>{title}</h3>
+      <b className="mr-big">{g.videos.toLocaleString("en-US")} คลิป</b>
+      <p>
+        {compactNumber(g.views)} วิว · ดูเฉลี่ย <b>{duration(g.avgViewSec)}</b>
+      </p>
+      <p>
+        ดู <b className={g.avgViewPct >= 100 ? "mr-up" : g.avgViewPct < 35 ? "mr-down" : ""}>{g.avgViewPct}%</b> ของความยาวคลิป{g.avgViewPct >= 100 ? " (มีคนดูซ้ำ)" : ""}
+      </p>
+      <p>
+        ผู้ติดตามใหม่ <b>{g.subs.toLocaleString("en-US")}</b>
+      </p>
+    </div>
+  );
+}
 
 function Change({ value }: { value: number | null }) {
   if (value === null) return <span className="mr-muted">–</span>;
@@ -470,20 +496,351 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
     ),
   });
 
+  const deep = r.deep;
+  if (deep?.youtube) {
+    const y = deep.youtube;
+    pages.push({
+      title: "เชิงลึก A · คุณภาพการดู YouTube",
+      body: (
+        <>
+          <p className="mr-lead">
+            คนดูคลิปยาวเฉลี่ยแค่ {y.long.avgViewPct}% ของความยาว · Shorts ดูครบ {y.shorts.avgViewPct}%{y.shorts.avgViewPct >= 100 ? " (มีคนดูซ้ำ)" : ""}
+          </p>
+          <div className="mr-grid2 auto">
+            <YoutubeCard title="Shorts" g={y.shorts} />
+            <YoutubeCard title="คลิปยาว" g={y.long} />
+          </div>
+          <p className="mr-lead">
+            ผู้ติดตามใหม่จากคลิปที่ลงเดือนนี้ <b>{y.newSubs.toLocaleString("en-US")}</b> คน
+          </p>
+          <p className="mr-note">
+            คิดจาก {y.matched.toLocaleString("en-US")} จาก {y.posts.toLocaleString("en-US")} คลิป YouTube ที่มีตัวเลขใน YouTube Analytics (ยอดตลอดอายุคลิป ณ {dateLabel(y.updatedAt.slice(0, 10), true)}) · คลิปยาว 100% = ดูจนจบ
+          </p>
+        </>
+      ),
+    });
+    if (y.traffic.length) {
+      const maxTraffic = Math.max(...y.traffic.map((t) => t.share));
+      const search = y.traffic.find((t) => t.source === "YT_SEARCH");
+      pages.push({
+        title: "เชิงลึก B · คนเจอคลิป YouTube จากไหน",
+        body: (
+          <>
+            <table className="mr-table">
+              <tbody>
+                {y.traffic.map((t) => (
+                  <tr key={t.source}>
+                    <td>{TRAFFIC_LABEL[t.source] || t.source}</td>
+                    <td className="mr-barcell">
+                      <Bar value={t.share} max={maxTraffic} color={t.source === "YT_SEARCH" ? "#c0504d" : "#4f7db8"} />
+                    </td>
+                    <td className="n">
+                      <b className={t.source === "YT_SEARCH" ? "mr-down" : ""}>{pct(t.share, 1)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mr-lead">{search ? `คนค้นหาเจอคลิปใน YouTube เพียง ${pct(search.share, 1)} · ส่วนใหญ่มาจากผู้ติดตามและหน้า Shorts` : "ส่วนใหญ่มาจากผู้ติดตามและหน้า Shorts"}</p>
+            <p className="mr-note">คิดจาก {y.trafficVideos} คลิปที่ YouTube รายงานแหล่งที่มา (คลิปวิวสูงสุดของเดือน) · ยอดตลอดอายุคลิป</p>
+          </>
+        ),
+      });
+    }
+  }
+  if (deep) {
+    const maxDay = Math.max(1, ...deep.weekdays.map((w) => w.avgPerDay));
+    pages.push({
+      title: "เชิงลึก C · Engagement และวันโพสต์",
+      body: (
+        <div className="mr-grid2">
+          <div>
+            <h3>ต่อ 1,000 วิว</h3>
+            <table className="mr-table">
+              <thead>
+                <tr>
+                  <th>แพลตฟอร์ม</th>
+                  <th className="n">แชร์</th>
+                  <th className="n">คอมเมนต์</th>
+                  <th className="n">ดูเฉลี่ย</th>
+                  <th className="n">กดข้าม</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deep.engagement.map((e) => (
+                  <tr key={e.platform}>
+                    <td>{e.platform}</td>
+                    <td className="n">
+                      <b>{e.sharesPer1k.toFixed(1)}</b>
+                    </td>
+                    <td className="n">
+                      <b>{e.commentsPer1k.toFixed(1)}</b>
+                    </td>
+                    <td className="n">{e.avgWatchSec === null ? "–" : `${e.avgWatchSec} วิ`}</td>
+                    <td className="n">{e.skipRate === null ? "–" : <b className={e.skipRate >= 40 ? "mr-down" : ""}>{e.skipRate}%</b>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mr-note">– = แพลตฟอร์มไม่ส่งข้อมูลนี้ · กดข้าม = % ที่ปัดทิ้งตั้งแต่ต้นคลิป (Instagram Reels)</p>
+          </div>
+          <div>
+            <h3>วิวเฉลี่ยต่อวัน ตามวันที่โพสต์</h3>
+            <table className="mr-table">
+              <tbody>
+                {deep.weekdays.map((w) => (
+                  <tr key={w.day}>
+                    <td>{w.day}</td>
+                    <td className="mr-barcell wide">
+                      <Bar value={w.avgPerDay} max={maxDay} color="#4f7db8" />
+                    </td>
+                    <td className="n">
+                      <b>{compactNumber(w.avgPerDay)}</b>
+                    </td>
+                    <td className="n mr-muted">{w.posts} โพสต์</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mr-note">วิวของโพสต์ที่ลงวันนั้น ÷ จำนวนวันนั้นในเดือน (วันที่ไม่มีโพสต์นับเป็น 0)</p>
+          </div>
+        </div>
+      ),
+    });
+    if (deep.growth) {
+      const gr = deep.growth;
+      pages.push({
+        title: "เชิงลึก D · วิวที่เพิ่มขึ้นรายวัน",
+        body: (
+          <>
+            <div className="mr-kpis">
+              <div>
+                <small>วิวที่เพิ่มในเดือนนี้</small>
+                <b>{compactNumber(gr.totalViews)}</b>
+              </div>
+              <div>
+                <small>เฉลี่ยต่อวัน</small>
+                <b>{compactNumber(gr.perDay)}</b>
+              </div>
+              <div>
+                <small>จำนวนวันที่มีข้อมูล</small>
+                <b>
+                  {gr.days}/{gr.of}
+                </b>
+              </div>
+            </div>
+            <h3>วันที่วิวเพิ่มมากที่สุด</h3>
+            <table className="mr-table">
+              <tbody>
+                {gr.peaks.map((p) => (
+                  <tr key={p.day}>
+                    <td>{dateLabel(p.day, true)}</td>
+                    <td className="n">
+                      <b>{compactNumber(p.views)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mr-note">วิวที่เกิดขึ้นจริงในแต่ละวันของทุกคลิป รวมคลิปเก่า (ต่างจากหน้าอื่นที่นับยอดสะสมของคลิปที่ลงในเดือน) · เริ่มเก็บ 1 ต.ค. 2026</p>
+          </>
+        ),
+      });
+    }
+    if (deep.shorts.features.length) {
+      pages.push({
+        title: "รูปแบบคลิปสั้นที่ได้ผล",
+        body: (
+          <>
+            <table className="mr-table">
+              <thead>
+                <tr>
+                  <th>ปัจจัย</th>
+                  <th>แบบที่ได้ผลดีสุด</th>
+                  <th className="n">ดัชนี</th>
+                  <th>แบบที่ได้ผลน้อยสุด</th>
+                  <th className="n">ดัชนี</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deep.shorts.features.map((ft) => {
+                  const top = ft.groups[0];
+                  const low = ft.groups[ft.groups.length - 1];
+                  return (
+                    <tr key={ft.name}>
+                      <td>{ft.name}</td>
+                      <td>
+                        <b>{top.value}</b> <small className="mr-muted">({top.posts})</small>
+                      </td>
+                      <td className="n">
+                        <b className={top.index >= 1 ? "mr-up" : ""}>{top.index.toFixed(2)}×</b>
+                      </td>
+                      <td>
+                        {low.value} <small className="mr-muted">({low.posts})</small>
+                      </td>
+                      <td className="n">
+                        <b className={low.index < 1 ? "mr-down" : ""}>{low.index.toFixed(2)}×</b>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mr-note">
+              คลิปสั้น {deep.shorts.posts.toLocaleString("en-US")} คลิป (TikTok, Shorts, Reels) · ดัชนี = ค่ากลางวิวของกลุ่ม ÷ ค่ากลางคลิปสั้นแพลตฟอร์มเดียวกัน (1× = ปกติ) · ตัวเลขในวงเล็บ = จำนวนคลิป นับกลุ่มที่มีอย่างน้อย 20 คลิป · เป็นความสัมพันธ์ ไม่ใช่เหตุผลที่แน่ชัด
+            </p>
+          </>
+        ),
+      });
+    }
+    if (deep.seo) {
+      const sc = deep.seo;
+      pages.push({
+        title: "SEO YouTube",
+        body: (
+          <div className="mr-grid2">
+            <div>
+              <div className="mr-kpis two">
+                <div>
+                  <small>วิวจากการค้นหาใน YouTube</small>
+                  <b>{sc.searchShare === null ? "–" : pct(sc.searchShare, 1)}</b>
+                </div>
+                <div>
+                  <small>คำค้นที่เป็นชื่อรายการ/ช่อง</small>
+                  <b>{sc.brandShare === null ? "–" : pct(sc.brandShare)}</b>
+                </div>
+                <div>
+                  <small>ชื่อคลิปยาวเกิน 70 ตัวอักษร</small>
+                  <b className={sc.posts && sc.titleOver70 / sc.posts > 0.5 ? "mr-down" : ""}>{sc.posts ? pct(sc.titleOver70 / sc.posts) : "–"}</b>
+                </div>
+                <div>
+                  <small>คลิปที่ไม่มี Hashtag</small>
+                  <b>{sc.posts ? pct(sc.noHashtag / sc.posts) : "–"}</b>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3>คำที่คนค้นแต่ยังไม่มีคลิปชื่อตรง</h3>
+              <table className="mr-table">
+                <tbody>
+                  {sc.gaps.length ? (
+                    sc.gaps.map((g) => (
+                      <tr key={g.term}>
+                        <td>{g.term}</td>
+                        <td className="n">
+                          <b>{compactNumber(g.views)}</b>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="mr-muted">ไม่มี</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              <h3>คำค้นอื่นที่พาคนมา (ไม่นับชื่อรายการ)</h3>
+              <table className="mr-table">
+                <tbody>
+                  {sc.terms.slice(0, 5).map((g) => (
+                    <tr key={g.term}>
+                      <td>{g.term}</td>
+                      <td className="n">
+                        <b>{compactNumber(g.views)}</b>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mr-note">ข้อมูลคำค้นเป็นของช่องใน 28 วันล่าสุด ({sc.range}) ไม่ใช่เฉพาะเดือนนี้ · ชื่อคลิปและ Hashtag นับจากคลิป YouTube ที่ลงในเดือนนี้</p>
+          </div>
+        ),
+      });
+    }
+  }
+
+  const RECS_PER_PAGE = 5;
+  const pagesOfRecs = Math.max(1, Math.ceil(r.recommendations.length / RECS_PER_PAGE));
+  for (let p = 0; p < pagesOfRecs; p++) {
+    pages.push({
+      title: pagesOfRecs > 1 ? `คำแนะนำจากตัวเลขเดือนนี้ (${p + 1}/${pagesOfRecs})` : "คำแนะนำจากตัวเลขเดือนนี้",
+      body: (
+        <>
+          <ol className="mr-recs" start={p * RECS_PER_PAGE + 1}>
+            {r.recommendations.slice(p * RECS_PER_PAGE, (p + 1) * RECS_PER_PAGE).map((x) => (
+              <li key={x.title}>
+                <h3>{x.title}</h3>
+                <p>{x.because}</p>
+                <p className="mr-act">→ {x.action}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mr-note">คำแนะนำสร้างจากกฎที่ตั้งไว้กับตัวเลขในรายงาน (ไม่ใช้ AI) · ควรดูร่วมกับบริบทของทีม</p>
+        </>
+      ),
+    });
+  }
+
   pages.push({
-    title: "คำแนะนำจากตัวเลขเดือนนี้",
+    title: "เขียนให้คนและ AI หาเจอ: SEO · AEO · GEO",
     body: (
       <>
-        <ol className="mr-recs">
-          {r.recommendations.map((x) => (
-            <li key={x.title}>
-              <h3>{x.title}</h3>
-              <p>{x.because}</p>
-              <p className="mr-act">→ {x.action}</p>
-            </li>
-          ))}
+        <div className="mr-cols3">
+          <div className="mr-card">
+            <h3>SEO</h3>
+            <small className="mr-muted">ติดอันดับ Google / YouTube</small>
+            <ul>
+              <li>คีย์เวิร์ดที่คนค้นจริงไว้ต้นหัวข้อ</li>
+              <li>หัวข้อไม่เกิน 60–70 ตัวอักษร</li>
+              <li>คำอธิบายหน้า 120–155 ตัวอักษร</li>
+              <li>URL สั้น อ่านรู้เรื่อง</li>
+              <li>ลิงก์ไปบทความที่เกี่ยวข้อง</li>
+            </ul>
+          </div>
+          <div className="mr-card">
+            <h3>AEO</h3>
+            <small className="mr-muted">ถูกดึงไปเป็น “คำตอบ”</small>
+            <ul>
+              <li>ย่อหน้าแรกตอบจบใน 40–60 คำ</li>
+              <li>หัวข้อย่อยเป็นคำถามที่คนค้น</li>
+              <li>มี FAQ ถาม-ตอบ</li>
+              <li>เหมาะกับกล่องคำตอบของ Google และผู้ช่วยเสียง</li>
+            </ul>
+          </div>
+          <div className="mr-card">
+            <h3>GEO</h3>
+            <small className="mr-muted">ให้ AI อ้างอิงเรา</small>
+            <ul>
+              <li>ชื่อคน หน่วยงาน วันที่ ตัวเลข ให้ชัด</li>
+              <li>คำพูดพร้อมชื่อผู้พูด</li>
+              <li>ใส่แหล่งที่มา</li>
+              <li>ระบุผู้เขียนและวันที่อัปเดต</li>
+            </ul>
+          </div>
+        </div>
+        <p className="mr-note">เป้าหมาย: ให้ Google, YouTube, ChatGPT, Gemini และ AI Overviews หาเจอและอ้างอิงเนื้อหาของเรา · คำค้นที่คนหาจริงของเดือนนี้ดูได้ในหน้า SEO YouTube</p>
+      </>
+    ),
+  });
+
+  pages.push({
+    title: "Template บทความจาก 1 ตอนของรายการ",
+    body: (
+      <>
+        <ol className="mr-template">
+          <li><b>หัวข้อไม่เกิน 65 ตัวอักษร</b> [SEO] — [ชื่อคน/เรื่อง] + [ประเด็น] | ถกไม่เถียง [วันที่]</li>
+          <li><b>คำอธิบายหน้า 120–155 ตัวอักษร</b> [SEO]</li>
+          <li><b>สรุปสั้น 40–60 คำ</b> [AEO] — ใคร ทำอะไร ที่ไหน เมื่อไหร่</li>
+          <li><b>ข้อเท็จจริงสำคัญ 3–5 ข้อ</b> [GEO]</li>
+          <li><b>คำพูดสำคัญ</b> [GEO] — พร้อมชื่อและตำแหน่งผู้พูด</li>
+          <li><b>ไทม์ไลน์เหตุการณ์</b> (ถ้ามี)</li>
+          <li><b>ฝังคลิป YouTube</b> + ลิงก์คลิปสั้น</li>
+          <li><b>FAQ 3 ข้อ</b> [AEO] — หัวข้อเป็นคำถามที่คนค้น</li>
+          <li><b>แหล่งที่มา ผู้เขียน และวันที่อัปเดต</b> [GEO]</li>
+          <li><b>Schema</b> (ฝ่ายเว็บใส่) — NewsArticle + VideoObject + FAQPage</li>
         </ol>
-        <p className="mr-note">คำแนะนำสร้างจากกฎที่ตั้งไว้กับตัวเลขในรายงาน (ไม่ใช้ AI) · ควรดูร่วมกับบริบทของทีม</p>
+        <p className="mr-note">รายละเอียดข่าวให้ทีมข่าวเติมจากข้อเท็จจริงในรายการ · ตัวอย่างหัวข้อ: [ชื่อคน/เรื่อง] + [ประเด็น] | ถกไม่เถียง 3 ก.ย. 69</p>
       </>
     ),
   });
@@ -522,10 +879,20 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
     setError("");
     try {
       const sources = await track(loadTvCompetitors()).catch(() => []);
-      const r = buildMonthlyReport(rows, m, sources, { createdAt: new Date().toISOString(), createdBy: userName, dataAt: latestDate });
+      // Admin-only extras for the เชิงลึก pages; either may be missing and the pages are then left out.
+      const yt = await track(loadYtAnalytics()).catch(() => null);
+      let gains = null;
+      try {
+        const first = await firstGrowthDay();
+        const p = monthPeriod(m);
+        if (first && first <= p.end) gains = await track(loadGrowthDays(daysBetween(first > p.start ? first : p.start, p.end)));
+      } catch {
+        gains = null;
+      }
+      const r = buildMonthlyReport(rows, m, sources, { createdAt: new Date().toISOString(), createdBy: userName, dataAt: latestDate }, { yt, gains });
       setDraft(r);
       setMonth(m);
-      setInfo(`ร่างรายงาน ${monthLabel(m)} ยังไม่ได้บันทึก · ตรวจแล้วกด "บันทึกรายงาน" เพื่อให้คนที่มีสิทธิ์เห็น`);
+      setInfo(`ร่างรายงาน ${monthLabel(m)} ยังไม่ได้บันทึก · ตรวจแล้วกด "บันทึกรายงาน" เพื่อให้คนที่มีสิทธิ์เห็น${yt ? "" : " · อ่านข้อมูล YouTube Analytics ไม่ได้ จึงไม่มีหน้าเชิงลึก A, B และ SEO"}`);
     } catch (e) {
       setError(String((e as Error)?.message || e));
     } finally {

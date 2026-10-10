@@ -79,3 +79,71 @@ test("recommendations carry their numbers and never name unknown programs", () =
   assert.ok(!r.recommendations.some((x) => x.title.includes("ไม่ระบุ")));
   assert.ok(r.recommendations.some((x) => x.title === "ใส่ Hashtag ให้ครบ"));
 });
+
+const ytVideo = (id, o = {}) => ({ id, views: 1000, engagedViews: 800, avgViewSec: 60, avgViewPct: 90, subs: 5, shares: 1, likes: 1, comments: 1, revenue: 99, adRevenue: 99, grossRevenue: 99, cpm: 9, playbackCpm: 9, monetized: 1, ...o });
+
+test("เชิงลึก: YouTube quality, traffic, engagement, weekdays and SEO come from the month's own clips; no revenue is kept", () => {
+  const rows = [
+    post("2026-09-04", "YouTube", 3000, { vdoType: "YouTube Shorts", url: "https://youtu.be/AAAAAAAAAAA", topic: "ข่าวหนึ่ง ".repeat(12), hashtags: "" }),
+    post("2026-09-11", "YouTube", 1000, { vdoType: "YouTube Full Episode", url: "https://youtu.be/BBBBBBBBBBB", topic: "สั้น", hashtags: "#a" }),
+    post("2026-09-12", "Instagram", 500, { shares: 50, comments: 5, skipRate: 60, avgWatchSec: 20 }),
+    post("2026-08-12", "YouTube", 700, { vdoType: "YouTube Full Episode", url: "https://youtu.be/CCCCCCCCCCC" }),
+  ];
+  const yt = {
+    updatedAt: "2026-10-09T01:00:00Z",
+    videos: [
+      ytVideo("AAAAAAAAAAA", { views: 3000, avgViewSec: 40, avgViewPct: 120, subs: 30, traffic: { SHORTS: 900, YT_SEARCH: 100 } }),
+      ytVideo("BBBBBBBBBBB", { views: 1000, avgViewSec: 600, avgViewPct: 30, subs: 10, traffic: { SUBSCRIBER: 1000 } }),
+      ytVideo("CCCCCCCCCCC", { views: 700, avgViewPct: 10, subs: 99 }), // August: not in September's numbers
+    ],
+    windows: { d28: { start: "2026-09-11", end: "2026-10-08", traffic: [{ source: "YT_SEARCH", views: 50 }, { source: "SUBSCRIBER", views: 950 }], searchTerms: [{ term: "ถกไม่เถียง ล่าสุด", views: 60 }, { term: "มวยวันลุมพินี", views: 40 }], contentType: [] },
+      d90: { start: "2026-07-11", end: "2026-10-08", traffic: [], searchTerms: [], contentType: [] } },
+    retention: [],
+    search: {},
+  };
+  const gains = new Map([["2026-09-02", null], ["2026-09-03", [["k1", 100, 0, 0, 0, 0], ["k2", 50, 0, 0, 0, 0]]], ["2026-10-01", [["k1", 9999, 0, 0, 0, 0]]]]);
+  const r = buildMonthlyReport(rows, "2026-09", [], meta, { yt, gains });
+  const d = r.deep;
+  assert.equal(d.youtube.matched, 2);
+  assert.equal(d.youtube.posts, 2);
+  assert.equal(d.youtube.shorts.videos, 1);
+  assert.equal(d.youtube.shorts.avgViewPct, 120);
+  assert.equal(d.youtube.long.avgViewSec, 600);
+  assert.equal(d.youtube.newSubs, 40); // the August video's 99 are not counted
+  assert.deepEqual(d.youtube.traffic.map((t) => t.source), ["SUBSCRIBER", "SHORTS", "YT_SEARCH"]);
+  assert.equal(d.youtube.trafficVideos, 2);
+  assert.equal(d.engagement.find((e) => e.platform === "Instagram").skipRate, 60);
+  assert.equal(d.engagement.find((e) => e.platform === "Instagram").sharesPer1k, 100);
+  // 4 and 11 Sept 2026 are Fridays (4 Fridays that month): 3000 + 1000 views.
+  const friday = d.weekdays.find((w) => w.day === "ศ.");
+  assert.equal(friday.posts, 2);
+  assert.equal(friday.avgPerDay, (3000 + 1000) / 4);
+  assert.deepEqual(d.growth, { days: 1, of: 30, totalViews: 150, perDay: 150, peaks: [{ day: "2026-09-03", views: 150 }] });
+  assert.equal(d.seo.searchShare, 0.05);
+  assert.equal(d.seo.brandShare, 0.6);
+  assert.deepEqual(d.seo.gaps.map((g) => g.term), ["มวยวันลุมพินี"]);
+  assert.equal(d.seo.titleOver70, 1);
+  assert.equal(d.seo.noHashtag, 1);
+  assert.doesNotMatch(JSON.stringify(d), /revenue|cpm|rpm/i);
+  assert.deepEqual(JSON.parse(JSON.stringify(r)), r);
+});
+
+test("เชิงลึก without YouTube Analytics or daily gains leaves those parts out, nothing else breaks", () => {
+  const r = buildMonthlyReport([post("2026-09-04", "TikTok", 1000)], "2026-09", [], meta);
+  assert.equal(r.deep.youtube, null);
+  assert.equal(r.deep.seo, null);
+  assert.equal(r.deep.growth, null);
+  assert.equal(r.deep.weekdays.length, 7);
+});
+
+test("short-clip features: groups under 20 clips are left out, index is against the platform's median", () => {
+  const rows = [];
+  for (let i = 0; i < 25; i++) rows.push(post("2026-09-05", "TikTok", 900 + i, { topic: `คลิปธรรมดา ${i} ข้อความยาวพอ`, videoLengthSec: 20 }));
+  for (let i = 0; i < 25; i++) rows.push(post("2026-09-06", "TikTok", 3000 + i, { topic: `“คำพูด” ${i} ข้อความยาวพอสมควร`, videoLengthSec: 45 }));
+  for (let i = 0; i < 5; i++) rows.push(post("2026-09-07", "TikTok", 50, { topic: `หายาก ${i}`, videoLengthSec: 200 }));
+  const r = buildMonthlyReport(rows, "2026-09", [], meta);
+  const length = r.deep.shorts.features.find((f) => f.name === "ความยาวคลิป");
+  assert.deepEqual(length.groups.map((g) => g.value), ["30–59 วิ", "ไม่ถึง 30 วิ"]);
+  assert.ok(length.groups[0].index > 1 && length.groups[1].index < 1);
+  assert.equal(r.deep.shorts.posts, 55);
+});

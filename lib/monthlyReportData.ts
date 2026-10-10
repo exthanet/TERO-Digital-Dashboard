@@ -13,7 +13,7 @@ export interface SavedReport {
 }
 
 function isComplete(r: MonthlyReport | undefined, month: string): r is MonthlyReport {
-  return !!r && r.month === month && r.version === REPORT_VERSION && typeof r.prevMonth === "string" && !!r.online && !!r.onlinePrev
+  return !!r && r.month === month && Number.isInteger(r.version) && r.version >= 1 && r.version <= REPORT_VERSION && typeof r.prevMonth === "string" && !!r.online && !!r.onlinePrev
     && [r.platforms, r.formats, r.programs, r.topClips, r.topics, r.hashtags, r.slots, r.tvChannels, r.competitors, r.recommendations].every(Array.isArray);
 }
 
