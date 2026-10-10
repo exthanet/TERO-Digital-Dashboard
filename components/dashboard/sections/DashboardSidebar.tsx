@@ -63,12 +63,12 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     label: "รายงาน",
     items: [
       { id: "overview", label: "ภาพรวม", icon: <LayoutDashboard /> },
+      { id: "search-results", label: "ผลการค้นหา", icon: <Search />, tab: "search" },
       { id: "ranking", label: "Ranking ดี/แย่", icon: <ListOrdered /> },
       { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
       { id: "program-report", label: "รวมรายการ", icon: <LayoutList />, tab: "programs" },
       { id: "monthly-report", label: "รายงานประจำเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
-      { id: "search-results", label: "ผลการค้นหา", icon: <Search />, tab: "search" },
       { id: "trending-hashtags", label: "Trending Hashtag", icon: <Hash />, tab: "trending" },
       { id: "topics", label: "ประเภทเนื้อหา", icon: <Sparkles /> },
       { id: "rating", label: "TV Rating", icon: <Tv /> },
