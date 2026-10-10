@@ -959,7 +959,7 @@ export function useDashboard(enabled = true) {
       ),
     [rows, program, platform, vdoType, topicType, terms],
   );
-  // รายงานรายแพลตฟอร์ม: the filters except platform and date (the page picks the platform; the range and the comparison come from the dates).
+  // รายงานรวมแพลตฟอร์ม: the filters except platform and date (the page shows every platform; the range and the comparison come from the dates).
   const platformReportRows = useMemo(
     () =>
       rows.filter(

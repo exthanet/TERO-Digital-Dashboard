@@ -1,4 +1,4 @@
-// วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: the numbers behind the platform-styled
+// วิเคราะห์เชิงลึก → รายงานรวมแพลตฟอร์ม: the numbers behind the platform-styled
 // boards (YouTube Studio, TikTok Studio, Meta Business Suite, Instagram, TV).
 // Raw numbers from the rows, YouTube Analytics and growthDaily; this file only
 // sums, groups, divides and takes medians. Days are publish dates, as on the
@@ -254,4 +254,100 @@ export function zoneRatings(rows: RecordRow[]) {
     const vals = tv.map((r) => r[z.key]).filter((v) => v > 0);
     return { ...z, rating: vals.length ? vals.reduce((a, v) => a + v, 0) / vals.length : null };
   });
+}
+
+// ---------- รายงานรวมแพลตฟอร์ม: every platform together ----------
+
+export const DIGITAL = ["YouTube", "TikTok", "Facebook", "Instagram"] as const;
+
+/** Views per day (publish date) of each platform, for the Cross Platform chart. */
+export function crossDaily(rows: RecordRow[], start: string, end: string, platforms: readonly string[] = DIGITAL): Record<string, number | string>[] {
+  if (!start || !end) return [];
+  const by = new Map<string, Record<string, number | string>>();
+  for (const d of daysBetween(start, end)) by.set(d, Object.fromEntries([["date", d], ...platforms.map((p) => [p, 0])]));
+  for (const r of rows) {
+    const day = by.get(r.date);
+    if (day && platforms.includes(r.platform)) day[r.platform] = (day[r.platform] as number) + r.views;
+  }
+  return [...by.values()];
+}
+
+export const STRENGTH_AXES = [
+  { key: "views", label: "วิวรวม" },
+  { key: "posts", label: "จำนวนโพสต์" },
+  { key: "medianViews", label: "วิวต่อโพสต์" },
+  { key: "er", label: "ER" },
+  { key: "sharesPer1k", label: "แชร์ / 1K วิว" },
+  { key: "commentsPer1k", label: "คอมเมนต์ / 1K วิว" },
+] as const;
+
+/** Each platform's numbers, and each as a share of the best platform on that axis (1 = the best). */
+export function strengths(rows: RecordRow[], platforms: readonly string[] = DIGITAL) {
+  const raw = platforms.map((p) => {
+    const list = rows.filter((r) => r.platform === p);
+    const views = list.reduce((a, r) => a + r.views, 0);
+    const sum = (f: (r: RecordRow) => number) => list.reduce((a, r) => a + f(r), 0);
+    return {
+      platform: p,
+      views,
+      posts: list.length,
+      medianViews: median(list.map((r) => r.views)) || 0,
+      er: views > 0 ? sum((r) => r.likes + r.comments + r.shares) / views : 0,
+      sharesPer1k: per1k(sum((r) => r.shares), views),
+      commentsPer1k: per1k(sum((r) => r.comments), views),
+    };
+  });
+  const best = Object.fromEntries(STRENGTH_AXES.map((a) => [a.key, Math.max(0, ...raw.map((x) => x[a.key]))]));
+  return {
+    raw,
+    radar: STRENGTH_AXES.map((a) => ({ axis: a.label, ...Object.fromEntries(raw.map((x) => [x.platform, best[a.key] > 0 ? x[a.key] / best[a.key] : 0])) })),
+  };
+}
+
+export interface TagRank {
+  tag: string;
+  rank: number;
+  /** Places gained since the comparison period (+ = up); null = new or no comparison. */
+  move: number | null;
+  posts: number;
+  views: number;
+  medianViews: number;
+  er: number;
+  rows: RecordRow[];
+}
+
+/** Hashtags by how often they were used (then views), channel / show tags left out, with the move against the period before. */
+export function hashtagRanking(rows: RecordRow[], prev: RecordRow[], hidden: Set<string>, minPosts = 2): TagRank[] {
+  const rank = (list: RecordRow[]) => {
+    const by = new Map<string, RecordRow[]>();
+    for (const r of list) for (const t of new Set(String(r.hashtags || "").split(/\s+/).filter((x) => x.startsWith("#")))) {
+      if (hidden.has(t)) continue;
+      let g = by.get(t);
+      if (!g) by.set(t, (g = []));
+      g.push(r);
+    }
+    return [...by.entries()]
+      .filter(([, g]) => g.length >= minPosts)
+      .map(([tag, g]) => {
+        const views = g.reduce((a, r) => a + r.views, 0);
+        return { tag, posts: g.length, views, medianViews: median(g.map((r) => r.views)) || 0, er: views > 0 ? g.reduce((a, r) => a + r.likes + r.comments + r.shares, 0) / views : 0, rows: [...g].sort((a, b) => b.views - a.views) };
+      })
+      .sort((a, b) => b.posts - a.posts || b.views - a.views);
+  };
+  const before = new Map(rank(prev).map((x, i) => [x.tag, i + 1]));
+  return rank(rows).map((x, i) => {
+    const was = before.get(x.tag);
+    return { ...x, rank: i + 1, move: prev.length && was ? was - (i + 1) : null };
+  });
+}
+
+/** For one tag: posts and views per platform, and the tags most often used with it. */
+export function tagDetail(t: TagRank, hidden: Set<string>, platforms: readonly string[] = DIGITAL) {
+  const byPlatform = platforms.map((p) => {
+    const list = t.rows.filter((r) => r.platform === p);
+    return { platform: p, posts: list.length, views: list.reduce((a, r) => a + r.views, 0) };
+  });
+  const co = new Map<string, number>();
+  for (const r of t.rows) for (const x of new Set(String(r.hashtags || "").split(/\s+/).filter((y) => y.startsWith("#")))) if (x !== t.tag && !hidden.has(x)) co.set(x, (co.get(x) || 0) + 1);
+  return { byPlatform, together: [...co.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([tag, posts]) => ({ tag, posts })) };
 }

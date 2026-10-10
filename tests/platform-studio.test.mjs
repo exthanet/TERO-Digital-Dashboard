@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
+import { crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
 
 const row = (o) => ({
   date: o.date,
@@ -11,6 +11,7 @@ const row = (o) => ({
   episodeId: "",
   url: o.url || "",
   contentId: o.contentId || "",
+  hashtags: o.tags || "",
   publishTime: o.time || "",
   views: o.views || 0,
   likes: o.likes || 0,
@@ -119,4 +120,35 @@ test("TV: episode ratings per channel by date with the average; areas for One31"
   assert.equal(z[0].rating, 1.5);
   assert.equal(z[1].rating, null);
   assert.equal(z[3].rating, 0.5);
+});
+
+test("Cross Platform: views per day per platform, missing days 0, TV left out", () => {
+  const rows = [row({ date: "2026-10-01", platform: "YouTube", views: 5 }), row({ date: "2026-10-01", platform: "TikTok", views: 7 }), row({ date: "2026-10-02", platform: "TV", views: 99 })];
+  const d = crossDaily(rows, "2026-10-01", "2026-10-02");
+  assert.deepEqual(d[0], { date: "2026-10-01", YouTube: 5, TikTok: 7, Facebook: 0, Instagram: 0 });
+  assert.deepEqual(d[1], { date: "2026-10-02", YouTube: 0, TikTok: 0, Facebook: 0, Instagram: 0 });
+});
+
+test("strengths: each axis as a share of the best platform", () => {
+  const rows = [row({ date: "d", platform: "YouTube", views: 1000, shares: 10 }), row({ date: "d", platform: "TikTok", views: 500, shares: 10 }), row({ date: "d", platform: "TikTok", views: 500 })];
+  const s = strengths(rows);
+  const views = s.radar.find((a) => a.axis === "วิวรวม");
+  assert.equal(views.YouTube, 1);
+  assert.equal(views.TikTok, 1);
+  assert.equal(s.radar.find((a) => a.axis === "จำนวนโพสต์").YouTube, 0.5);
+  assert.equal(s.radar.find((a) => a.axis === "แชร์ / 1K วิว").TikTok, 1);
+  assert.equal(views.Facebook, 0);
+});
+
+test("hashtag ranking: channel tags hidden, rank move against the period before, detail", () => {
+  const hidden = new Set(["#ถกไม่เถียง"]);
+  const cur = [row({ date: "d", platform: "YouTube", views: 10, tags: "#a #b #ถกไม่เถียง" }), row({ date: "d", platform: "TikTok", views: 30, tags: "#a #b" }), row({ date: "d", platform: "TikTok", views: 5, tags: "#a" }), row({ date: "d", platform: "YouTube", views: 1, tags: "#c" })];
+  const prev = [row({ date: "p", tags: "#b" }), row({ date: "p", tags: "#b" }), row({ date: "p", tags: "#b #a" }), row({ date: "p", tags: "#a" })];
+  const r = hashtagRanking(cur, prev, hidden);
+  assert.deepEqual(r.map((x) => [x.tag, x.rank, x.move]), [["#a", 1, 1], ["#b", 2, -1]]);
+  assert.equal(r[0].views, 45);
+  assert.equal(hashtagRanking(cur, [], hidden)[0].move, null);
+  const d = tagDetail(r[0], hidden);
+  assert.deepEqual(d.byPlatform.find((x) => x.platform === "TikTok"), { platform: "TikTok", posts: 2, views: 35 });
+  assert.deepEqual(d.together, [{ tag: "#b", posts: 2 }]);
 });

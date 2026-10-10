@@ -1,0 +1,286 @@
+/* รายงานรวมแพลตฟอร์ม: section titles, Cross Platform, Platform Insight, Hashtag Report (PlatformInsight.tsx). */
+.pr-block {
+  margin-top: 22px;
+}
+.pr-sec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.pr-sec small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #64748b;
+}
+.pi-card {
+  --ps-muted: #64748b;
+  --ps-line: #e2e8f0;
+  --ps-accent: #4f46e5;
+  position: relative;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.pi-card h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pi-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.pi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+.pi-wide {
+  grid-column: 1 / -1;
+}
+.pi-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin-top: 6px;
+}
+.pi-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.pi-legend button.off {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+.pi-legend i,
+.pi-spark small i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.pi-totals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+.pi-totals b {
+  color: #0f172a;
+}
+.pi-sparks {
+  display: grid;
+  gap: 10px;
+}
+.pi-spark {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.pi-spark:last-child {
+  border-bottom: 0;
+}
+.pi-spark > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.pi-spark small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+.pi-spark b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.pi-spark .kpi-growth {
+  justify-self: start;
+}
+.pi-tags {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.pi-tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.pi-tag-list button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 44px 70px 70px 74px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.pi-tag-list button:hover {
+  background: #f8fafc;
+}
+.pi-tag-list button.on {
+  background: #eef2ff;
+}
+.pi-rank {
+  color: #64748b;
+  text-align: center;
+}
+.pi-tag-name {
+  display: grid;
+  gap: 3px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pi-tag-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.pi-tag-bar span {
+  display: block;
+  height: 100%;
+  background: #4f46e5;
+  border-radius: 2px;
+}
+.pi-move {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.pi-move.up {
+  color: #16a34a;
+}
+.pi-move.down {
+  color: #dc2626;
+}
+.pi-move.new {
+  color: #4f46e5;
+}
+.pi-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+}
+.pi-tag-detail {
+  position: sticky;
+  top: 80px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  gap: 6px;
+}
+.pi-tag-detail h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #4f46e5;
+}
+.pi-tag-detail h5 {
+  margin: 8px 0 2px;
+  font-size: 13px;
+}
+.pi-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pi-chips button {
+  border: 1px solid #c7d2fe;
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #3730a3;
+  cursor: pointer;
+}
+.pi-chips small {
+  color: #64748b;
+  margin-left: 2px;
+}
+
+@media (max-width: 900px) {
+  .pi-grid,
+  .pi-tags {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pi-tag-detail {
+    position: static;
+  }
+}
+@media (max-width: 560px) {
+  .pi-card {
+    padding: 12px;
+  }
+  .pi-tag-list button {
+    grid-template-columns: 20px minmax(0, 1fr) 36px 64px;
+  }
+  .pi-tag-list .pi-num:nth-child(5),
+  .pi-tag-list .pi-num:nth-child(6) {
+    display: none;
+  }
+  .pi-spark {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pi-card {
+    animation: ps-rise 0.45s ease-out both;
+  }
+  .pi-tag-bar span {
+    animation: ps-grow 0.7s ease-out both;
+    transform-origin: left;
+  }
+  .pi-tag-list li {
+    animation: ps-rise 0.35s ease-out both;
+  }
+  .platform-heat td {
+    animation: pi-fade 0.6s ease-out both;
+  }
+}
+@keyframes pi-fade {
+  from {
+    opacity: 0;
+  }
+}

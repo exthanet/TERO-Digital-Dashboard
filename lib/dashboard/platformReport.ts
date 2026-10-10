@@ -1,4 +1,4 @@
-// วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: one platform at a time, for the report range
+// วิเคราะห์เชิงลึก → รายงานรวมแพลตฟอร์ม: one platform at a time, for the report range
 // and filters (program, VDO type, topic type, search; not the platform filter).
 // Raw numbers from the rows; this file only sums, groups and takes medians.
 //

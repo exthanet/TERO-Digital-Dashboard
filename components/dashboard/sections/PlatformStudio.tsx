@@ -1,5 +1,5 @@
 "use client";
-// วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: the top of each platform's page, in the
+// วิเคราะห์เชิงลึก → รายงานรวมแพลตฟอร์ม: the top of each platform's page, in the
 // look of that platform's own analytics (YouTube Studio, TikTok Studio, Meta
 // Business Suite, Instagram, TV ratings). Numbers from lib/dashboard/platformStudio.ts.
 // Only boxes the data can fill: no follower-online times, reactions or TikTok traffic

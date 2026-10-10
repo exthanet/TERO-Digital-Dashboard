@@ -392,7 +392,7 @@ function recommend(r: Omit<MonthlyReport, "recommendations">): Recommendation[] 
     out.push({
       title: `ตรวจสอบ ${drop.platform} ที่วิวลดลง`,
       because: `วิวรวม ${compactNumber(drop.views)} ลดลง ${pct(-(drop.growth ?? 0))} จาก${prevName} ขณะที่จำนวนโพสต์${morePosts ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(drop.postsGrowth ?? 0))}`,
-      action: morePosts ? "โพสต์มากขึ้นแต่วิวรวมลดลง ควรดูประเด็นและรูปแบบคลิปที่เปลี่ยนไปในหน้า รายงานรายแพลตฟอร์ม" : "จำนวนโพสต์ลดลงด้วย ควรกลับไปลงให้สม่ำเสมอเท่าเดือนก่อน",
+      action: morePosts ? "โพสต์มากขึ้นแต่วิวรวมลดลง ควรดูประเด็นและรูปแบบคลิปที่เปลี่ยนไปในหน้า รายงานรวมแพลตฟอร์ม" : "จำนวนโพสต์ลดลงด้วย ควรกลับไปลงให้สม่ำเสมอเท่าเดือนก่อน",
     });
   }
   if (r.topics.length >= 2) {

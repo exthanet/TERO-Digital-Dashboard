@@ -81,7 +81,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     id: "advanced",
     label: "วิเคราะห์เชิงลึก",
     items: [
-      { id: "platform-report", label: "รายงานรายแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
+      { id: "platform-report", label: "รายงานรวมแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
       { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth", perm: "advanced" },
       { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality", perm: "advanced" },
       { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail", perm: "advanced" },
