@@ -107,6 +107,13 @@ export class MetricoolApi {
     const list = Array.isArray(data) ? data : ((data as { data?: Post[] })?.data ?? []);
     return list as Post[];
   }
+
+  /** Comment threads of the most recent posts (Metricool Inbox: about the last 50 posts of the network). */
+  async fetchComments(provider: "facebook" | "youtube", blogId: number): Promise<Post[]> {
+    const data = await this.get("v2/inbox/post-comments", { blogId: String(blogId), provider });
+    const list = Array.isArray(data) ? data : ((data as { data?: Post[] })?.data ?? []);
+    return list as Post[];
+  }
 }
 
 // ---------- time ----------

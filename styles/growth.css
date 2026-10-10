@@ -2151,3 +2151,96 @@
 .filter-locked select {
   cursor: not-allowed;
 }
+
+/* วิเคราะห์คลิป → คอมเมนต์ (components/dashboard/sections/ClipComments.tsx) */
+.cmt-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cmt-head h3 {
+  margin: 0;
+}
+.cmt-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cmt-tools .segmented button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cmt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  display: grid;
+  gap: 8px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.cmt-list li {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e3eaf5;
+  border-radius: 10px;
+}
+.cmt-av {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  background: #e2e8f0;
+}
+.cmt-who {
+  font-size: 12px;
+  color: #6a7892;
+}
+.cmt-who a,
+.cmt-who b {
+  color: #0f1b31;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cmt-who a:hover {
+  text-decoration: underline;
+}
+.cmt-text {
+  margin: 3px 0 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.cmt-like {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: #6a7892;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cmt-list li {
+    animation: cmtIn 0.35s ease-out both;
+  }
+}
+@keyframes cmtIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

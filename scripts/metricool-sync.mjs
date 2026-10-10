@@ -45,6 +45,7 @@ import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
+import { collectComments } from "../lib/integrations/commentsCollect.ts";
 import { Firestore, decodeFields, docId, encodeFields, encodeValue, getAccessToken } from "../lib/integrations/firestoreRest.ts";
 import {
   backupMasterData,
@@ -579,6 +580,28 @@ try {
     }
   }
   mark("เขียน Monthly ACC");
+  // Comments for วิเคราะห์คลิป (lib/integrations/commentsCollect.ts); never fails the run.
+  try {
+    const num = (v) => Number(String(v ?? "").replace(/,/g, "")) || 0;
+    const clips = finalRows
+      .map((r) => ({ platform: String(r.Platform), id: postId(String(r.Platform), r.URL) || postId(String(r.Platform), r.Content_ID), date: toIso(r.Date), views: num(r.Views), comments: num(r.Comments) }))
+      .filter((c) => c.id);
+    const facebookBlogs = brands.filter((b) => (b.networks || NETWORKS).includes("facebook")).map((b) => b.blogId);
+    const got = await collectComments(fsdb, clips, {
+      today,
+      youtubeKey: process.env.YOUTUBE_API_KEY,
+      facebookBlogs,
+      fetchFacebook: (blogId) => api.fetchComments("facebook", blogId),
+    });
+    console.log(`comments: YouTube ${got.youtube} clips · Facebook ${got.facebook} posts · removed ${got.removed}${got.problems.length ? ` · ${got.problems.join(" / ")}` : ""}`);
+    integrations["Comments"] = got.problems.length && !got.youtube && !got.facebook
+      ? { ok: false, detail: "ไม่ได้ดึง", error: got.problems.join(" / ").slice(0, 200) }
+      : { ok: true, detail: `คอมเมนต์ YouTube ${got.youtube} คลิป · Facebook ${got.facebook} โพสต์` };
+  } catch (e) {
+    console.error(`comments not collected: ${e.message}`);
+    integrations["Comments"] = { ok: false, detail: "ไม่ได้ดึง", error: String(e.message || e).slice(0, 200) };
+  }
+  mark("คอมเมนต์");
   if (!growthEnabled) console.log(`growth: not written (${summary.growth.written})`);
   else try {
     const g = await writeGrowth(fsdb, growthDay, today, runId, growth);

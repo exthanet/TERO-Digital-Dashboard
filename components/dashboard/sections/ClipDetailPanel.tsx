@@ -20,6 +20,7 @@ import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { recordKey } from "@/lib/dashboard/growth";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { track } from "@/lib/loadingBar";
+import { ClipComments } from "@/components/dashboard/sections/ClipComments";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -304,6 +305,9 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
             <p className="audience-note">คิดจากกฎตายตัว ไม่ใช่ AI · เป็นความสัมพันธ์ของตัวเลข ไม่ได้บอกสาเหตุ</p>
           </section>
         )}
+
+        {/* YouTube / Facebook comments; shows nothing without วิเคราะห์เชิงลึก. */}
+        <ClipComments posts={d.posts.length ? d.posts.map((p) => p.row) : [clip]} />
       </aside>
     </div>,
     document.body,

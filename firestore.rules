@@ -198,6 +198,12 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isAdmin();
     }
+    // Comments of the most viewed clips (names and profile pictures as the platforms
+    // show them), written by the daily sync only: read with วิเคราะห์เชิงลึก.
+    match /comments/{doc} {
+      allow read: if can('advanced');
+      allow write: if false;
+    }
     // รายงานประจำเดือน (lib/monthlyReportData.ts): frozen numbers for the meeting.
     // Read with the monthlyReport permission; only admins create or replace one.
     match /monthlyReports/{month} {
