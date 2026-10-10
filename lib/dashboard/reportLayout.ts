@@ -78,13 +78,3 @@ export function cleanLayout(l: ReportLayout, ids: string[]): ReportLayout {
   }
   return { order: orderedIds(ids, l), hidden: (l.hidden || []).filter((id) => ids.includes(id)), texts };
 }
-
-/** Move one page to the place it was dropped: before the page at `to` (to = length puts it last). */
-export function movePageTo(order: string[], id: string, to: number): string[] {
-  const from = order.indexOf(id);
-  if (from < 0) return order;
-  const out = order.filter((x) => x !== id);
-  const at = Math.max(0, Math.min(out.length, to > from ? to - 1 : to));
-  out.splice(at, 0, id);
-  return out;
-}
