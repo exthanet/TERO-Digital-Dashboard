@@ -1,7 +1,7 @@
 "use client";
 // วิเคราะห์เชิงลึก → รายงานรวมแพลตฟอร์ม: every platform on one page, laid out as
 // output/platform-report-demo.html: headline tiles, Cross Platform, Digital vs TV,
-// share / bars / top topics (ยอดวิว / จำนวนโพสต์ / ER switch), competitors on both
+// share / bars / top topics by views, competitors on both
 // TV channels (PlatformTop.tsx), a board per platform in its own look (PlatformStudio.tsx),
 // TV, Platform Insight and the Hashtag Report (PlatformInsight.tsx).
 // Filters at the top apply, except the platform filter (every platform is shown).
@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { inRange } from "@/lib/dashboard/platformReport";
-import { DIGITAL, PAGE_METRICS, type PageMetric } from "@/lib/dashboard/platformStudio";
+import { DIGITAL, type PageMetric } from "@/lib/dashboard/platformStudio";
 import { PlatformStudio, TvStudio } from "@/components/dashboard/sections/PlatformStudio";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
@@ -32,7 +32,8 @@ interface Props {
 
 export function PlatformReportSection({ rows, allRows, startDate, endDate, comparePeriod, latestDate, canDeepDive }: Props) {
   const [opened, setOpened] = useState<RecordRow | null>(null);
-  const [metric, setMetric] = useState<PageMetric>("views");
+  // The share, bars and top topics follow views (the ยอดวิว / จำนวนโพสต์ / ER switch was taken off).
+  const metric: PageMetric = "views";
   const cur = useMemo(() => inRange(rows, startDate, endDate), [rows, startDate, endDate]);
   const prev = useMemo(() => (comparePeriod ? inRange(rows, comparePeriod.start, comparePeriod.end) : []), [rows, comparePeriod]);
   const compareText = comparePeriod ? `เทียบ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
@@ -51,13 +52,6 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
           <p className="growth-sub">
             {thDate(startDate)} – {thDate(endDate)} · ตามตัวกรองด้านบน (ยกเว้นแพลตฟอร์ม: แสดงทุกแพลตฟอร์ม){compareText ? ` · % ${compareText}` : ""}
           </p>
-        </div>
-        <div className="segmented" role="group" aria-label="ตัวชี้วัดของกราฟด้านบน">
-          {PAGE_METRICS.map((m) => (
-            <button key={m.id} className={metric === m.id ? "active" : ""} onClick={() => setMetric(m.id)}>
-              {m.label}
-            </button>
-          ))}
         </div>
       </div>
 

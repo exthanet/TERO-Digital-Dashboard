@@ -120,26 +120,27 @@ function useThumbs(on: boolean) {
   return stored;
 }
 
-function MainChart({ data, metric, color, grid, text }: { data: DayPoint[]; metric: Metric; color: string; grid: string; text: string }) {
+function MainChart({ data, metric, color, grid, text, studio = false }: { data: DayPoint[]; metric: Metric; color: string; grid: string; text: string; studio?: boolean }) {
   const motion = useMotion();
   const f = METRICS[metric].format;
+  const ends = data.length > 1 ? [data[0].date, data[data.length - 1].date] : undefined;
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={`ps-fill-${color.slice(1)}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+            <stop offset="0%" stopColor={color} stopOpacity={studio ? 0.5 : 0.28} />
             <stop offset="100%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
         </defs>
         <CartesianGrid stroke={grid} vertical={false} />
-        <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11, fill: text }} stroke={grid} minTickGap={24} />
-        <YAxis tickFormatter={(v: number) => f(v)} tick={{ fontSize: 11, fill: text }} stroke={grid} width={56} />
+        <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11, fill: text }} stroke={grid} minTickGap={24} ticks={studio ? ends : undefined} />
+        <YAxis tickFormatter={(v: number) => f(v)} tick={{ fontSize: 11, fill: text }} stroke={studio ? "none" : grid} width={56} tickCount={studio ? 3 : undefined} />
         <Tooltip
           labelFormatter={(d) => fullDate(String(d))}
           formatter={(v, _n, p) => [`${v === null || v === undefined ? "-" : f(Number(v))} · ${num((p?.payload as DayPoint)?.posts || 0)} โพสต์`, METRICS[metric].label]}
         />
-        <Area type="monotone" dataKey={metric} stroke={color} strokeWidth={2} fill={`url(#ps-fill-${color.slice(1)})`} isAnimationActive={motion} animationDuration={700} connectNulls />
+        <Area type={studio ? "linear" : "monotone"} dataKey={metric} stroke={color} strokeWidth={2} fill={`url(#ps-fill-${color.slice(1)})`} isAnimationActive={motion} animationDuration={700} connectNulls />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -278,6 +279,8 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
   const topics = useMemo(() => (platform === "TikTok" ? groupStats(cur, (r) => r.topicType).slice(0, 8) : []), [cur, platform]);
   const rings = useMemo(() => reachRings(cur), [cur]);
   const hours = useMemo(() => (platform === "TikTok" ? hourMedians(cur) : []), [cur, platform]);
+  // The four hours with the highest median, in TikTok pink; the rest grey (as the demo).
+  const bestHours = useMemo(() => new Set([...hours].filter((h) => h.medianViews !== null).sort((a, b) => (b.medianViews || 0) - (a.medianViews || 0)).slice(0, 4).map((h) => h.hour)), [hours]);
   const types = useMemo(() => (platform === "Facebook" || platform === "Instagram" ? groupStats(cur, (r) => r.vdoType) : []), [cur, platform]);
   const mix = useMemo(() => interactionMix(cur), [cur]);
   const reels = useMemo(() => cur.filter((r) => /reel/i.test(r.vdoType)), [cur]);
@@ -410,13 +413,16 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
       {platform === "TikTok" && (
         <>
           <div className="ps-grid g2">
-            {chart}
+            <div className="ps-card ps-chart">
+              <MainChart data={series} metric={metric} color={skin.accent} grid={skin.grid} text={skin.text} studio />
+            </div>
             <div className="ps-card">
               <h3>ยอดดูตามประเภทเนื้อหา</h3>
-              <p className="ps-muted">TikTok ไม่ส่งแหล่งที่มาของยอดดูมา จึงแสดงสัดส่วนวิวตามประเภทเนื้อหาแทน</p>
-              <ResponsiveContainer width="100%" height={170}>
+              <p className="ps-muted">TikTok ไม่ส่งแหล่งที่มาของยอดดู (For You / ค้นหา) มา</p>
+              <div className="pt-donut tk">
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
-                  <Pie data={topics} dataKey="views" nameKey="key" innerRadius={48} outerRadius={78} paddingAngle={2} stroke="none" isAnimationActive={motion}>
+                  <Pie data={topics} dataKey="views" nameKey="key" innerRadius={78} outerRadius={108} paddingAngle={2} stroke="none" isAnimationActive={motion} startAngle={90} endAngle={-270}>
                     {topics.map((t, i) => (
                       <Cell key={t.key} fill={TOPIC_COLORS[i % TOPIC_COLORS.length]} />
                     ))}
@@ -424,6 +430,13 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
                   <Tooltip formatter={(v, n) => [`${compact(Number(v))} วิว`, String(n)]} />
                 </PieChart>
               </ResponsiveContainer>
+                {topics[0] && (
+                  <div className="pt-donut-mid">
+                    <b>{pct(topics[0].viewShare, 0)}</b>
+                    <small>{topics[0].key}</small>
+                  </div>
+                )}
+              </div>
               <ul className="ps-legend">
                 {topics.map((t, i) => (
                   <li key={t.key}>
@@ -437,10 +450,11 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
           <div className="ps-grid g11">
             <div className="ps-card">
               <h3>โพสต์ยอดนิยม</h3>
-              <PostTiles rows={top} stored={stored} onOpen={onOpen} />
+              <PostTiles rows={top.slice(0, 4)} stored={stored} onOpen={onOpen} />
             </div>
             <div className="ps-card">
               <h3>การมีส่วนร่วม</h3>
+              <p className="ps-muted">TikTok ไม่ส่งยอดดูจนจบ / ผู้ชมใหม่มา</p>
               <div className="ps-rings">
                 <Ring value={rings.er} label="ER" color={skin.accent} track={skin.grid} />
                 <Ring value={rings.sharedPosts} label="โพสต์ที่มีคนแชร์" color="#25f4ee" track={skin.grid} />
@@ -450,13 +464,17 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
               <p className="ps-muted">ค่ากลางวิวต่อโพสต์ตามชั่วโมงที่ลง (อย่างน้อย 3 โพสต์) · TikTok ไม่ส่งเวลาที่ผู้ติดตามออนไลน์มา</p>
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={hours} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="hour" tick={{ fontSize: 10, fill: skin.text }} stroke={skin.grid} interval={2} />
+                  <XAxis dataKey="hour" tick={{ fontSize: 10, fill: skin.text }} stroke="none" interval={0} tickFormatter={(h: number) => (h % 3 ? "" : String(h))} />
                   <Tooltip
                     cursor={{ fill: "#ffffff14" }}
                     labelFormatter={(h) => `${String(h).padStart(2, "0")}:00 น.`}
                     formatter={(v, _n, p) => [v === null || v === undefined ? `${(p?.payload as { posts: number })?.posts || 0} โพสต์ น้อยเกินไป` : `${compact(Number(v))} วิว/โพสต์`, "ค่ากลาง"]}
                   />
-                  <Bar dataKey="medianViews" fill={skin.accent} radius={[3, 3, 0, 0]} isAnimationActive={motion} />
+                  <Bar dataKey="medianViews" radius={[3, 3, 0, 0]} isAnimationActive={motion}>
+                    {hours.map((h) => (
+                      <Cell key={h.hour} fill={bestHours.has(h.hour) ? skin.accent : "#3a3a3a"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>

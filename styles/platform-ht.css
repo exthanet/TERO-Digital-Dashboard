@@ -238,3 +238,113 @@
     opacity: 0;
   }
 }
+
+/* TikTok board, as the demo: plain coloured change under the numbers, white donut centre. */
+.ps-tk .ps-tile .kpi-growth {
+  background: none;
+  padding: 0;
+}
+.ps-tk .ps-tile .kpi-growth.up {
+  color: #4ade80;
+}
+.ps-tk .ps-tile .kpi-growth.down {
+  color: #fb7185;
+}
+.pt-donut.tk .pt-donut-mid b {
+  color: #fff;
+  font-size: 32px;
+}
+.pt-donut.tk .pt-donut-mid small {
+  color: #a1a1a1;
+  font-size: 13px;
+}
+.ps-tk .ps-tall-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Cross Platform, as the demo: mode switch and platform pills on one row, totals with a colour bar. */
+.xp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.xp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.xp-legend button {
+  border: 1px solid #dce3ee;
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.xp-legend button i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.xp-legend button.off,
+.xp-sum div.off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+.xp-sum {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.xp-sum div {
+  border-left: 4px solid;
+  padding: 4px 10px;
+}
+.xp-sum small {
+  display: block;
+  color: #6a7892;
+  font-size: 11px;
+}
+.xp-sum b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.xp-sum .ps-muted {
+  display: inline;
+  margin: 0;
+}
+/* TV Rating tile: both channels. */
+.pt-tv2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.pt-tv2 > div {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+.pt-tv2 .ps-chip {
+  margin: 0;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.pt-tv2 b {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 900px) {
+  .xp-sum {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

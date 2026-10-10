@@ -25,7 +25,7 @@ export const metricFormat = (m: PageMetric) => (m === "er" ? (v: number) => pct(
 
 const isDigital = (r: RecordRow) => (DIGITAL as readonly string[]).includes(r.platform);
 
-/** Digital views, posts, median views per post and One31's average rating, against the comparison period. */
+/** Digital views, posts, median views per post and the average rating of One31 and GMM25, against the comparison period. */
 export function TopKpis({ cur, prev, compareText }: { cur: RecordRow[]; prev: RecordRow[]; compareText: string }) {
   const k = useMemo(() => digitalKpis(cur.filter(isDigital)), [cur]);
   const kp = useMemo(() => (prev.length ? digitalKpis(prev.filter(isDigital)) : null), [prev]);
@@ -35,7 +35,10 @@ export function TopKpis({ cur, prev, compareText }: { cur: RecordRow[]; prev: Re
     { label: "ยอดวิวรวม (Digital)", now: k.views, before: kp?.views ?? null, f: compact },
     { label: "จำนวนโพสต์", now: k.posts, before: kp?.posts ?? null, f: num },
     { label: "วิวต่อโพสต์ (ค่ากลาง)", now: k.medianViews, before: kp?.medianViews ?? null, f: compact },
-    { label: "TV Rating เฉลี่ย One31", now: t.rating, before: tp?.rating ?? null, f: (v: number) => v.toFixed(3) },
+  ];
+  const tv = [
+    { ch: "One31", now: t.rating, before: tp?.rating ?? null },
+    { ch: "GMM25", now: t.gmmRating, before: tp?.gmmRating ?? null },
   ];
   return (
     <div className="pt-kpis">
@@ -46,6 +49,18 @@ export function TopKpis({ cur, prev, compareText }: { cur: RecordRow[]; prev: Re
           <Growth value={change(x.now, x.before)} title={compareText} label="เทียบช่วงก่อน" />
         </div>
       ))}
+      <div className="pi-card pt-kpi">
+        <small>TV Rating เฉลี่ย</small>
+        <div className="pt-tv2">
+          {tv.map((x) => (
+            <div key={x.ch}>
+              <span className={`ps-chip ${x.ch === "GMM25" ? "gmm" : "one"}`}>{x.ch}</span>
+              <b>{x.now === null ? "-" : <CountUp value={x.now} format={(v) => v.toFixed(3)} />}</b>
+              <Growth value={change(x.now, x.before)} title={compareText} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -92,7 +107,7 @@ export function PlatformShare({ cur, metric }: { cur: RecordRow[]; metric: PageM
   return (
     <article className="pi-card">
       <h3>สัดส่วนตามแพลตฟอร์ม</h3>
-      <p className="ps-muted">ตามตัวชี้วัดที่เลือกด้านบน ({metricText(metric)}){metric === "er" ? " · ER เทียบกันเป็นสัดส่วนของผลรวม ER" : ""}</p>
+      <p className="ps-muted">ตาม{metricText(metric)}{metric === "er" ? " · ER เทียบกันเป็นสัดส่วนของผลรวม ER" : ""}</p>
       <div className="pt-donut">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
@@ -133,7 +148,7 @@ export function PlatformBars({ cur, metric }: { cur: RecordRow[]; metric: PageMe
   return (
     <article className="pi-card">
       <h3>แต่ละแพลตฟอร์ม</h3>
-      <p className="ps-muted">เรียงตาม{metricText(metric)} · เปลี่ยนตัวชี้วัดแล้วแท่งจะเรียงใหม่</p>
+      <p className="ps-muted">เรียงตาม{metricText(metric)}</p>
       <ol className="pt-rank">
         {list.map((x) => (
           <li key={x.platform}>

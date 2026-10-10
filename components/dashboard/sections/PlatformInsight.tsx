@@ -7,8 +7,6 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   PolarAngleAxis,
   PolarGrid,
   PolarRadiusAxis,
@@ -85,54 +83,65 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
     [data, mode, shown],
   );
   const totals = DIGITAL.map((p) => ({ p, v: data.reduce((a, d) => a + (Number(d[p]) || 0), 0) }));
+  const all = totals.reduce((a, t) => a + t.v, 0);
   const f = mode === "pct" ? (v: number) => pct(v, 0) : compact;
+  // As the demo: filled bands with their own line on top; "แยกเส้น" keeps a faint fill under each line.
+  const fill = mode === "lines" ? 0.06 : 0.75;
 
   return (
-    <article className="pi-card">
-      <div className="pi-head">
-        <div>
-          <h3>Cross Platform · ยอดวิวรายวันแยกแพลตฟอร์ม</h3>
-          <p className="ps-muted">ตามวันที่ลงโพสต์ · กดชื่อแพลตฟอร์มเพื่อซ่อน/แสดง · ชี้กราฟดูตัวเลขรายวัน</p>
-        </div>
-        <div className="segmented" role="group" aria-label="รูปแบบกราฟ">
+    <article className="pi-card xp">
+      <h3>Cross Platform · ยอดวิวรายวันแยกแพลตฟอร์ม</h3>
+      <p className="ps-muted">สลับ “ซ้อนกัน / แยกเส้น / สัดส่วน 100%” แล้วกราฟจะเปลี่ยนรูปต่อเนื่อง · กดชื่อแพลตฟอร์มเพื่อซ่อน/แสดง · ชี้กราฟดูตัวเลขรายวัน</p>
+      <div className="xp-bar">
+        <div className="ht-seg" role="group" aria-label="รูปแบบกราฟ">
           {MODES.map((m) => (
-            <button key={m.id} className={mode === m.id ? "active" : ""} onClick={() => setMode(m.id)}>
+            <button key={m.id} className={mode === m.id ? "on" : ""} onClick={() => setMode(m.id)}>
               {m.label}
             </button>
           ))}
         </div>
+        <div className="xp-legend">
+          {DIGITAL.map((p) => (
+            <button key={p} type="button" className={off.has(p) ? "off" : ""} onClick={() => toggle(p)} aria-pressed={!off.has(p)}>
+              <i style={{ background: COLORS[p] }} />
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        {mode === "lines" ? (
-          <LineChart data={view} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={24} />
-            <YAxis tickFormatter={f} tick={{ fontSize: 11 }} width={56} />
-            <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [f(Number(v)), String(n)]} itemSorter={(i) => DIGITAL.indexOf(i.dataKey as (typeof DIGITAL)[number])} />
-            {shown.map((p) => (
-              <Line key={p} type="monotone" dataKey={p} stroke={COLORS[p]} strokeWidth={2} dot={false} isAnimationActive={motion} />
-            ))}
-          </LineChart>
-        ) : (
-          <AreaChart data={view} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} stackOffset={mode === "pct" ? "expand" : "none"}>
-            <CartesianGrid stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={24} />
-            <YAxis tickFormatter={f} tick={{ fontSize: 11 }} width={56} />
-            <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [f(Number(v)), String(n)]} itemSorter={(i) => DIGITAL.indexOf(i.dataKey as (typeof DIGITAL)[number])} />
-            {shown.map((p) => (
-              <Area key={p} type="monotone" dataKey={p} stackId="1" stroke={COLORS[p]} fill={COLORS[p]} fillOpacity={0.55} isAnimationActive={motion} />
-            ))}
-          </AreaChart>
-        )}
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart data={view} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke="#dce3ee" vertical={false} />
+          <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11, fill: "#6a7892" }} stroke="#dce3ee" minTickGap={28} />
+          <YAxis tickFormatter={f} tick={{ fontSize: 11, fill: "#6a7892" }} width={56} stroke="none" tickCount={5} domain={mode === "pct" ? [0, 1] : [0, "auto"]} />
+          <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [f(Number(v)), String(n)]} itemSorter={(i) => DIGITAL.indexOf(i.dataKey as (typeof DIGITAL)[number])} />
+          {shown.map((p) => (
+            <Area
+              key={p}
+              type="linear"
+              dataKey={p}
+              stackId={mode === "lines" ? undefined : "1"}
+              stroke={COLORS[p]}
+              strokeWidth={2}
+              fill={COLORS[p]}
+              fillOpacity={fill}
+              isAnimationActive={motion}
+              animationDuration={750}
+            />
+          ))}
+        </AreaChart>
       </ResponsiveContainer>
-      <Legend items={DIGITAL} off={off} toggle={toggle} />
-      <p className="pi-totals">
+      <div className="xp-sum">
         {totals.map((t) => (
-          <span key={t.p}>
-            {t.p} <b>{compact(t.v)}</b>
-          </span>
+          <div key={t.p} style={{ borderColor: COLORS[t.p] }} className={off.has(t.p) ? "off" : ""}>
+            <small>{t.p}</small>
+            <b>
+              <CountUp value={t.v} format={compact} />
+            </b>{" "}
+            <span className="ps-muted">{all ? pct(t.v / all, 0) : "-"}</span>
+          </div>
         ))}
-      </p>
+      </div>
     </article>
   );
 }
