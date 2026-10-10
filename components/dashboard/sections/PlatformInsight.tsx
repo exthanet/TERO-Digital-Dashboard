@@ -359,7 +359,7 @@ export function HashtagReport({ cur, prev, endDate }: { cur: RecordRow[]; prev: 
         <div className="ht-kpis">
           <div>
             <small>แท็กที่ติดอันดับ</small>
-            <b>{num(list.length)}</b>
+            <b>{num(all.length)}</b>
           </div>
           <div>
             <small>โพสต์ที่มี Hashtag</small>

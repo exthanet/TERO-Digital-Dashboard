@@ -666,3 +666,21 @@ button.fb-row:hover span:first-child {
     stroke-dashoffset: 1;
   }
 }
+/* Hashtag Report: the demo's 14px base and bold tag title. */
+.pi-card.ht {
+  font-size: 14px;
+}
+.ht-seg button {
+  font-size: 14px;
+}
+.ht-side h2 {
+  font-weight: 700;
+}
+
+/* Trending Hashtag page in the Hashtag Report look. */
+.ht-detail-btn {
+  margin-top: 10px;
+}
+.trending-hashtags .pi-card.ht {
+  margin-top: 4px;
+}

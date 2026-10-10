@@ -255,7 +255,15 @@ export default function Dashboard() {
         )}
 
         {activeTab === "trending" && (
-          <TrendingHashtagsSection rows={model.platformReportRows} allRows={model.rows} latestDate={model.dataLatestDate} canDownload={perms.download} />
+          <TrendingHashtagsSection
+            rows={model.platformReportRows}
+            allRows={model.rows}
+            latestDate={model.dataLatestDate}
+            startDate={model.startDate}
+            endDate={model.endDate}
+            comparePeriod={model.comparePeriod}
+            canDownload={perms.download}
+          />
         )}
 
         {activeTab === "platform" && (

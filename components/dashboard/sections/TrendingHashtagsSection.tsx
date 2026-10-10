@@ -1,44 +1,48 @@
 "use client";
-// รายงาน → Trending Hashtag: our posts' hashtags ranked for 7 / 30 / 90 days, with a
+// รายงาน → Trending Hashtag: our posts' hashtags in the date range at the top, ranked by
+// views, laid out as the Hashtag Report of output/platform-report-demo.html, with the full
 // detail view per hashtag (lib/dashboard/trendingHashtags.ts). Filters at the top apply
-// (program, VDO type, topic type, search); the platform and the period are picked here.
+// (program, VDO type, topic type, search, dates); the platform is picked here.
 import { useMemo, useState } from "react";
 import { ArrowLeft, Download, ExternalLink, Hash, TrendingUp } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
-import { creativeCenterUrl, hashtagDetail, periodsEnding, trendingHashtags, type TrendItem } from "@/lib/dashboard/trendingHashtags";
+import { creativeCenterUrl, hashtagDetail, periodsEnding, trendingHashtags } from "@/lib/dashboard/trendingHashtags";
 import { WEEKDAYS, bestSlots, postingHeatmap } from "@/lib/dashboard/platformReport";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { recordDownload } from "@/lib/auth/activity";
 
-const PERIODS = [7, 30, 90] as const;
 const PLATFORMS = ["ALL", "YouTube", "Facebook", "Instagram", "TikTok"] as const;
 const SHOWN = 30;
+const TOP = 10;
+/** Where the co-used tag bubbles sit (viewBox 360 × 200), biggest first. */
+const BUBBLE_AT = [
+  [70, 70],
+  [170, 60],
+  [270, 80],
+  [110, 150],
+  [215, 145],
+  [310, 155],
+  [40, 160],
+];
 const thDate = (iso: string, o: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...o }).format(new Date(`${iso}T00:00:00Z`)) : "";
 const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const colorOf = (p: string) => PLATFORM_COLORS[p] || "#64748b";
 
 /** Small line of the daily values. */
-function Spark({ values }: { values: number[] }) {
+function Spark({ values, color = "#0757e8" }: { values: number[]; color?: string }) {
   const max = Math.max(1, ...values);
-  const w = 110;
-  const h = 28;
-  const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * w},${h - (v / max) * (h - 3) - 1}`).join(" ");
+  const w = 74;
+  const h = 22;
+  const pts = values.map((v, i) => `${(1 + (i / Math.max(1, values.length - 1)) * (w - 2)).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`).join(" ");
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <polyline points={pts} fill="none" stroke="#ef4444" strokeWidth="1.8" strokeLinejoin="round" />
+    <svg className="pi-spark-svg" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function RankChange({ x }: { x: TrendItem }) {
-  if (x.prevRank === null) return <span className="trend-new">ใหม่</span>;
-  const d = x.prevRank - x.rank;
-  if (!d) return <span className="trend-same">–</span>;
-  return <span className={d > 0 ? "trend-up" : "trend-down"}>{d > 0 ? `▲${d}` : `▼${-d}`}</span>;
 }
 
 interface Props {
@@ -46,28 +50,39 @@ interface Props {
   rows: RecordRow[];
   allRows: RecordRow[];
   latestDate: string;
+  /** The date range at the top, and the period it is compared with. */
+  startDate: string;
+  endDate: string;
+  comparePeriod: { start: string; end: string } | null;
   /** Permission "download". */
   canDownload?: boolean;
 }
 
-export function TrendingHashtagsSection({ rows, allRows, latestDate, canDownload = true }: Props) {
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>(7);
+export function TrendingHashtagsSection({ rows, allRows, latestDate, startDate, endDate, comparePeriod, canDownload = true }: Props) {
   const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("ALL");
-  const [hideCommon, setHideCommon] = useState(true);
-  const [sort, setSort] = useState<"views" | "posts" | "growth">("views");
   const [selected, setSelected] = useState<string | null>(null);
+  const [pick, setPick] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [opened, setOpened] = useState<RecordRow | null>(null);
 
   const mine = useMemo(() => (platform === "ALL" ? rows : rows.filter((r) => r.platform === platform)), [rows, platform]);
-  const { cur, prev } = useMemo(() => periodsEnding(latestDate || new Date().toISOString().slice(0, 10), period), [latestDate, period]);
-  const trend = useMemo(() => trendingHashtags(mine, cur, prev, { hideCommon }), [mine, cur, prev, hideCommon]);
-  const list = useMemo(() => {
-    const items = [...trend.items];
-    if (sort === "posts") items.sort((a, b) => b.posts - a.posts || a.rank - b.rank);
-    if (sort === "growth") items.sort((a, b) => (b.growth ?? -Infinity) - (a.growth ?? -Infinity) || a.rank - b.rank);
-    return items;
-  }, [trend, sort]);
+  // The date range at the top; without one, the last 30 days of data. Compared with the period the filters compare with.
+  const { cur, prev } = useMemo(() => {
+    if (!startDate || !endDate) return periodsEnding(latestDate || new Date().toISOString().slice(0, 10), 30);
+    const cur = { start: startDate, end: endDate };
+    return { cur, prev: comparePeriod || periodsEnding(startDate, 1 + Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000)).prev };
+  }, [startDate, endDate, comparePeriod, latestDate]);
+  const trend = useMemo(() => trendingHashtags(mine, cur, prev, { hideCommon: true }), [mine, cur, prev]);
+  const list = trend.items;
+  const chosen = useMemo(() => list.find((x) => x.tag === pick) || list[0], [list, pick]);
+  const chosenDetail = useMemo(() => (chosen ? hashtagDetail(mine, chosen.tag, cur) : null), [mine, chosen, cur]);
+  const hiddenTags = useMemo(() => new Set(trend.hidden), [trend]);
+  const bubbles = useMemo(() => (chosenDetail ? chosenDetail.related.filter((x) => !hiddenTags.has(x.tag)).slice(0, BUBBLE_AT.length) : []), [chosenDetail, hiddenTags]);
+  const coMax = Math.max(1, ...bubbles.map((x) => x.posts));
+  const split = chosen ? Object.entries(chosen.platforms).sort((a, b) => b[1] - a[1]) : [];
+  const splitMax = Math.max(0, ...split.map(([, v]) => v));
+  const maxViews = Math.max(1, ...list.slice(0, showAll ? SHOWN : TOP).map((x) => x.views));
+  const barColor = platform === "ALL" ? "#0757e8" : colorOf(platform);
   const detail = useMemo(() => (selected ? hashtagDetail(mine, selected, cur) : null), [mine, selected, cur]);
   const slots = useMemo(() => (detail ? bestSlots(postingHeatmap(detail.rows)) : []), [detail]);
 
@@ -87,25 +102,6 @@ export function TrendingHashtagsSection({ rows, allRows, latestDate, canDownload
     recordDownload("csv-hashtag", a.download, detail.rows.length);
   }
 
-  const controls = (
-    <div className="trend-controls">
-      <div className="segmented" aria-label="ช่วงเวลา">
-        {PERIODS.map((p) => (
-          <button key={p} className={period === p ? "active" : ""} onClick={() => setPeriod(p)}>
-            {p} วัน
-          </button>
-        ))}
-      </div>
-      <div className="segmented" aria-label="แพลตฟอร์ม">
-        {PLATFORMS.map((p) => (
-          <button key={p} className={platform === p ? "active" : ""} onClick={() => setPlatform(p)}>
-            {p === "ALL" ? "ทุกแพลตฟอร์ม" : p}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <section className="panel trending-hashtags" id="trending-hashtags">
       {opened && <ClipDetailPanel clip={opened} allRows={allRows} latestDate={latestDate} onClose={() => setOpened(null)} />}
@@ -115,100 +111,148 @@ export function TrendingHashtagsSection({ rows, allRows, latestDate, canDownload
             <TrendingUp size={18} /> Trending Hashtag
           </h2>
           <p className="growth-sub">
-            hashtag ในโพสต์ของเรา · {thDate(cur.start)} – {thDate(cur.end)} เทียบ {thDate(prev.start)} – {thDate(prev.end)} · ตามตัวกรองรายการด้านบน
+            hashtag ในโพสต์ของเรา · {thDate(cur.start)} – {thDate(cur.end)} เทียบ {thDate(prev.start)} – {thDate(prev.end)} · ตามตัวกรองด้านบน (รวมวันที่)
           </p>
         </div>
       </div>
-      {controls}
 
       {!selected && (
-        <>
-          <div className="trend-options">
-            <label>
-              <input type="checkbox" checked={hideCommon} onChange={(e) => setHideCommon(e.target.checked)} /> ซ่อน hashtag ประจำช่อง
-              {hideCommon && trend.hidden.length > 0 && <small> ({trend.hidden.join(" ")})</small>}
-            </label>
-            <div className="segmented" aria-label="เรียงตาม">
-              {(
-                [
-                  ["views", "วิว"],
-                  ["posts", "จำนวนโพสต์"],
-                  ["growth", "โตขึ้น"],
-                ] as const
-              ).map(([k, label]) => (
-                <button key={k} className={sort === k ? "active" : ""} onClick={() => setSort(k)}>
-                  {label}
+        <article className="pi-card ht">
+          <div className="ht-head">
+            <div className="ht-seg" role="group" aria-label="แพลตฟอร์ม">
+              {PLATFORMS.map((p) => (
+                <button key={p} className={platform === p ? "on" : ""} onClick={() => setPlatform(p)}>
+                  {p === "ALL" ? "รวมทุกแพลตฟอร์ม" : p}
                 </button>
               ))}
+            </div>
+            <div className="ht-kpis">
+              <div>
+                <small>แท็กที่ติดอันดับ</small>
+                <b>{num(list.length)}</b>
+              </div>
+              <div>
+                <small>โพสต์ที่มี Hashtag</small>
+                <b>{trend.posts ? pct(trend.withTags / trend.posts, 0) : "-"}</b>
+              </div>
+              <div title="โพสต์ที่มีหลายแท็กถูกนับในทุกแท็กที่มี">
+                <small>วิวจากแท็ก 10 อันดับ</small>
+                <b>{compact(list.slice(0, TOP).reduce((a, x) => a + x.views, 0))}</b>
+              </div>
             </div>
           </div>
           {list.length === 0 ? (
             <p className="growth-notice">ยังไม่มี hashtag ที่ใช้อย่างน้อย 2 โพสต์ในช่วงนี้</p>
           ) : (
-            <div className="table-scroll">
-              <table className="trend-table">
-                <thead>
-                  <tr>
-                    <th>อันดับ</th>
-                    <th>Hashtag</th>
-                    <th className="num">โพสต์ & วิว</th>
-                    <th>แนวโน้ม</th>
-                    <th>แพลตฟอร์ม</th>
-                    <th className="num">เทียบช่วงก่อน</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(showAll ? list : list.slice(0, SHOWN)).map((x) => (
-                    <tr key={x.tag}>
-                      <td className="trend-rank">
-                        <b>{x.rank}</b>
-                        <RankChange x={x} />
-                      </td>
-                      <td>
-                        <button type="button" className="trend-tag" onClick={() => setSelected(x.tag)}>
+            <div className="ht-grid">
+              <div>
+                <div className="ht-row ht-th">
+                  <span>#</span>
+                  <span>Hashtag</span>
+                  <span>อันดับ</span>
+                  <span className="n">โพสต์</span>
+                  <span>วิว</span>
+                  <span className="n">ER</span>
+                  <span>แนวโน้ม</span>
+                </div>
+                <div>
+                  {(showAll ? list.slice(0, SHOWN) : list.slice(0, TOP)).map((x) => {
+                    const move = x.prevRank === null ? null : x.prevRank - x.rank;
+                    return (
+                      <button type="button" key={x.tag} className={`ht-row${chosen?.tag === x.tag ? " sel" : ""}`} onClick={() => setPick(x.tag)}>
+                        <span>{x.rank}</span>
+                        <span className="tg" title={x.topicType}>
                           {x.tag}
-                        </button>
-                        <small>{x.topicType}</small>
-                      </td>
-                      <td className="num">
-                        <b>{compact(x.posts)}</b> <small>โพสต์</small>
-                        <br />
-                        <b>{compact(x.views)}</b> <small>วิว</small>
-                      </td>
-                      <td>
-                        <Spark values={x.daily} />
-                      </td>
-                      <td>
-                        <span className="trend-platforms" title={Object.entries(x.platforms).map(([p, v]) => `${p} ${num(v)}`).join(" · ")}>
-                          {Object.entries(x.platforms)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([p, v]) => (
-                              <i key={p} style={{ width: `${x.views ? (v / x.views) * 100 : 0}%`, background: colorOf(p) }} />
-                            ))}
                         </span>
-                      </td>
-                      <td className={`num ${x.growth === null ? "" : x.growth >= 0 ? "up" : "down"}`}>{x.growth === null ? "-" : `${x.growth >= 0 ? "+" : ""}${pct(x.growth, 0)}`}</td>
-                      <td>
-                        <button type="button" className="trend-more" onClick={() => setSelected(x.tag)}>
-                          ดูรายละเอียด
-                        </button>
-                      </td>
-                    </tr>
+                        {move === null ? (
+                          <span className="mv" style={{ color: "#7c3aed" }}>
+                            ใหม่
+                          </span>
+                        ) : move > 0 ? (
+                          <span className="mv up">▲{move}</span>
+                        ) : move < 0 ? (
+                          <span className="mv down">▼{-move}</span>
+                        ) : (
+                          <span className="mv" style={{ color: "#94a3b8" }}>
+                            ■
+                          </span>
+                        )}
+                        <span className="n">{num(x.posts)}</span>
+                        <span className="vb">
+                          <div>
+                            <span style={{ width: `${(x.views / maxViews) * 100}%`, background: barColor }} />
+                          </div>
+                          <b>{compact(x.views)}</b>
+                        </span>
+                        <span className="n">{pct(x.er, 1)}</span>
+                        <Spark values={x.daily} color={barColor} />
+                      </button>
+                    );
+                  })}
+                </div>
+                {list.length > TOP && (
+                  <button type="button" className="ranking-more" onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? "แสดง 10 อันดับ" : `ดูทั้งหมด ${Math.min(SHOWN, list.length)} hashtag`}
+                  </button>
+                )}
+                <p className="ps-muted" style={{ marginTop: 8 }}>
+                  กดแท็กเพื่อดูรายละเอียดทางขวา · ▲▼ = อันดับเทียบช่วงก่อน · ซ่อนแท็กของช่อง/รายการ เช่น #ถกไม่เถียง · แนวโน้ม = วิวของโพสต์ตามวันที่โพสต์
+                </p>
+              </div>
+              {chosen && (
+                <div className="ht-side">
+                  <h2>{chosen.tag}</h2>
+                  <p className="ps-muted">
+                    {num(chosen.posts)} โพสต์ · วิวรวม {compact(chosen.views)} · ER {pct(chosen.er, 1)}
+                  </p>
+                  <h3>แยกตามแพลตฟอร์ม</h3>
+                  {split.map(([p, v]) => (
+                    <div key={p} className="ht-split" title={`${num(v)} วิว`}>
+                      <span>{p}</span>
+                      <div>
+                        <span style={{ width: `${splitMax ? (v / splitMax) * 100 : 0}%`, background: colorOf(p) }} />
+                      </div>
+                      <b>{chosen.views ? pct(v / chosen.views, 0) : "-"}</b>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                  <h3 style={{ marginTop: 12 }}>แท็กที่ใช้คู่กันบ่อย</h3>
+                  {bubbles.length ? (
+                    <svg className="ht-bubbles" viewBox="0 0 360 200" role="img" aria-label="แท็กที่ใช้คู่กันบ่อย">
+                      {bubbles.map((b, i) => {
+                        const r = 16 + 26 * (b.posts / coMax);
+                        const can = list.slice(0, showAll ? SHOWN : TOP).some((x) => x.tag === b.tag);
+                        return (
+                          <g
+                            key={b.tag}
+                            className="ht-bubble"
+                            transform={`translate(${BUBBLE_AT[i][0]},${BUBBLE_AT[i][1]})`}
+                            style={{ cursor: can ? "pointer" : "default", animationDelay: `${i * 60}ms` }}
+                            onClick={() => can && setPick(b.tag)}
+                          >
+                            <title>{`${b.tag} · ใช้คู่กัน ${b.posts} โพสต์`}</title>
+                            <circle r={r} fill="#0757e8" fillOpacity={0.12 + r / 160} />
+                            <text textAnchor="middle" y={4} fontSize={r > 30 ? 12 : 10} fill="#0f1b31">
+                              {b.tag}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  ) : (
+                    <p className="ps-muted">ไม่มีแท็กอื่นที่ใช้คู่กัน</p>
+                  )}
+                  <button type="button" className="trend-more ht-detail-btn" onClick={() => setSelected(chosen.tag)}>
+                    ดูรายละเอียดทั้งหมด →
+                  </button>
+                </div>
+              )}
             </div>
           )}
-          {list.length > SHOWN && (
-            <button type="button" className="ranking-more" onClick={() => setShowAll((v) => !v)}>
-              {showAll ? "แสดงน้อยลง" : `ดูทั้งหมด ${list.length} hashtag`}
-            </button>
-          )}
           <p className="audience-note">
-            {num(trend.withTags)} จาก {num(trend.posts)} โพสต์ในช่วงนี้มี hashtag · วิว = ยอดสะสมล่าสุดของโพสต์ที่โพสต์ในช่วงนี้ · แนวโน้ม = วิวของโพสต์ตามวันที่โพสต์ · นับ hashtag ที่ใช้อย่างน้อย 2 โพสต์ · ซ่อน hashtag ของช่อง / รายการ / พิธีกร และที่อยู่ในโพสต์เกิน 60% · ไม่ใช่เทรนด์ของทั้ง TikTok (ดูได้จากปุ่มในหน้ารายละเอียด)
+            {num(trend.withTags)} จาก {num(trend.posts)} โพสต์ในช่วงนี้มี hashtag · วิว = ยอดสะสมล่าสุดของโพสต์ที่โพสต์ในช่วงนี้ · นับ hashtag ที่ใช้อย่างน้อย 2 โพสต์ · ซ่อน hashtag ของช่อง / รายการ / พิธีกร และที่อยู่ในโพสต์เกิน 60%
+            {trend.hidden.length > 0 && ` (${trend.hidden.join(" ")})`} · ไม่ใช่เทรนด์ของทั้ง TikTok (ดูได้จากปุ่มในหน้ารายละเอียด)
           </p>
-        </>
+        </article>
       )}
 
       {selected && detail && (
