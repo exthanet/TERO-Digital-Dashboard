@@ -267,6 +267,7 @@ export default function Dashboard() {
             comparePeriod={model.comparePeriod}
             latestDate={model.dataLatestDate}
             platformFilter={model.platform}
+            canDeepDive={perms.deepDive}
           />
         )}
 

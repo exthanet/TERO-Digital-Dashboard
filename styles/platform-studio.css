@@ -1,0 +1,551 @@
+/* วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: platform boards (components/dashboard/sections/PlatformStudio.tsx). */
+.ps {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 18px;
+  padding: 16px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.ps h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ps-muted {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--ps-muted);
+}
+.ps-gap {
+  margin-top: 14px;
+}
+.ps-grid {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.ps-grid.g2 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.ps-grid.g11 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ps-card {
+  position: relative;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--ps-card);
+  border: 1px solid var(--ps-line);
+}
+.ps-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.ps-tile {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--ps-line);
+  background: var(--ps-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.ps-tile.static {
+  cursor: default;
+}
+.ps-tile small {
+  color: var(--ps-muted);
+  font-size: 12px;
+}
+.ps-tile b {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ps-tile .kpi-growth {
+  justify-self: start;
+}
+.ps-tile.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: var(--ps-accent);
+}
+.ps-tile:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+}
+.ps-big {
+  display: block;
+  font-size: 30px;
+  font-weight: 600;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.ps-mini-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.ps-mini-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+}
+.ps-mini-list .clip-open,
+.ps-mini-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.ps-post-row {
+  display: grid;
+  grid-template-columns: 22px 96px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid var(--ps-line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.ps-post-row:last-child {
+  border-bottom: 0;
+}
+.ps-post-row:hover .ps-post-title {
+  color: var(--ps-accent);
+}
+.ps-rank {
+  color: var(--ps-muted);
+  text-align: center;
+}
+.ps-post-title {
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+  line-height: 1.35;
+}
+.ps-post-title small {
+  color: var(--ps-muted);
+  font-size: 11px;
+}
+.ps-post-row strong {
+  font-variant-numeric: tabular-nums;
+}
+.ps-cover {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--ps-cover);
+}
+.ps-cover.wide {
+  aspect-ratio: 16 / 9;
+}
+.ps-cover.tall {
+  aspect-ratio: 9 / 16;
+  width: 34px;
+  justify-self: center;
+}
+.ps-cover.fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.ps-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ps-tall-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.ps-tall {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: var(--ps-cover);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.ps-tall::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#0009, transparent 35%, transparent 65%, #000a);
+}
+.ps-tall em,
+.ps-tall span {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  z-index: 1;
+  text-align: left;
+  text-shadow: 0 1px 2px #000;
+}
+.ps-tall em {
+  top: 6px;
+  font-size: 11px;
+  font-style: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ps-tall span {
+  bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.ps-bars {
+  display: grid;
+  gap: 6px;
+}
+.ps-bar {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) minmax(0, 1fr) 54px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.ps-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ps-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--ps-line);
+}
+.ps-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.ps-bar b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ps-split + .ps-split {
+  margin-top: 10px;
+}
+.ps-split-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.ps-split-head span {
+  color: var(--ps-muted);
+  font-size: 12px;
+}
+.ps-legend {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+.ps-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+.ps-legend b {
+  margin-left: 4px;
+}
+.ps-rings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  text-align: center;
+  font-size: 12px;
+}
+.ps-ring svg {
+  width: 100%;
+  max-width: 100px;
+  display: block;
+  margin: 0 auto 4px;
+}
+.ps-skip {
+  display: flex;
+  height: 26px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--ps-line);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.ps-skip span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f58529, #dd2a7b);
+}
+.ps-skip span + span {
+  background: #8e8e8e;
+}
+.ps-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.ps-rank-list li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto 70px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+.ps-rank-list li.own {
+  background: #ecfdf5;
+  font-weight: 600;
+}
+.ps-rank-list small {
+  color: var(--ps-muted);
+  text-align: right;
+}
+.ps-tv-head {
+  display: grid;
+  gap: 10px;
+}
+.ps-tv-head .segmented {
+  justify-self: start;
+}
+.ps-skel {
+  display: grid;
+  gap: 8px;
+}
+.ps-skel span {
+  display: block;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--ps-line);
+}
+
+/* Skins: each platform in the look of its own analytics. */
+.ps-yt {
+  --ps-accent: #065fd4;
+  --ps-muted: #606060;
+  --ps-line: #e5e5e5;
+  --ps-card: #fff;
+  --ps-cover: linear-gradient(135deg, #1e3a8a, #60a5fa);
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  color: #0f0f0f;
+}
+.ps-yt .ps-tile.on {
+  background: #f8f8f8;
+}
+.ps-tk {
+  --ps-accent: #fe2c55;
+  --ps-muted: #a1a1a1;
+  --ps-line: #2e2e2e;
+  --ps-card: #1f1f1f;
+  --ps-cover: linear-gradient(170deg, #25f4ee33, #fe2c5555 70%, #000);
+  background: #121212;
+  color: #fff;
+}
+.ps-tk .ps-tile,
+.ps-tk .ps-card {
+  border-color: transparent;
+}
+.ps-tk .ps-tile.on {
+  border-color: #fe2c55;
+}
+.ps-tk .ps-tile.on::after {
+  display: none;
+}
+.ps-tk .recharts-default-tooltip {
+  color: #0f172a;
+}
+.ps-fb {
+  --ps-accent: #1877f2;
+  --ps-muted: #65676b;
+  --ps-line: #e4e6eb;
+  --ps-card: #fff;
+  --ps-cover: linear-gradient(135deg, #1e40af, #93c5fd);
+  background: #f0f2f5;
+  color: #1c1e21;
+}
+.ps-fb .ps-tile,
+.ps-fb .ps-card {
+  border-color: transparent;
+  box-shadow: 0 1px 2px #0000001a;
+}
+.ps-ig {
+  --ps-accent: #dd2a7b;
+  --ps-muted: #737373;
+  --ps-line: #efefef;
+  --ps-card: #fff;
+  --ps-cover: linear-gradient(160deg, #f5852966, #dd2a7b88, #8134afaa);
+  background: #fff;
+  border: 1px solid #dbdbdb;
+  color: #262626;
+}
+.ps-ig .ps-tile {
+  background: #fafafa;
+  border-color: transparent;
+}
+.ps-ig .ps-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(#f58529, #dd2a7b, #8134af);
+}
+.ps-ig .ps-tile.on {
+  background: #fdf2f8;
+}
+.ps-ig .ps-tile.on::after {
+  display: none;
+}
+.ps-tv {
+  --ps-accent: #10b981;
+  --ps-muted: #64748b;
+  --ps-line: #e2e8f0;
+  --ps-card: #fff;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .ps-grid.g2,
+  .ps-grid.g11 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .ps {
+    padding: 12px;
+  }
+  .ps-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ps-tile b {
+    font-size: 18px;
+  }
+  .ps-post-row {
+    grid-template-columns: 18px 72px minmax(0, 1fr) auto;
+  }
+  .ps-tall-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ps-bar {
+    grid-template-columns: 90px minmax(0, 1fr) 48px;
+  }
+}
+
+/* Motion: cards rise in, bars and rings draw, the skeleton shimmers; none of it with "reduce motion". */
+@media (prefers-reduced-motion: no-preference) {
+  .ps-card,
+  .ps-tile {
+    animation: ps-rise 0.45s ease-out both;
+  }
+  .ps-tile:nth-child(2) {
+    animation-delay: 0.04s;
+  }
+  .ps-tile:nth-child(3) {
+    animation-delay: 0.08s;
+  }
+  .ps-tile:nth-child(4) {
+    animation-delay: 0.12s;
+  }
+  .ps-tile:nth-child(5) {
+    animation-delay: 0.16s;
+  }
+  .ps-tile:nth-child(n + 6) {
+    animation-delay: 0.2s;
+  }
+  .ps-tile {
+    transition: transform 0.15s ease;
+  }
+  .ps-tile:not(.static):hover {
+    transform: translateY(-2px);
+  }
+  .ps-bar-track span {
+    animation: ps-grow 0.7s ease-out both;
+    transform-origin: left;
+  }
+  .ps-ring-arc {
+    animation: ps-ring 0.9s ease-out both;
+  }
+  .ps-tall {
+    transition: transform 0.2s ease;
+  }
+  .ps-tall:hover {
+    transform: scale(1.03);
+  }
+  .ps-skel span {
+    background: linear-gradient(90deg, var(--ps-line) 25%, color-mix(in srgb, var(--ps-line) 40%, transparent) 50%, var(--ps-line) 75%);
+    background-size: 200% 100%;
+    animation: ps-shimmer 1.2s linear infinite;
+  }
+}
+@keyframes ps-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes ps-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes ps-ring {
+  from {
+    stroke-dasharray: 0 400;
+  }
+}
+@keyframes ps-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

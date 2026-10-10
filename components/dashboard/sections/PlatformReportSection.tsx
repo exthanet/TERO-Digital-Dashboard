@@ -1,10 +1,10 @@
 "use client";
-// รายงาน → รายงานรายแพลตฟอร์ม: one platform at a time (lib/dashboard/platformReport.ts):
-// headline numbers against the comparison period, VDO type mix, posting weekday ×
+// วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: one platform at a time (lib/dashboard/platformReport.ts):
+// a board in the platform's own look (PlatformStudio.tsx), headline numbers against the comparison period, VDO type mix, posting weekday ×
 // hour, and the best / worst clips. TV shows ratings instead. Filters at the top
 // apply, except the platform filter (picked here).
 import { Fragment, useMemo, useState } from "react";
-import { BarChart3, ExternalLink, Hash, Eye, Heart, Layers, MessageCircle, Share2, ThumbsDown, Trophy, Tv, Users } from "lucide-react";
+import { BarChart3, ExternalLink, Hash, ThumbsDown, Trophy } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
@@ -16,15 +16,11 @@ import {
   REPORT_PLATFORMS,
   WEEKDAYS,
   bestSlots,
-  change,
-  digitalKpis,
   formatMix,
   inRange,
   postingHeatmap,
-  tvKpis,
 } from "@/lib/dashboard/platformReport";
-import { Kpi } from "@/components/dashboard/shared/Kpi";
-import { Growth } from "@/components/dashboard/shared/Growth";
+import { PlatformStudio, TvStudio } from "@/components/dashboard/sections/PlatformStudio";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 
 type Platform = (typeof REPORT_PLATFORMS)[number];
@@ -44,9 +40,11 @@ interface Props {
   latestDate: string;
   /** The platform filter at the top, used as the first pick. */
   platformFilter: string;
+  /** YouTube Analytics boxes (watch time, subscribers, retention, traffic sources). */
+  canDeepDive: boolean;
 }
 
-export function PlatformReportSection({ rows, allRows, startDate, endDate, comparePeriod, latestDate, platformFilter }: Props) {
+export function PlatformReportSection({ rows, allRows, startDate, endDate, comparePeriod, latestDate, platformFilter, canDeepDive }: Props) {
   const [picked, setPicked] = useState<Platform>(() => (REPORT_PLATFORMS as readonly string[]).includes(platformFilter) ? (platformFilter as Platform) : "YouTube");
   const [order, setOrder] = useState<ClipOrder>("views");
   const [opened, setOpened] = useState<RecordRow | null>(null);
@@ -61,10 +59,6 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
   const prev = useMemo(() => (comparePeriod ? inRange(mine, comparePeriod.start, comparePeriod.end) : []), [mine, comparePeriod]);
   const compareText = comparePeriod ? `เทียบ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
 
-  const k = useMemo(() => digitalKpis(cur), [cur]);
-  const kp = useMemo(() => (prev.length ? digitalKpis(prev) : null), [prev]);
-  const t = useMemo(() => tvKpis(cur), [cur]);
-  const tp = useMemo(() => (prev.length ? tvKpis(prev) : null), [prev]);
   const formats = useMemo(() => (isTv ? [] : formatMix(cur)), [cur, isTv]);
   const heat = useMemo(() => postingHeatmap(cur), [cur]);
   const slots = useMemo(() => bestSlots(heat), [heat]);
@@ -79,8 +73,6 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
     [tags, tagSort],
   );
   const heatMax = Math.max(0, ...heat.cells.flat().map((c) => c.medianViews || 0));
-
-  const g = (now: number | null, before: number | null | undefined) => <Growth value={before === undefined ? null : change(now, before ?? null)} title={compareText} />;
 
   return (
     <section className="panel platform-report" id="platform-report">
@@ -108,39 +100,46 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
 
       {cur.length > 0 && !isTv && (
         <>
-          <div className="kpi-grid platform-report-kpis">
-            <Kpi tone="blue" icon={<Eye />} label="วิวรวม" value={compact(k.views)} growth={g(k.views, kp?.views)} detail={`${num(k.posts)} โพสต์ในช่วงนี้`} />
-            <Kpi tone="green" icon={<Layers />} label="จำนวนโพสต์" value={num(k.posts)} growth={g(k.posts, kp?.posts)} detail={kp ? `ช่วงก่อน ${num(kp.posts)} โพสต์` : "ไม่มีช่วงก่อนให้เทียบ"} />
-            <Kpi tone="violet" icon={<Users />} label="วิวต่อโพสต์ (ค่ากลาง)" value={k.medianViews === null ? "-" : compact(k.medianViews)} growth={g(k.medianViews, kp ? kp.medianViews : undefined)} detail="ครึ่งหนึ่งของโพสต์ได้วิวมากกว่านี้" />
-            <Kpi tone="orange" icon={<Heart />} label="ER" value={pct(k.er, 2)} growth={g(k.er, kp?.er)} detail="(Like + Comment + Share) ÷ วิว" />
-            <Kpi tone="indigo" icon={<Share2 />} label="Share ต่อ 1,000 วิว" value={k.sharesPer1k.toFixed(2)} growth={g(k.sharesPer1k, kp?.sharesPer1k)} detail="คนแชร์ต่อไปมากแค่ไหน" />
-            <Kpi tone="blue" icon={<MessageCircle />} label="Comment ต่อ 1,000 วิว" value={k.commentsPer1k.toFixed(2)} growth={g(k.commentsPer1k, kp?.commentsPer1k)} detail="คนอยากพูดถึงมากแค่ไหน" />
-          </div>
+          <PlatformStudio
+            platform={picked as "YouTube" | "TikTok" | "Facebook" | "Instagram"}
+            cur={cur}
+            prev={prev}
+            mine={mine}
+            startDate={startDate}
+            endDate={endDate}
+            latestDate={latestDate}
+            compareText={compareText}
+            canDeepDive={canDeepDive}
+            onOpen={setOpened}
+          />
 
-          <div className="platform-report-grid">
-            <article className="growth-table">
-              <h3>รูปแบบคลิป (VDO Type)</h3>
-              <p className="growth-hint">แถบเทา = สัดส่วนจำนวนโพสต์ · แถบสี = สัดส่วนวิว · ถ้าแถบสียาวกว่าเทา รูปแบบนั้นได้วิวเกินจำนวนที่ลง</p>
-              <ul className="platform-mix">
-                {formats.map((f) => (
-                  <li key={f.vdoType}>
-                    <div className="platform-mix-head">
-                      <b>{f.vdoType}</b>
-                      <span>
-                        {num(f.posts)} โพสต์ · ค่ากลาง {f.medianViews === null ? "-" : compact(f.medianViews)} วิว/โพสต์
-                      </span>
-                    </div>
-                    <div className="platform-mix-bars">
-                      <span className="posts" style={{ width: pct(f.postShare) }} title={`โพสต์ ${pct(f.postShare)}`} />
-                      <span className="views" style={{ width: pct(f.viewShare), background: color }} title={`วิว ${pct(f.viewShare)}`} />
-                    </div>
-                    <small>
-                      โพสต์ {pct(f.postShare, 0)} · วิว {pct(f.viewShare, 0)}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            </article>
+          <div className={formats.length > 1 ? "platform-report-grid" : ""}>
+            {/* One type only (TikTok): nothing to compare. */}
+            {formats.length > 1 && (
+              <article className="growth-table">
+                <h3>รูปแบบคลิป (VDO Type)</h3>
+                <p className="growth-hint">แถบเทา = สัดส่วนจำนวนโพสต์ · แถบสี = สัดส่วนวิว · ถ้าแถบสียาวกว่าเทา รูปแบบนั้นได้วิวเกินจำนวนที่ลง</p>
+                <ul className="platform-mix">
+                  {formats.map((f) => (
+                    <li key={f.vdoType}>
+                      <div className="platform-mix-head">
+                        <b>{f.vdoType}</b>
+                        <span>
+                          {num(f.posts)} โพสต์ · ค่ากลาง {f.medianViews === null ? "-" : compact(f.medianViews)} วิว/โพสต์
+                        </span>
+                      </div>
+                      <div className="platform-mix-bars">
+                        <span className="posts" style={{ width: pct(f.postShare) }} title={`โพสต์ ${pct(f.postShare)}`} />
+                        <span className="views" style={{ width: pct(f.viewShare), background: color }} title={`วิว ${pct(f.viewShare)}`} />
+                      </div>
+                      <small>
+                        โพสต์ {pct(f.postShare, 0)} · วิว {pct(f.viewShare, 0)}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            )}
 
             <article className="growth-table">
               <h3>วันและเวลาโพสต์</h3>
@@ -305,12 +304,7 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
 
       {cur.length > 0 && isTv && (
         <>
-          <div className="kpi-grid platform-report-kpis">
-            <Kpi tone="blue" icon={<Tv />} label="จำนวนเทป" value={num(t.episodes)} growth={g(t.episodes, tp?.episodes)} detail="เทปที่ออกอากาศในช่วงนี้" />
-            <Kpi tone="green" icon={<BarChart3 />} label="เรตติ้งเฉลี่ย One31" value={t.rating === null ? "-" : t.rating.toFixed(3)} growth={g(t.rating, tp ? tp.rating : undefined)} detail="เฉลี่ยของเทปที่มีเรตติ้ง" />
-            <Kpi tone="violet" icon={<Users />} label="ผู้ชมรวม" value={compact(t.audience)} growth={g(t.audience, tp?.audience)} detail="รวมผู้ชมทุกเทป" />
-            <Kpi tone="orange" icon={<Tv />} label="GMM25 ช่วงเดียวกัน" value={t.gmmRating === null ? "-" : t.gmmRating.toFixed(3)} growth={g(t.gmmRating, tp ? tp.gmmRating : undefined)} detail="เรตติ้งเฉลี่ยของช่องเทียบ" />
-          </div>
+          <TvStudio cur={cur} prev={prev} mine={mine} startDate={startDate} endDate={endDate} compareText={compareText} />
           <article className="growth-table">
             <h3>เทปที่เรตติ้งสูงสุด / ต่ำสุด</h3>
             <div className="ranking-grid">

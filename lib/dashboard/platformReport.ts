@@ -1,4 +1,4 @@
-// รายงาน → รายงานรายแพลตฟอร์ม: one platform at a time, for the report range
+// วิเคราะห์เชิงลึก → รายงานรายแพลตฟอร์ม: one platform at a time, for the report range
 // and filters (program, VDO type, topic type, search; not the platform filter).
 // Raw numbers from the rows; this file only sums, groups and takes medians.
 //
@@ -111,7 +111,7 @@ export const MIN_POSTS_PER_CELL = 3;
 export const WEEKDAYS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
 
 /** Hour of a posting time; exactly "00:00" is a placeholder (YouTube rows without a time), not midnight. */
-const hourOf = (t: string) => {
+export const hourOf = (t: string) => {
   if (/^0?0:00(:00)?$/.test((t || "").trim())) return null;
   const m = /^(\d{1,2}):\d{2}/.exec(t || "");
   const h = m ? Number(m[1]) : NaN;

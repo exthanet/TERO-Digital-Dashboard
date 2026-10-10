@@ -66,7 +66,6 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "ranking", label: "Ranking ดี/แย่", icon: <ListOrdered /> },
       { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
-      { id: "platform-report", label: "รายงานรายแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
       { id: "program-report", label: "รวมรายการ", icon: <LayoutList />, tab: "programs" },
       { id: "monthly-report", label: "รายงานประจำเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
       { id: "search-results", label: "ผลการค้นหา", icon: <Search />, tab: "search" },
@@ -82,6 +81,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
     id: "advanced",
     label: "วิเคราะห์เชิงลึก",
     items: [
+      { id: "platform-report", label: "รายงานรายแพลตฟอร์ม", icon: <Layers />, tab: "platform" },
       { id: "growth", label: "การเติบโต", icon: <TrendingUp />, tab: "growth", perm: "advanced" },
       { id: "quality", label: "คุณภาพคลิป", icon: <Gauge />, tab: "quality", perm: "advanced" },
       { id: "thumbnail", label: "Thumbnail", icon: <Images />, tab: "thumbnail", perm: "advanced" },
