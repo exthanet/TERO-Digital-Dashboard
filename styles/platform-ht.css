@@ -535,3 +535,65 @@ button.fb-row:hover span:first-child {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Instagram board, as the demo. */
+.ps-ig .ps-tile .kpi-growth {
+  background: none;
+  padding: 0;
+}
+.ps-ig .ps-tile:disabled {
+  opacity: 1;
+  color: inherit;
+}
+.ig-skip {
+  display: flex;
+  height: 26px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #efefef;
+  font-size: 12px;
+  color: #fff;
+  font-weight: 700;
+}
+.ig-skip span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ig-eng {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin: 8px 0;
+  color: #262626;
+}
+.ig-eng > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ig-eng > div span {
+  display: block;
+  height: 18px;
+  border-radius: 5px;
+  max-width: calc(100% - 44px);
+}
+.ig-eng b {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ps-ig .ps-tall-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ig-skip span,
+  .ig-eng > div span {
+    animation: ps-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: left;
+  }
+}

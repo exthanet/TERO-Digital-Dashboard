@@ -154,7 +154,7 @@ export function YtClipBox({ posts }: { posts: ClipPost[] }) {
                 <XAxis dataKey="at" type="number" domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} tickFormatter={(x: number) => `${Math.round(x * 100)}%`} tick={{ fontSize: 10 }} />
                 <YAxis tickFormatter={(x: number) => `${Math.round(x * 100)}%`} tick={{ fontSize: 10 }} width={40} />
                 <Tooltip labelFormatter={(x) => `ช่วง ${Math.round(Number(x) * 100)}% ของคลิป`} formatter={(x) => [`${Math.round(Number(x) * 100)}%`, "ยังดูอยู่"]} />
-                <Line type="monotone" dataKey="watch" stroke="#065fd4" strokeWidth={2} dot={false} isAnimationActive={motion} />
+                <Line type="monotone" dataKey="watch" stroke="#cc0000" strokeWidth={2} dot={false} isAnimationActive={motion} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -167,7 +167,7 @@ export function YtClipBox({ posts }: { posts: ClipPost[] }) {
                 <div key={s} className="ps-bar" title={`${num(n)} วิว`}>
                   <span className="ps-bar-label">{TRAFFIC_LABEL[s] || s}</span>
                   <span className="ps-bar-track">
-                    <span style={{ width: `${tTotal ? (n / traffic[0][1]) * 100 : 0}%`, background: "#065fd4" }} />
+                    <span style={{ width: `${tTotal ? (n / traffic[0][1]) * 100 : 0}%`, background: "#cc0000" }} />
                   </span>
                   <b>{tTotal ? `${((n / tTotal) * 100).toFixed(1)}%` : "-"}</b>
                 </div>

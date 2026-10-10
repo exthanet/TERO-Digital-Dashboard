@@ -73,7 +73,7 @@ const TILES: Record<Digital, Metric[]> = {
   Instagram: ["views", "engagement", "posts"],
 };
 const SKIN: Record<Digital, { cls: string; accent: string; grid: string; text: string }> = {
-  YouTube: { cls: "ps-yt", accent: "#065fd4", grid: "#e5e5e5", text: "#606060" },
+  YouTube: { cls: "ps-yt", accent: "#cc0000", grid: "#e5e5e5", text: "#606060" },
   TikTok: { cls: "ps-tk", accent: "#fe2c55", grid: "#2e2e2e", text: "#a1a1a1" },
   Facebook: { cls: "ps-fb", accent: "#1877f2", grid: "#e4e6eb", text: "#65676b" },
   Instagram: { cls: "ps-ig", accent: "#dd2a7b", grid: "#efefef", text: "#737373" },
@@ -302,6 +302,12 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
   }, [types, mix]);
   const reels = useMemo(() => cur.filter((r) => /reel/i.test(r.vdoType)), [cur]);
   const skip = useMemo(() => (platform === "Instagram" ? skipStats(reels) : null), [reels, platform]);
+  const igEngagement = [
+    { k: "แชร์", v: k.sharesPer1k, c: "#dd2a7b" },
+    { k: "คอมเมนต์", v: k.commentsPer1k, c: "#f58529" },
+    { k: "ไลก์", v: k.views > 0 ? (cur.reduce((x, r) => x + r.likes, 0) / k.views) * 1000 : 0, c: "#c13584" },
+  ];
+  const igMax = Math.max(0, ...igEngagement.map((x) => x.v));
   const motion = useMotion();
 
   const tileRow = (
@@ -310,7 +316,7 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
         const now = valueOf(m, cur, k, yt);
         const before = kp ? valueOf(m, prev, kp, ytPrev) : null;
         return (
-          <button type="button" key={m} className={`ps-tile${metric === m ? " on" : ""}`} onClick={() => setMetric(m)} aria-pressed={metric === m} title={METRICS[m].detail}>
+          <button type="button" key={m} className={`ps-tile${platform === "Instagram" ? " static" : metric === m ? " on" : ""}`} onClick={() => setMetric(m)} disabled={platform === "Instagram"} aria-pressed={platform === "Instagram" ? undefined : metric === m} title={METRICS[m].detail}>
             <small>{METRICS[m].label}</small>
             <b>{now === null ? (m === "hours" || m === "subs") && deep === undefined ? "…" : "-" : <CountUp value={now} format={METRICS[m].format} />}</b>
             <Growth value={change(now, before)} title={compareText} />
@@ -549,57 +555,41 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
       )}
 
       {platform === "Instagram" && (
-        <>
-          {chart}
-          <div className="ps-grid g11">
-            <div className="ps-card">
-              <h3>Reels ยอดนิยม</h3>
-              {reels.length ? <PostTiles rows={topPosts(reels, 8)} stored={stored} onOpen={onOpen} /> : <p className="ps-muted">ไม่มี Reels ในช่วงนี้</p>}
-            </div>
-            <div className="ps-card">
-              <h3>คนดูต่อหรือปัดทิ้ง (Reels)</h3>
-              {skip && skip.skip !== null ? (
-                <>
-                  <div className="ps-skip">
-                    <span style={{ width: `${100 - skip.skip}%` }}>ดูต่อ {(100 - skip.skip).toFixed(0)}%</span>
-                    <span style={{ width: `${skip.skip}%` }}>ปัดทิ้ง {skip.skip.toFixed(0)}%</span>
-                  </div>
-                  <p className="ps-muted">
-                    Skip rate เฉลี่ยถ่วงตามวิว {num(skip.posts)} Reels{skip.watchSec !== null ? ` · ดูเฉลี่ย ${skip.watchSec.toFixed(1)} วินาที` : ""}
-                  </p>
-                </>
-              ) : (
-                <p className="ps-muted">ยังไม่มี Skip rate ของ Reels ในช่วงนี้</p>
-              )}
-              <h3 className="ps-gap">การมีส่วนร่วมต่อ 1,000 วิว</h3>
-              <ResponsiveContainer width="100%" height={170}>
-                <BarChart data={types} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={skin.grid} vertical={false} />
-                  <XAxis dataKey="key" tick={{ fontSize: 11, fill: skin.text }} stroke={skin.grid} />
-                  <YAxis tick={{ fontSize: 10, fill: skin.text }} stroke={skin.grid} width={36} />
-                  <Tooltip formatter={(v, n) => [Number(v).toFixed(2), String(n)]} />
-                  <Bar dataKey="likesPer1k" name="Like" fill="#dd2a7b" radius={[3, 3, 0, 0]} isAnimationActive={motion} />
-                  <Bar dataKey="commentsPer1k" name="Comment" fill="#8134af" radius={[3, 3, 0, 0]} isAnimationActive={motion} />
-                  <Bar dataKey="sharesPer1k" name="Share" fill="#f58529" radius={[3, 3, 0, 0]} isAnimationActive={motion} />
-                </BarChart>
-              </ResponsiveContainer>
-              <ul className="ps-legend">
-                <li>
-                  <i style={{ background: "#dd2a7b" }} />
-                  Like
-                </li>
-                <li>
-                  <i style={{ background: "#8134af" }} />
-                  Comment
-                </li>
-                <li>
-                  <i style={{ background: "#f58529" }} />
-                  Share
-                </li>
-              </ul>
-            </div>
+        <div className="ps-grid g11">
+          <div className="ps-card">
+            <h3>Reels ยอดนิยม</h3>
+            {reels.length ? <PostTiles rows={topPosts(reels, 4)} stored={stored} onOpen={onOpen} /> : <p className="ps-muted">ไม่มี Reels ในช่วงนี้</p>}
           </div>
-        </>
+          <div className="ps-card">
+            <h3>คนดูต่อหรือปัดทิ้ง (Reels)</h3>
+            {skip && skip.skip !== null ? (
+              <>
+                <div className="ig-skip">
+                  <span style={{ width: `${100 - skip.skip}%`, background: "#22c55e" }}>ดูต่อ {(100 - skip.skip).toFixed(0)}%</span>
+                  <span style={{ width: `${skip.skip}%`, background: "#ef4444" }}>ปัดทิ้ง {skip.skip.toFixed(0)}%</span>
+                </div>
+                <p className="ps-muted" style={{ margin: "6px 0 0" }}>
+                  ค่าเฉลี่ยของ Reels ในช่วงนี้ (ถ่วงตามวิว {num(skip.posts)} Reels) · ปัดทิ้ง = Skip rate ที่ Instagram ส่งมา{skip.watchSec !== null ? ` · ดูเฉลี่ย ${skip.watchSec.toFixed(1)} วินาที` : ""}
+                </p>
+              </>
+            ) : (
+              <p className="ps-muted">ยังไม่มี Skip rate ของ Reels ในช่วงนี้</p>
+            )}
+            <h3 style={{ marginTop: 12 }}>การมีส่วนร่วมต่อ 1,000 วิว</h3>
+            {igEngagement.map((x) => (
+              <div key={x.k} className="ig-eng">
+                <span>{x.k}</span>
+                <div>
+                  <span style={{ width: `${igMax ? (x.v / igMax) * 100 : 0}%`, background: x.c }} />
+                  <b>{x.v.toFixed(1)}</b>
+                </div>
+              </div>
+            ))}
+            <p className="ps-muted" style={{ margin: "6px 0 0" }}>
+              ทุกโพสต์ Instagram ในช่วงนี้ · Instagram ไม่ส่งยอดบันทึก (Save) มา
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );

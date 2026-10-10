@@ -370,17 +370,20 @@
 
 /* Skins: each platform in the look of its own analytics. */
 .ps-yt {
-  --ps-accent: #065fd4;
+  --ps-accent: #cc0000;
   --ps-muted: #606060;
   --ps-line: #e5e5e5;
   --ps-card: #fff;
-  --ps-cover: linear-gradient(135deg, #1e3a8a, #60a5fa);
+  --ps-cover: linear-gradient(135deg, #7f1d1d, #f87171);
   background: #fff;
   border: 1px solid #e5e5e5;
   color: #0f0f0f;
 }
 .ps-yt .ps-tile.on {
-  background: #f8f8f8;
+  background: #fff5f5;
+}
+.ps-yt .ps-tile.on::after {
+  background: #ff0000;
 }
 .ps-tk {
   --ps-accent: #fe2c55;
