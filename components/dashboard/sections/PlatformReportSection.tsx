@@ -17,13 +17,6 @@ import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel
 
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 
-const LOOK: Record<string, string> = {
-  YouTube: "หน้าตาแบบ YouTube Studio · เวลาในการรับชม / ผู้ติดตาม เห็นเฉพาะสิทธิ์ YouTube Deep Dive",
-  TikTok: "หน้าตาแบบ TikTok Studio",
-  Facebook: "หน้าตาแบบ Meta Business Suite",
-  Instagram: "หน้าตาแบบ Professional dashboard",
-};
-
 interface Props {
   /** Rows passing the filters except platform and date. */
   rows: RecordRow[];
@@ -89,7 +82,7 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
             return (
               <div key={p} className="pr-block">
                 <h2 className="pr-sec">
-                  {p} <small>{p === "YouTube" && !canDeepDive ? "หน้าตาแบบ YouTube Studio" : LOOK[p]}</small>
+                  {p} {p === "YouTube" && canDeepDive && <small>เวลาในการรับชม / ผู้ติดตาม เห็นเฉพาะสิทธิ์ YouTube Deep Dive</small>}
                 </h2>
                 {c.length ? (
                   <PlatformStudio
