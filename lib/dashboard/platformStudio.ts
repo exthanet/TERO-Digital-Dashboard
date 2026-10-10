@@ -288,14 +288,22 @@ export function crossDaily(rows: RecordRow[], start: string, end: string, platfo
   return [...by.values()];
 }
 
+/** The radar's axes, as in output/platform-report-demo.html. */
 export const STRENGTH_AXES = [
-  { key: "views", label: "วิวรวม" },
-  { key: "posts", label: "จำนวนโพสต์" },
-  { key: "medianViews", label: "วิวต่อโพสต์" },
+  { key: "views", label: "ยอดวิว" },
   { key: "er", label: "ER" },
-  { key: "sharesPer1k", label: "แชร์ / 1K วิว" },
-  { key: "commentsPer1k", label: "คอมเมนต์ / 1K วิว" },
+  { key: "sharesPer1k", label: "แชร์/1K" },
+  { key: "commentsPer1k", label: "คอมเมนต์/1K" },
+  { key: "watchPct", label: "% ที่ดู" },
+  { key: "medianViews", label: "วิว/โพสต์" },
 ] as const;
+
+/** Average share of the clip watched (watch time ÷ length), weighted by views; 0 when the API gives no watch time (TikTok). */
+export function watchPct(rows: RecordRow[]): number {
+  const w = rows.filter((r) => r.avgWatchSec > 0 && r.videoLengthSec > 0 && r.views > 0);
+  const v = w.reduce((a, r) => a + r.views, 0);
+  return v > 0 ? w.reduce((a, r) => a + Math.min(1, r.avgWatchSec / r.videoLengthSec) * r.views, 0) / v : 0;
+}
 
 /** Each platform's numbers, and each as a share of the best platform on that axis (1 = the best). */
 export function strengths(rows: RecordRow[], platforms: readonly string[] = DIGITAL) {
@@ -311,6 +319,7 @@ export function strengths(rows: RecordRow[], platforms: readonly string[] = DIGI
       er: views > 0 ? sum((r) => r.likes + r.comments + r.shares) / views : 0,
       sharesPer1k: per1k(sum((r) => r.shares), views),
       commentsPer1k: per1k(sum((r) => r.comments), views),
+      watchPct: watchPct(list),
     };
   });
   const best = Object.fromEntries(STRENGTH_AXES.map((a) => [a.key, Math.max(0, ...raw.map((x) => x[a.key]))]));

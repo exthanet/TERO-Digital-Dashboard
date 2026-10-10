@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { digitalVsTv, facebookReach, hashtagShare, metricOf, platformValues, tagDaily, topTopics, crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
+import { watchPct, digitalVsTv, facebookReach, hashtagShare, metricOf, platformValues, tagDaily, topTopics, crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
 
 const row = (o) => ({
   date: o.date,
@@ -132,11 +132,12 @@ test("Cross Platform: views per day per platform, missing days 0, TV left out", 
 test("strengths: each axis as a share of the best platform", () => {
   const rows = [row({ date: "d", platform: "YouTube", views: 1000, shares: 10 }), row({ date: "d", platform: "TikTok", views: 500, shares: 10 }), row({ date: "d", platform: "TikTok", views: 500 })];
   const s = strengths(rows);
-  const views = s.radar.find((a) => a.axis === "วิวรวม");
+  const views = s.radar.find((a) => a.axis === "ยอดวิว");
   assert.equal(views.YouTube, 1);
   assert.equal(views.TikTok, 1);
-  assert.equal(s.radar.find((a) => a.axis === "จำนวนโพสต์").YouTube, 0.5);
-  assert.equal(s.radar.find((a) => a.axis === "แชร์ / 1K วิว").TikTok, 1);
+  assert.equal(s.radar.find((a) => a.axis === "วิว/โพสต์").YouTube, 1);
+  assert.equal(s.radar.find((a) => a.axis === "แชร์/1K").TikTok, 1);
+  assert.equal(s.radar.find((a) => a.axis === "% ที่ดู").YouTube, 0);
   assert.equal(views.Facebook, 0);
 });
 
@@ -171,4 +172,11 @@ test("Digital vs TV per day; Facebook reach and clicks; hashtag share; tag 7-day
   assert.equal(hashtagShare([row({ date: "d", tags: "#a" }), row({ date: "d" })]), 0.5);
   const t = { tag: "#a", rows: [row({ date: "2026-10-09", views: 5 }), row({ date: "2026-10-10", views: 7 }), row({ date: "2026-09-01", views: 99 })] };
   assert.deepEqual(tagDaily(t, "2026-10-10", 3), [0, 5, 7]);
+});
+
+test("% watched: watch time ÷ length weighted by views, capped at the whole clip", () => {
+  const r = (views, watch, len) => ({ ...row({ date: "d", views, watch }), videoLengthSec: len });
+  assert.equal(watchPct([r(100, 30, 60), r(300, 10, 100)]), (0.5 * 100 + 0.1 * 300) / 400);
+  assert.equal(watchPct([r(100, 90, 60)]), 1);
+  assert.equal(watchPct([r(100, 0, 60)]), 0);
 });

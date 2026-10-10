@@ -7,11 +7,6 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,8 +17,7 @@ import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { CHANNEL_TAGS } from "@/lib/dashboard/trendingHashtags";
 import { WEEKDAYS, change, postingHeatmap } from "@/lib/dashboard/platformReport";
-import { DIGITAL, crossDaily, hashtagRanking, hashtagShare, strengths, tagDaily, tagDetail } from "@/lib/dashboard/platformStudio";
-import { Growth } from "@/components/dashboard/shared/Growth";
+import { DIGITAL, STRENGTH_AXES, crossDaily, hashtagRanking, hashtagShare, strengths, tagDaily, tagDetail } from "@/lib/dashboard/platformStudio";
 import { CountUp, useMotion } from "@/components/dashboard/shared/Motion";
 
 const COLORS: Record<string, string> = { ...PLATFORM_COLORS, TikTok: "#0f172a" };
@@ -31,19 +25,6 @@ const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const shortDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 const fullDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
-
-function Legend({ items, off, toggle }: { items: readonly string[]; off: Set<string>; toggle: (p: string) => void }) {
-  return (
-    <div className="pi-legend">
-      {items.map((p) => (
-        <button key={p} type="button" className={off.has(p) ? "off" : ""} onClick={() => toggle(p)} aria-pressed={!off.has(p)}>
-          <i style={{ background: COLORS[p] }} />
-          {p}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function useToggle() {
   const [off, setOff] = useState<Set<string>>(new Set());
@@ -148,9 +129,80 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
 
 // ---------- Platform Insight ----------
 
+/** The demo's radar: six axes, each platform as a polygon of its share of the best platform; hover a name to see it alone. */
+function StrengthRadar({ s }: { s: ReturnType<typeof strengths> }) {
+  const [focus, setFocus] = useState("");
+  const cx = 180;
+  const cy = 150;
+  const R = 110;
+  const n = STRENGTH_AXES.length;
+  const pt = (i: number, f: number) => [cx + Math.sin((i / n) * Math.PI * 2) * R * f, cy - Math.cos((i / n) * Math.PI * 2) * R * f];
+  const poly = (fs: number[]) => fs.map((f, i) => pt(i, f).map((x) => x.toFixed(1)).join(",")).join(" ");
+  const fmtAxis = (key: (typeof STRENGTH_AXES)[number]["key"], v: number) =>
+    key === "er" || key === "watchPct" ? pct(v, 1) : key === "views" || key === "medianViews" ? compact(v) : v.toFixed(2);
+  return (
+    <>
+      <svg className="pi-radar" viewBox="0 0 360 300" role="img" aria-label="จุดแข็งของแต่ละแพลตฟอร์ม">
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <polygon key={f} points={poly(STRENGTH_AXES.map(() => f))} fill="none" stroke="#e2e8f0" />
+        ))}
+        {STRENGTH_AXES.map((a, i) => {
+          const [x, y] = pt(i, 1.17);
+          const [ex, ey] = pt(i, 1);
+          return (
+            <g key={a.key}>
+              <line x1={cx} y1={cy} x2={ex} y2={ey} stroke="#e2e8f0" />
+              <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fill="#6a7892">
+                {a.label}
+              </text>
+            </g>
+          );
+        })}
+        {s.raw.map((p) => {
+          const fs = STRENGTH_AXES.map((a) => Number((s.radar.find((r) => r.axis === a.label) as Record<string, number | string> | undefined)?.[p.platform]) || 0);
+          return (
+            <polygon
+              key={p.platform}
+              className="pi-radar-shape"
+              points={poly(fs)}
+              fill={`${COLORS[p.platform]}22`}
+              stroke={COLORS[p.platform]}
+              strokeWidth={2}
+              style={{ opacity: !focus || focus === p.platform ? 1 : 0.08 }}
+            >
+              <title>{`${p.platform} · ${STRENGTH_AXES.map((a) => `${a.label} ${fmtAxis(a.key, p[a.key])}`).join(" · ")}`}</title>
+            </polygon>
+          );
+        })}
+      </svg>
+      <div className="pi-legend static" onMouseLeave={() => setFocus("")}>
+        {s.raw.map((p) => (
+          <span key={p.platform} onMouseEnter={() => setFocus(p.platform)} style={{ cursor: "pointer" }}>
+            <i style={{ background: COLORS[p.platform] }} />
+            {p.platform}
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** A small line of daily views (publish date). */
+function SparkLine({ values, color }: { values: number[]; color: string }) {
+  const max = Math.max(0, ...values);
+  const w = 260;
+  const h = 40;
+  const d = values
+    .map((v, i) => `${i ? "L" : "M"}${(2 + (i / Math.max(1, values.length - 1)) * (w - 4)).toFixed(1)},${(h - 4 - (max ? v / max : 0) * (h - 8)).toFixed(1)}`)
+    .join("");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="pi-sp-svg" aria-hidden>
+      <path className="pi-sp-path" d={d} fill="none" stroke={color} strokeWidth="2" pathLength={1} />
+    </svg>
+  );
+}
+
 export function PlatformInsight({ cur, prev, startDate, endDate, compareText }: { cur: RecordRow[]; prev: RecordRow[]; startDate: string; endDate: string; compareText: string }) {
-  const motion = useMotion();
-  const { off, toggle } = useToggle();
   const s = useMemo(() => strengths(cur), [cur]);
   const daily = useMemo(() => crossDaily(cur, startDate, endDate), [cur, startDate, endDate]);
   const digital = useMemo(() => cur.filter((r) => (DIGITAL as readonly string[]).includes(r.platform)), [cur]);
@@ -161,50 +213,29 @@ export function PlatformInsight({ cur, prev, startDate, endDate, compareText }: 
     <div className="pi-grid">
       <article className="pi-card">
         <h3>จุดแข็งเทียบกัน</h3>
-        <p className="ps-muted">ทุกแกนเทียบกับแพลตฟอร์มที่ดีที่สุด (= ขอบนอก) · กดชื่อเพื่อซ่อน/แสดง</p>
-        <ResponsiveContainer width="100%" height={280}>
-          <RadarChart data={s.radar} outerRadius="72%">
-            <PolarGrid stroke="#e2e8f0" />
-            <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "#475569" }} />
-            <PolarRadiusAxis domain={[0, 1]} tick={false} axisLine={false} />
-            <Tooltip
-              formatter={(v, n, p) => {
-                const axis = (p?.payload as { axis: string })?.axis;
-                const raw = s.raw.find((x) => x.platform === n);
-                const key = { วิวรวม: "views", จำนวนโพสต์: "posts", วิวต่อโพสต์: "medianViews", ER: "er", "แชร์ / 1K วิว": "sharesPer1k", "คอมเมนต์ / 1K วิว": "commentsPer1k" }[axis] as keyof NonNullable<typeof raw>;
-                const val = raw ? Number(raw[key]) : 0;
-                return [`${key === "er" ? pct(val, 2) : key === "views" || key === "medianViews" ? compact(val) : key === "posts" ? num(val) : val.toFixed(2)} (${pct(Number(v), 0)} ของอันดับ 1)`, String(n)];
-              }}
-            />
-            {DIGITAL.filter((p) => !off.has(p)).map((p) => (
-              <Radar key={p} dataKey={p} stroke={COLORS[p]} fill={COLORS[p]} fillOpacity={0.12} strokeWidth={2} isAnimationActive={motion} />
-            ))}
-          </RadarChart>
-        </ResponsiveContainer>
-        <Legend items={DIGITAL} off={off} toggle={toggle} />
+        <p className="ps-muted">ทุกแกนเทียบกับแพลตฟอร์มที่ดีที่สุด (= ขอบนอก) · ชี้ชื่อเพื่อดูทีละแพลตฟอร์ม · % ที่ดู = เวลาดูเฉลี่ย ÷ ความยาวคลิป (TikTok ไม่ส่งเวลาดูมา)</p>
+        <StrengthRadar s={s} />
       </article>
 
       <article className="pi-card">
         <h3>ยอดวิวรายวัน แยกแพลตฟอร์ม</h3>
-        <p className="ps-muted">เส้นเล็กของแต่ละแพลตฟอร์ม · % {compareText || "ไม่มีช่วงก่อนให้เทียบ"}</p>
-        <div className="pi-sparks">
+        <p className="ps-muted">เส้นเล็กของแต่ละแพลตฟอร์ม พร้อม % {compareText || "เทียบช่วงก่อน (ไม่มีช่วงก่อนให้เทียบ)"}</p>
+        <div>
           {DIGITAL.map((p) => {
-            const total = daily.reduce((a, d) => a + (Number(d[p]) || 0), 0);
+            const values = daily.map((d) => Number(d[p]) || 0);
+            const total = values.reduce((a, v) => a + v, 0);
+            const ch = prev.length ? change(total, prevViews.get(p) || 0) : null;
             return (
-              <div key={p} className="pi-spark">
-                <div>
-                  <small>
-                    <i style={{ background: COLORS[p] }} />
-                    {p}
-                  </small>
-                  <b>{compact(total)}</b>
-                  <Growth value={prev.length ? change(total, prevViews.get(p) || 0) : null} title={compareText} />
-                </div>
-                <ResponsiveContainer width="100%" height={48}>
-                  <AreaChart data={daily} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                    <Area type="monotone" dataKey={p} stroke={COLORS[p]} fill={COLORS[p]} fillOpacity={0.15} strokeWidth={1.6} isAnimationActive={motion} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div key={p} className="pi-sp">
+                <span>
+                  <i style={{ background: COLORS[p] }} />
+                  {p}
+                </span>
+                <SparkLine values={values} color={COLORS[p]} />
+                <b>{compact(total)}</b>
+                <span className={`pi-sp-badge ${ch === null ? "" : ch > 0 ? "up" : ch < 0 ? "down" : ""}`} title={compareText}>
+                  {ch === null ? "" : `${ch > 0 ? "▲" : ch < 0 ? "▼" : "■"} ${Math.abs(ch * 100).toFixed(0)}%`}
+                </span>
               </div>
             );
           })}
