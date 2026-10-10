@@ -22,7 +22,7 @@
 }
 
 .sync-modal {
-  width: min(820px, calc(100vw - 28px));
+  width: min(1080px, calc(100vw - 28px));
   max-height: calc(100vh - 28px);
   overflow-y: auto;
 }

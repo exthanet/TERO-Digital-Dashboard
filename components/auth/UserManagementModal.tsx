@@ -175,7 +175,7 @@ export function UserManagementModal({
     <div className="auth-modal-backdrop" onClick={onClose}>
       <div
         className="auth-modal"
-        style={{ maxWidth: "720px" }}
+        style={{ maxWidth: "1080px" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="auth-modal-header">
