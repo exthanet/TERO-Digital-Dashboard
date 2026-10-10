@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds } from "../lib/dashboard/reportLayout.ts";
+import { EMPTY_LAYOUT, cleanLayout, movePage, movePageTo, orderedIds, pageIds } from "../lib/dashboard/reportLayout.ts";
 
 test("page ids: cover, titles, repeated titles and untitled pages", () => {
   assert.deepEqual(pageIds([{ cover: true }, { title: "TV" }, { title: "TV" }, {}]), ["cover", "TV", "TV#2", "page-4"]);
@@ -26,4 +26,14 @@ test("move up / down, not past the ends", () => {
 test("clean: trimmed texts, empty ones and unknown pages left out, full order kept", () => {
   const l = cleanLayout({ order: ["b", "a"], hidden: ["a", "gone"], texts: { a: { title: "  หัวข้อใหม่ ", note: " " }, b: { note: "" }, gone: { title: "x" } } }, ["a", "b", "c"]);
   assert.deepEqual(l, { order: ["b", "c", "a"], hidden: ["a"], texts: { a: { title: "หัวข้อใหม่" } } });
+});
+
+test("drag and drop: drop before the page at the place, or last", () => {
+  const o = ["a", "b", "c", "d"];
+  assert.deepEqual(movePageTo(o, "d", 0), ["d", "a", "b", "c"]);
+  assert.deepEqual(movePageTo(o, "a", 2), ["b", "a", "c", "d"]);
+  assert.deepEqual(movePageTo(o, "a", 4), ["b", "c", "d", "a"]);
+  assert.deepEqual(movePageTo(o, "b", 1), o);
+  assert.deepEqual(movePageTo(o, "b", 2), o);
+  assert.deepEqual(movePageTo(o, "x", 0), o);
 });

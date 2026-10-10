@@ -27,7 +27,8 @@ import { loadTvCompetitors } from "@/lib/tvCompetitorData";
 import { recordDownload } from "@/lib/auth/activity";
 import { track } from "@/lib/loadingBar";
 import { liveSlides, useLiveData } from "@/components/dashboard/sections/MonthlyLiveSlides";
-import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
+import { EMPTY_LAYOUT, cleanLayout, movePage, movePageTo, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
+import { ReportPageList } from "@/components/dashboard/sections/ReportPageList";
 import "@/styles/monthly-report.css";
 
 interface Props {
@@ -1090,6 +1091,14 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
         </p>
       )}
 
+      {editing && (
+        <ReportPageList
+          pages={shown}
+          onMove={(id, to) => setEdit((l) => ({ ...l, order: movePageTo(l.order, id, to) }))}
+          onToggle={(id) => setEdit((l) => ({ ...l, hidden: l.hidden.includes(id) ? l.hidden.filter((x) => x !== id) : [...l.hidden, id] }))}
+          onGo={(i) => document.getElementById(`mr-edit-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        />
+      )}
       <div className="mr-deck">
         {report &&
           shown.map((p, i) => {
@@ -1115,7 +1124,7 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
             const text = edit.texts[p.id] || {};
             const setText = (patch: { title?: string; note?: string }) => setEdit((l) => ({ ...l, texts: { ...l.texts, [p.id]: { ...l.texts[p.id], ...patch } } }));
             return (
-              <div key={p.id} className={`mr-edit-page${p.hidden ? " off" : ""}`}>
+              <div key={p.id} id={`mr-edit-${i}`} className={`mr-edit-page${p.hidden ? " off" : ""}`}>
                 <div className="mr-edit-bar">
                   <b>หน้า {n}</b>
                   <button type="button" onClick={() => setEdit((l) => ({ ...l, order: movePage(l.order, p.id, -1) }))} disabled={i === 0} aria-label="เลื่อนขึ้น" title="เลื่อนขึ้น">
