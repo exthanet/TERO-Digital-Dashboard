@@ -4,8 +4,8 @@
 // people with the monthlyReport permission read them (firestore.rules).
 // Admins make / replace a month's report and take the PDF; every page of the
 // PDF carries the downloader's name, and each download is logged (downloads).
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, FileDown, Maximize, RefreshCw, X } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, Maximize, Pencil, RefreshCw, X } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import {
   buildMonthlyReport,
@@ -18,7 +18,7 @@ import {
   type YoutubeGroup,
   type MonthlyReport,
 } from "@/lib/dashboard/monthlyReport";
-import { listMonthlyReports, saveMonthlyReport, type SavedReport } from "@/lib/monthlyReportData";
+import { listMonthlyReports, saveMonthlyReport, saveReportLayout, type SavedReport } from "@/lib/monthlyReportData";
 import { loadYtAnalytics } from "@/lib/ytAnalyticsData";
 import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { daysBetween } from "@/lib/dashboard/growth";
@@ -26,6 +26,8 @@ import { TRAFFIC_LABEL } from "@/lib/dashboard/ytDeepDive";
 import { loadTvCompetitors } from "@/lib/tvCompetitorData";
 import { recordDownload } from "@/lib/auth/activity";
 import { track } from "@/lib/loadingBar";
+import { liveSlides, useLiveData } from "@/components/dashboard/sections/MonthlyLiveSlides";
+import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
 import "@/styles/monthly-report.css";
 
 interface Props {
@@ -77,7 +79,7 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   );
 }
 
-function Slide({ report, n, total, title, children, watermark }: { report: MonthlyReport; n: number; total: number; title?: string; children: React.ReactNode; watermark: string }) {
+function Slide({ report, n, total, title, note, children, watermark }: { report: MonthlyReport; n: number; total: number; title?: string; note?: string; children: React.ReactNode; watermark: string }) {
   return (
     <section className="mr-slide">
       <header className="mr-slide-head">
@@ -88,6 +90,7 @@ function Slide({ report, n, total, title, children, watermark }: { report: Month
       </header>
       {title && <h2>{title}</h2>}
       <div className="mr-slide-body">{children}</div>
+      {note && <p className="mr-page-note">{note}</p>}
       {watermark && (
         <div className="mr-watermark" aria-hidden>
           {Array.from({ length: 6 }, (_, i) => (
@@ -871,7 +874,29 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
   const suggested = latestDate ? lastFullMonth(latestDate) : "";
   const current = saved?.find((s) => s.month === month);
   const report = draft && draft.month === month ? draft : current?.report || null;
-  const slides = useMemo(() => (report ? slidesOf(report) : []), [report]);
+  // The saved (frozen) pages, then five live pages of รายงานรวมแพลตฟอร์ม for the same month.
+  const live = useLiveData(rows, report?.month || "", report?.prevMonth || "");
+  const slides = useMemo(() => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true)) : [])] : []), [report, live]);
+  // Admin's page order, hidden pages and texts (lib/dashboard/reportLayout.ts): numbers are never edited.
+  const [editing, setEditing] = useState(false);
+  const [edit, setEdit] = useState<ReportLayout>(EMPTY_LAYOUT);
+  const ids = useMemo(() => pageIds(slides), [slides]);
+  const layoutNow = editing ? edit : current?.layout || null;
+  const pages = useMemo(() => {
+    const hidden = new Set(layoutNow?.hidden || []);
+    return orderedIds(ids, layoutNow).map((id) => {
+      const s = slides[ids.indexOf(id)];
+      const t = layoutNow?.texts?.[id];
+      return { ...s, id, defaultTitle: s.title, title: t?.title?.trim() || s.title, note: t?.note?.trim() || "", hidden: hidden.has(id) };
+    });
+  }, [ids, slides, layoutNow]);
+  const shown = useMemo(() => (editing ? pages : pages.filter((p) => !p.hidden)), [editing, pages]);
+  const hiddenCount = pages.filter((p) => p.hidden).length;
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setEditing(false), 0);
+    return () => window.clearTimeout(t);
+  }, [month]);
 
   const make = async (m: string) => {
     setBusy(true);
@@ -906,9 +931,30 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
     if (replacing && !window.confirm(`มีรายงาน ${monthLabel(draft.month)} อยู่แล้ว บันทึกทับด้วยตัวเลข ณ วันที่ ${dateLabel(draft.dataAt, true)}?`)) return;
     setBusy(true);
     try {
-      await saveMonthlyReport(draft, userName);
+      await saveMonthlyReport(draft, userName, saved?.find((s) => s.month === draft.month)?.layout);
       setDraft(null);
       setInfo(`บันทึกรายงาน ${monthLabel(draft.month)} แล้ว`);
+      reload();
+    } catch (e) {
+      setError(String((e as Error)?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = () => {
+    const l = current?.layout;
+    setEdit({ order: orderedIds(ids, l), hidden: [...(l?.hidden || [])], texts: { ...(l?.texts || {}) } });
+    setEditing(true);
+  };
+  const saveLayout = async () => {
+    if (!current) return;
+    setBusy(true);
+    setError("");
+    try {
+      await saveReportLayout(current.month, cleanLayout(edit, ids), userName);
+      setEditing(false);
+      setInfo(`บันทึกลำดับและข้อความของรายงาน ${monthLabel(current.month)} แล้ว`);
       reload();
     } catch (e) {
       setError(String((e as Error)?.message || e));
@@ -937,7 +983,7 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
     const el = presentRef.current;
     if (el && !document.fullscreenElement) el.requestFullscreen?.().catch(() => undefined);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") setPresent((p) => (p === null ? p : Math.min(slides.length - 1, p + 1)));
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") setPresent((p) => (p === null ? p : Math.min(shown.length - 1, p + 1)));
       if (e.key === "ArrowLeft" || e.key === "PageUp") setPresent((p) => (p === null ? p : Math.max(0, p - 1)));
       if (e.key === "Escape") setPresent(null);
     };
@@ -950,7 +996,7 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("fullscreenchange", onExit);
     };
-  }, [present, slides.length]);
+  }, [present, shown.length]);
   const closePresent = () => {
     if (document.fullscreenElement) void document.exitFullscreen();
     setPresent(null);
@@ -977,12 +1023,12 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
               ))}
             </select>
           )}
-          {report && (
+          {report && !editing && (
             <button type="button" onClick={() => setPresent(0)}>
               <Maximize size={15} /> นำเสนอเต็มจอ
             </button>
           )}
-          {report && isAdmin && (
+          {report && isAdmin && !editing && (
             <button type="button" onClick={downloadPdf}>
               <FileDown size={15} /> ดาวน์โหลด PDF
             </button>
@@ -1010,6 +1056,24 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
               ยกเลิกร่าง
             </button>
           )}
+          {!isDraft && current && !editing && (
+            <button type="button" disabled={busy} onClick={startEdit}>
+              <Pencil size={14} /> แก้ไขลำดับและข้อความ
+            </button>
+          )}
+          {editing && (
+            <>
+              <button type="button" className="mr-primary" disabled={busy} onClick={saveLayout}>
+                บันทึกลำดับและข้อความ
+              </button>
+              <button type="button" disabled={busy} onClick={() => setEditing(false)}>
+                ยกเลิก
+              </button>
+              <button type="button" disabled={busy} onClick={() => window.confirm("คืนลำดับเดิม แสดงทุกหน้า และล้างข้อความที่แก้ไว้?") && setEdit({ ...EMPTY_LAYOUT, order: [...ids] })}>
+                คืนค่าเดิม
+              </button>
+            </>
+          )}
         </div>
       )}
       {info && <p className="growth-notice">{info}</p>}
@@ -1019,16 +1083,21 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
       )}
       {report && (
         <p className="mr-meta">
-          {isDraft ? "ร่าง (ยังไม่บันทึก)" : `บันทึกโดย ${current?.savedByName || "-"}`} · ข้อมูล ณ วันที่ {dateLabel(report.dataAt, true)} · {slides.length} หน้า
+          {isDraft ? "ร่าง (ยังไม่บันทึก)" : `บันทึกโดย ${current?.savedByName || "-"}`} · ข้อมูล ณ วันที่ {dateLabel(report.dataAt, true)} · {editing ? pages.length : shown.length} หน้า
+          {!editing && hiddenCount > 0 && ` (ซ่อน ${hiddenCount} หน้า)`}
+          {current?.layout?.editedByName && ` · จัดหน้าโดย ${current.layout.editedByName}`}
+          {editing && " · โหมดแก้ไข: เลื่อน ▲▼ ซ่อน แก้หัวข้อ และเพิ่มข้อความ แล้วกด “บันทึกลำดับและข้อความ” · ตัวเลขแก้ไม่ได้"}
         </p>
       )}
 
       <div className="mr-deck">
         {report &&
-          slides.map((s, i) =>
-            s.cover ? (
-              <section key={i} className="mr-slide mr-cover-slide">
-                {s.body}
+          shown.map((p, i) => {
+            const n = i + 1;
+            const slide = p.cover ? (
+              <section className="mr-slide mr-cover-slide">
+                {p.body}
+                {p.note && <p className="mr-page-note">{p.note}</p>}
                 {watermark && (
                   <div className="mr-watermark" aria-hidden>
                     {Array.from({ length: 6 }, (_, j) => (
@@ -1038,22 +1107,64 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
                 )}
               </section>
             ) : (
-              <Slide key={i} report={report} n={i + 1} total={slides.length} title={s.title} watermark={watermark}>
-                {s.body}
+              <Slide report={report} n={n} total={shown.length} title={p.title} note={p.note} watermark={watermark}>
+                {p.body}
               </Slide>
-            ),
-          )}
+            );
+            if (!editing) return <Fragment key={p.id}>{slide}</Fragment>;
+            const text = edit.texts[p.id] || {};
+            const setText = (patch: { title?: string; note?: string }) => setEdit((l) => ({ ...l, texts: { ...l.texts, [p.id]: { ...l.texts[p.id], ...patch } } }));
+            return (
+              <div key={p.id} className={`mr-edit-page${p.hidden ? " off" : ""}`}>
+                <div className="mr-edit-bar">
+                  <b>หน้า {n}</b>
+                  <button type="button" onClick={() => setEdit((l) => ({ ...l, order: movePage(l.order, p.id, -1) }))} disabled={i === 0} aria-label="เลื่อนขึ้น" title="เลื่อนขึ้น">
+                    <ArrowUp size={15} />
+                  </button>
+                  <button type="button" onClick={() => setEdit((l) => ({ ...l, order: movePage(l.order, p.id, 1) }))} disabled={i === shown.length - 1} aria-label="เลื่อนลง" title="เลื่อนลง">
+                    <ArrowDown size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEdit((l) => ({ ...l, hidden: l.hidden.includes(p.id) ? l.hidden.filter((x) => x !== p.id) : [...l.hidden, p.id] }))}
+                    title={p.hidden ? "แสดงหน้านี้" : "ซ่อนหน้านี้"}
+                  >
+                    {p.hidden ? <Eye size={15} /> : <EyeOff size={15} />} {p.hidden ? "แสดง" : "ซ่อน"}
+                  </button>
+                  {p.hidden && <span className="mr-edit-off">ซ่อนอยู่ · ไม่แสดงตอนนำเสนอและใน PDF</span>}
+                </div>
+                <div className="mr-edit-fields">
+                  {!p.cover && (
+                    <label>
+                      หัวข้อ
+                      <input value={text.title ?? p.defaultTitle ?? ""} onChange={(e) => setText({ title: e.target.value })} maxLength={200} />
+                    </label>
+                  )}
+                  <label>
+                    ข้อความเพิ่มเติม (แสดงด้านล่างของหน้า)
+                    <textarea value={text.note ?? ""} onChange={(e) => setText({ note: e.target.value })} maxLength={2000} rows={2} placeholder="เช่น ประเด็นที่จะพูด หรือข้อสรุปของหน้านี้" />
+                  </label>
+                </div>
+                {slide}
+              </div>
+            );
+          })}
       </div>
 
       {present !== null && report && (
-        <div className="mr-present" ref={presentRef} onClick={() => setPresent((p) => (p === null ? p : Math.min(slides.length - 1, p + 1)))}>
+        <div className="mr-present" ref={presentRef} onClick={() => setPresent((p) => (p === null ? p : Math.min(shown.length - 1, p + 1)))}>
           <div className="mr-present-stage">
-            {slides[present].cover ? (
-              <section className="mr-slide mr-cover-slide">{slides[present].body}</section>
+            {shown[present]?.cover ? (
+              <section className="mr-slide mr-cover-slide">
+                {shown[present].body}
+                {shown[present].note && <p className="mr-page-note">{shown[present].note}</p>}
+              </section>
             ) : (
-              <Slide report={report} n={present + 1} total={slides.length} title={slides[present].title} watermark="">
-                {slides[present].body}
-              </Slide>
+              shown[present] && (
+                <Slide report={report} n={present + 1} total={shown.length} title={shown[present].title} note={shown[present].note} watermark="">
+                  {shown[present].body}
+                </Slide>
+              )
             )}
           </div>
           <div className="mr-present-bar" onClick={(e) => e.stopPropagation()}>
@@ -1061,9 +1172,9 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
               <ChevronLeft size={18} />
             </button>
             <span>
-              {present + 1} / {slides.length}
+              {present + 1} / {shown.length}
             </span>
-            <button type="button" onClick={() => setPresent(Math.min(slides.length - 1, present + 1))} aria-label="หน้าถัดไป">
+            <button type="button" onClick={() => setPresent(Math.min(shown.length - 1, present + 1))} aria-label="หน้าถัดไป">
               <ChevronRight size={18} />
             </button>
             <button type="button" onClick={closePresent} aria-label="ออกจากโหมดนำเสนอ">

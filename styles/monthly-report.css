@@ -453,3 +453,152 @@
 .mr-grid2 > .mr-note {
   grid-column: 1 / -1;
 }
+
+/* Live pages of รายงานรวมแพลตฟอร์ม (MonthlyLiveSlides.tsx): laid out at 1280px, scaled to the slide. */
+.mr-live {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mr-fit {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.mr-fit-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
+  font-size: 13px;
+}
+.mr-live-page .pi-card {
+  margin-top: 10px;
+}
+.mr-live-page > :first-child,
+.mr-live-page > .pt-grid:first-child .pi-card {
+  margin-top: 0;
+}
+.mr-live-note {
+  margin: 0.6cqw 0 0;
+  font-size: 0.95cqw;
+  color: #6a7892;
+}
+/* The live pages are always laid out wide (1280px), whatever the screen: undo the
+   narrow-screen rules of the platform report inside them. */
+.mr-live-page .pt-grid.g2 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.mr-live-page .pt-grid.g11,
+.mr-live-page .pi-grid,
+.mr-live-page .ps-comp2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mr-live-page .pt-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mr-live-page .xp-sum {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mr-live-page .ht-grid {
+  grid-template-columns: 2fr 1fr;
+}
+.mr-live-page .ht-side {
+  border-left: 1px dashed #dce3ee;
+  border-top: 0;
+  padding: 0 0 0 16px;
+}
+.mr-live-page .ht-row {
+  grid-template-columns: 24px minmax(0, 1.4fr) 56px 50px minmax(0, 1.2fr) 46px 74px;
+}
+.mr-live-page .ht-row > * {
+  display: revert;
+}
+.mr-live-page .ht-row > .vb {
+  display: grid;
+}
+.mr-live-page .pi-heat-c {
+  aspect-ratio: auto;
+  height: 22px;
+}
+.mr-live-page .pi-radar {
+  max-height: 250px;
+}
+.mr-live-page .pi-heat-c {
+  height: 16px;
+}
+.mr-live-page .pi-sp {
+  padding: 3px 0;
+}
+
+/* Admin's page order and texts (edit mode). */
+.mr-page-note {
+  margin: 0.8cqw 0 0;
+  padding: 0.7cqw 1cqw;
+  border-left: 0.35cqw solid #4f7db8;
+  background: rgba(79, 125, 184, 0.08);
+  border-radius: 0.5cqw;
+  font-size: 1.15cqw;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.mr-edit-page {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed #94a3b8;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.mr-edit-page.off .mr-slide {
+  opacity: 0.35;
+}
+.mr-edit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.mr-edit-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mr-edit-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.mr-edit-off {
+  color: #b45309;
+  font-size: 12px;
+}
+.mr-edit-fields {
+  display: grid;
+  gap: 6px;
+}
+.mr-edit-fields label {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  color: #475569;
+}
+.mr-edit-fields input,
+.mr-edit-fields textarea {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  resize: vertical;
+}
