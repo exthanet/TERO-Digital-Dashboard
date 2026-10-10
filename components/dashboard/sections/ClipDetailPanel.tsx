@@ -5,8 +5,8 @@
 // or loads up to 31 days up to the latest data when opened from elsewhere.
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Clock, ExternalLink, Eye, Heart, Link2, MessageCircle, Share2, TrendingUp, X } from "lucide-react";
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Clock, ExternalLink, Link2, Share2, X } from "lucide-react";
+import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { addDays, daysBetween, type GrowthEntry } from "@/lib/dashboard/growth";
 import { growthSyncTimes, loadGrowthDays } from "@/lib/growthData";
@@ -16,7 +16,8 @@ import { compact, dateLabel, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { watchShare } from "@/lib/dashboard/quality";
 import { clipDetail, daysAfterPost, gainedByPlatform, siblingsOf, type ClipPost } from "@/lib/dashboard/clipDetail";
-import { Kpi } from "@/components/dashboard/shared/Kpi";
+import { useMotion } from "@/components/dashboard/shared/Motion";
+import { ClipTiles, FactCards, HourChart, ShareBar, YtClipBox } from "@/components/dashboard/sections/ClipMotion";
 import { recordKey } from "@/lib/dashboard/growth";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { track } from "@/lib/loadingBar";
@@ -121,6 +122,17 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const motion = useMotion();
+  // Platforms hidden on the daily chart (click the legend).
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggle = (p: string) =>
+    setHidden((x) => {
+      const n = new Set(x);
+      if (n.has(p)) n.delete(p);
+      else n.add(p);
+      return n;
+    });
+
   // Short facts from the numbers above (rules, not AI).
   const facts: string[] = [];
   if (share.length > 1 && d.gained > 0) facts.push(`${Math.round((share[0].total / d.gained) * 100)}% ของวิวที่เพิ่มในช่วงนี้มาจาก ${share[0].name}`);
@@ -151,7 +163,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
   // On <body>: inside a panel, a transformed ancestor would trap the fixed overlay.
   return createPortal(
     <div className="clip-detail-backdrop" onClick={onClose}>
-      <aside className="clip-detail" role="dialog" aria-modal="true" aria-label="วิเคราะห์คลิป" onClick={(e) => e.stopPropagation()}>
+      <aside className="clip-detail cm" role="dialog" aria-modal="true" aria-label="วิเคราะห์คลิป" onClick={(e) => e.stopPropagation()}>
         <header className="clip-detail-head">
           {cover && (
             <a className="clip-detail-cover" href={clip.url || undefined} target="_blank" rel="noreferrer" title="เปิดคลิป">
@@ -177,24 +189,26 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
           </p>
         )}
 
-        <div className="kpi-grid clip-detail-kpis">
-          <Kpi tone="blue" icon={<Eye />} label="ยอดวิวรวม" value={compact(d.totalViews)} detail={d.posts.length > 1 ? `รวม ${d.posts.length} โพสต์ · ยอดสะสมล่าสุด` : "ยอดสะสมล่าสุด"} />
-          <Kpi tone="green" icon={<TrendingUp />} label="วิวที่เพิ่มในช่วงนี้" value={loadingDays ? "…" : compact(d.gained)} detail={`${thDate(firstDay)} – ${thDate(lastDay)}${loadingDays ? "" : ` · ${d.daysWithData} วันที่มีข้อมูล`}`} />
-          <Kpi tone="violet" icon={<Heart />} label="Engagement" value={compact(d.likes + d.comments + d.shares)} detail={`ER ${(d.er * 100).toFixed(2)}% · เพิ่มในช่วงนี้ ${compact(d.gainedEngagement)}`} />
-          <Kpi
-            tone="indigo"
-            icon={<MessageCircle />}
-            label="Comment"
-            value={compact(d.comments)}
-            detail={`Like ${compact(d.likes)} · Share ${compact(d.shares)}${d.totalViews ? ` · ${((d.comments / d.totalViews) * 1000).toFixed(2)} comment ต่อ 1,000 วิว` : ""}`}
-          />
-        </div>
+        <ClipTiles
+          tiles={[
+            { label: "ยอดวิวรวม", value: d.totalViews, format: compact, detail: d.posts.length > 1 ? `รวม ${d.posts.length} โพสต์ · ยอดสะสมล่าสุด` : "ยอดสะสมล่าสุด" },
+            { label: "วิวที่เพิ่มในช่วงนี้", value: loadingDays ? null : d.gained, format: compact, detail: `${thDate(firstDay)} – ${thDate(lastDay)}${loadingDays ? "" : ` · ${d.daysWithData} วันที่มีข้อมูล`}` },
+            { label: "Engagement", value: d.likes + d.comments + d.shares, format: compact, detail: `ER ${(d.er * 100).toFixed(2)}% · เพิ่มในช่วงนี้ ${compact(d.gainedEngagement)}` },
+            {
+              label: "Comment",
+              value: d.comments,
+              format: compact,
+              detail: `Like ${compact(d.likes)} · Share ${compact(d.shares)}${d.totalViews ? ` · ${((d.comments / d.totalViews) * 1000).toFixed(2)} comment ต่อ 1,000 วิว` : ""}`,
+            },
+          ]}
+        />
         <p className="audience-note clip-detail-kpi-note">
           ยอดวิวรวม = ยอดสะสมตั้งแต่โพสต์ถึง sync ล่าสุด · วิวที่เพิ่มในช่วงนี้ = ผลรวมของกราฟรายวันในช่วงที่เลือก จึงน้อยกว่ายอดวิวรวม · ER = (Like + Comment + Share) ÷ วิว
         </p>
 
         <section className="clip-detail-box">
           <h3>แยกตามแพลตฟอร์ม</h3>
+          <ShareBar posts={d.posts} total={d.totalViews} />
           <div className="table-scroll">
             <table className="clip-detail-table">
               <thead>
@@ -257,11 +271,12 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
                   <YAxis yAxisId="v" tickFormatter={compact} tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="c" orientation="right" tickFormatter={compact} tick={{ fontSize: 11 }} />
                   <Tooltip labelFormatter={(v) => dayLabel(String(v))} formatter={(v, name) => [num(Number(v)), String(name)]} />
-                  <Legend />
-                  {d.platforms.map((p) => (
-                    <Bar key={p} yAxisId="v" dataKey={p} stackId="v" fill={colorOf(p)} />
-                  ))}
-                  <Line yAxisId="c" type="monotone" dataKey="cumulative" name="เพิ่มสะสมในช่วงนี้" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  {d.platforms
+                    .filter((p) => !hidden.has(p))
+                    .map((p) => (
+                      <Bar key={p} yAxisId="v" dataKey={p} stackId="v" fill={colorOf(p)} isAnimationActive={motion} />
+                    ))}
+                  <Line yAxisId="c" type="monotone" dataKey="cumulative" name="เพิ่มสะสมในช่วงนี้" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={motion} />
                   {d.firstPosted >= firstDay && <ReferenceLine yAxisId="v" x={d.firstPosted} stroke="#64748b" strokeDasharray="4 3" label={{ value: "โพสต์", fontSize: 11, position: "insideTopLeft" }} />}
                   {d.peak && <ReferenceLine yAxisId="v" x={d.peak.date} stroke="#16a34a" strokeDasharray="4 3" label={{ value: "พีค", fontSize: 11, position: "insideTopRight" }} />}
                 </ComposedChart>
@@ -270,12 +285,28 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
           ) : (
             <p className="growth-notice">ไม่มีข้อมูลรายวันของคลิปนี้ในช่วงที่เลือก</p>
           )}
+          {!loadingDays && d.daysWithData > 0 && (
+            <div className="pi-legend">
+              {d.platforms.map((p) => (
+                <button key={p} type="button" className={hidden.has(p) ? "off" : ""} onClick={() => toggle(p)} aria-pressed={!hidden.has(p)}>
+                  <i style={{ background: colorOf(p) }} />
+                  {p}
+                </button>
+              ))}
+              <span className="cm-legend-line">
+                <i /> เพิ่มสะสมในช่วงนี้
+              </span>
+            </div>
+          )}
           <p className="audience-note">
             วันที่ = วันที่มีคนดู · ระบบ sync ทุกเช้า (ราว 8 โมง) แล้วนับวิวที่เพิ่มจากรอบก่อนเป็นของวันก่อนหน้า จึงเป็นช่วง 8 โมงถึง 8 โมงเช้าวันถัดไป (ชี้ที่กราฟเพื่อดูเวลาจริง) · ยอดล่าสุดคือเมื่อวาน
             · เส้นส้ม = วิวที่เพิ่มรวมกันตั้งแต่วันแรกของช่วง (แกนขวา) · เส้นประ "โพสต์" = วันที่โพสต์ · "พีค" = วันที่วิวเพิ่มมากที่สุด
             · ข้อมูลรายวันมีเฉพาะโพสต์ที่ดึงผ่าน API และวันที่ระบบเก็บข้อมูลแล้ว ไม่รวมแถวที่ทีมกรอกเอง
           </p>
         </section>
+
+        {/* YouTube Analytics of the clip; shows nothing without YouTube Deep Dive. */}
+        <YtClipBox posts={d.posts} />
 
         <section className="clip-detail-box">
           <h3>
@@ -286,10 +317,11 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
               <li key={`h-${p.key || p.row.url}`}>
                 <b style={{ color: colorOf(p.row.platform) }}>{p.row.platform}</b> <small>{p.row.vdoType}</small>
                 <span>{hourText(p)}</span>
+                <HourChart post={p} />
               </li>
             ))}
           </ul>
-          <p className="audience-note">ค่ากลาง = วิวต่อคลิปของแพลตฟอร์มและรูปแบบเดียวกันที่โพสต์ในชั่วโมงนั้น ช่วง 90 วันก่อนโพสต์ (ต้องมีอย่างน้อย 3 คลิป)</p>
+          <p className="audience-note">ค่ากลาง = วิวต่อคลิปของแพลตฟอร์มและรูปแบบเดียวกันที่โพสต์ในชั่วโมงนั้น ช่วง 90 วันก่อนโพสต์ (ต้องมีอย่างน้อย 3 คลิป) · กราฟ: แท่งเขียว = ชั่วโมงที่ดีที่สุด · เส้นประ = ชั่วโมงที่คลิปนี้โพสต์</p>
         </section>
 
         {facts.length > 0 && (
@@ -297,11 +329,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
             <h3>
               <Share2 size={15} /> สรุปจากตัวเลข
             </h3>
-            <ul className="clip-detail-facts">
-              {[...new Set(facts)].map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
+            <FactCards facts={[...new Set(facts)]} />
             <p className="audience-note">คิดจากกฎตายตัว ไม่ใช่ AI · เป็นความสัมพันธ์ของตัวเลข ไม่ได้บอกสาเหตุ</p>
           </section>
         )}

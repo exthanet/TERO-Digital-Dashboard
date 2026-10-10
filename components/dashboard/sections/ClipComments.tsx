@@ -8,6 +8,7 @@ import type { RecordRow } from "@/lib/dashboard/types";
 import { postId } from "@/lib/dashboard/postKey";
 import { loadClipComments, type ClipComments as Comments, type CommentItem } from "@/lib/commentsData";
 import { track } from "@/lib/loadingBar";
+import { topWords } from "@/lib/dashboard/commentWords";
 
 const PLATFORMS = ["YouTube", "Facebook"] as const;
 const COUNTS = [10, 20, 0] as const; // 0 = ทั้งหมด
@@ -78,6 +79,8 @@ export function ClipComments({ posts }: { posts: RecordRow[] }) {
   const view = canTop ? order : "latest";
   const all = current ? (view === "top" ? current.top : current.latest) || [] : [];
   const list = count ? all.slice(0, count) : all;
+  // Words used most over everything stored for this platform (both lists, each comment once).
+  const words = current ? topWords([...(current.top || []), ...(current.latest || [])]) : [];
 
   return (
     <section className="clip-detail-box cmt">
@@ -147,6 +150,19 @@ export function ClipComments({ posts }: { posts: RecordRow[] }) {
             </li>
           ))}
         </ol>
+      )}
+      {words.length > 0 && (
+        <div className="cmt-words">
+          <h4>คำที่ถูกพูดถึงบ่อย</h4>
+          <div className="pi-chips">
+            {words.map((w) => (
+              <span key={w.word} className="cmt-word">
+                {w.word} <small>{w.comments}</small>
+              </span>
+            ))}
+          </div>
+          <p className="audience-note">นับจากคอมเมนต์ที่เก็บไว้ของ {pick} (1 คอมเมนต์นับคำละครั้ง) · ตัดคำอัตโนมัติ ไม่ใช่ AI · ไม่ได้บอกว่าคนรู้สึกบวกหรือลบ</p>
+        </div>
       )}
       {current && (
         <p className="audience-note">

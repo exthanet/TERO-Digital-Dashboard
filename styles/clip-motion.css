@@ -1,0 +1,129 @@
+/* วิเคราะห์คลิป in the motion dashboard look (ClipMotion.tsx). Scoped to the panel only. */
+.clip-detail.cm {
+  --ps-accent: #0757e8;
+  --ps-muted: #64748b;
+  --ps-line: #e2e8f0;
+  --ps-card: #fff;
+}
+.clip-detail.cm .cm-tiles {
+  margin: 4px 0 6px;
+}
+.clip-detail.cm .cm-tiles .ps-tile b {
+  font-size: 22px;
+}
+.cm-detail {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+.cm-share {
+  margin: 2px 0 10px;
+}
+.cm-share-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+.cm-share-bar span {
+  display: block;
+  height: 100%;
+}
+.cm-share-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #334155;
+}
+.cm-share-legend i,
+.cm-legend-line i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.cm-legend-line {
+  font-size: 12px;
+  color: #334155;
+}
+.cm-legend-line i {
+  height: 3px;
+  width: 14px;
+  border-radius: 2px;
+  background: #f59e0b;
+  vertical-align: 3px;
+}
+.clip-detail.cm .clip-detail-hours li {
+  flex-wrap: wrap;
+}
+.clip-detail.cm .clip-detail-hours .recharts-responsive-container {
+  flex-basis: 100%;
+}
+.cm-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.cm-facts li {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0757e8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.cm-yt h4,
+.cmt-words h4 {
+  margin: 10px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cm-yt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.cmt-words {
+  margin-top: 10px;
+}
+.cmt-word {
+  border: 1px solid #c7d2fe;
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #3730a3;
+}
+.cmt-word small {
+  color: #64748b;
+  margin-left: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .clip-detail.cm .clip-detail-box {
+    animation: ps-rise 0.4s ease-out both;
+  }
+  .cm-share-bar span {
+    animation: ps-grow 0.7s ease-out both;
+    transform-origin: left;
+  }
+  .cm-facts li,
+  .cmt-word {
+    animation: ps-rise 0.4s ease-out both;
+  }
+}
+/* The panel already slides in (growth.css); keep it still when the computer asks for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .clip-detail.cm {
+    animation: none;
+  }
+}

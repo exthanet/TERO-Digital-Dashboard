@@ -67,6 +67,8 @@ export interface ClipPost {
   hourMedian: number | null;
   /** Hour with the highest median in the same group; null when no hour has enough clips. */
   bestHour: { hour: number; median: number } | null;
+  /** Every hour 0–23 of the same group: clips posted then and their median (null under HOUR_MIN_CLIPS). */
+  hours: { hour: number; clips: number; median: number | null }[];
 }
 
 export interface ClipDetail {
@@ -157,6 +159,10 @@ export function clipDetail(
       hour,
       hourMedian: own.length >= HOUR_MIN_CLIPS ? median(own) : null,
       bestHour,
+      hours: Array.from({ length: 24 }, (_, h) => {
+        const list = byHour.get(h) || [];
+        return { hour: h, clips: list.length, median: list.length >= HOUR_MIN_CLIPS ? median(list) : null };
+      }),
     };
   });
   posts.sort((a, b) => b.row.views - a.row.views);

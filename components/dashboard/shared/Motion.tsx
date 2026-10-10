@@ -29,6 +29,11 @@ export function CountUp({ value, format }: { value: number; format: (n: number) 
     const a = from.current;
     const start = performance.now();
     let id = 0;
+    const finish = () => {
+      cancelAnimationFrame(id);
+      from.current = value;
+      setShown(value);
+    };
     const step = (t: number) => {
       const p = Math.min(1, (t - start) / 700);
       const v = a + (value - a) * (1 - Math.pow(1 - p, 3));
@@ -37,7 +42,12 @@ export function CountUp({ value, format }: { value: number; format: (n: number) 
       if (p < 1) id = requestAnimationFrame(step);
     };
     id = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(id);
+    // Browsers pause animation frames in a hidden tab: the final number must show anyway.
+    const done = window.setTimeout(finish, document.hidden ? 0 : 800);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(done);
+    };
   }, [value, motion]);
   return <>{format(motion ? shown : value)}</>;
 }

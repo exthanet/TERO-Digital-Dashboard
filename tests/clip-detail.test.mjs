@@ -47,5 +47,8 @@ test("daily gains add up per platform; normal is the median of the 30 days befor
   assert.equal(ytPost.index, 15);
   assert.equal(ytPost.hour, 19);
   assert.equal(ytPost.hourMedian, 200);
+  assert.equal(ytPost.hours.length, 24);
+  assert.deepEqual(ytPost.hours[19], { hour: 19, clips: 3, median: 200 });
+  assert.deepEqual(ytPost.hours[18], { hour: 18, clips: 0, median: null });
   assert.deepEqual(gainedByPlatform(d), [{ name: "YouTube", total: 3000 }, { name: "TikTok", total: 600 }]);
 });
