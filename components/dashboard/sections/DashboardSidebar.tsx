@@ -68,12 +68,12 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "ai-analysis", label: "Executive Analysis", icon: <Lightbulb /> },
       { id: "platforms", label: "แพลตฟอร์ม", icon: <BarChart3 /> },
       { id: "program-report", label: "รวมรายการ", icon: <LayoutList />, tab: "programs" },
-      { id: "monthly-report", label: "รายงานประจำเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
       { id: "trending-hashtags", label: "Trending Hashtag", icon: <Hash />, tab: "trending" },
       { id: "topics", label: "ประเภทเนื้อหา", icon: <Sparkles /> },
       { id: "rating", label: "TV Rating", icon: <Tv /> },
       { id: "best", label: "Top 10 ประเด็น", icon: <Trophy /> },
       { id: "compare", label: "ผลงานรายเทป", icon: <FileSpreadsheet /> },
+      { id: "monthly-report", label: "รายงานรายเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
     ],
   },
   {
