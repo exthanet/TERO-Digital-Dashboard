@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
+import { digitalVsTv, facebookReach, hashtagShare, metricOf, platformValues, tagDaily, topTopics, crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
 
 const row = (o) => ({
   date: o.date,
@@ -151,4 +151,24 @@ test("hashtag ranking: channel tags hidden, rank move against the period before,
   const d = tagDetail(r[0], hidden);
   assert.deepEqual(d.byPlatform.find((x) => x.platform === "TikTok"), { platform: "TikTok", posts: 2, views: 35 });
   assert.deepEqual(d.together, [{ tag: "#b", posts: 2 }]);
+});
+
+test("page metric: views, posts and ER per platform and per topic type", () => {
+  const rows = [row({ date: "2026-10-01", platform: "YouTube", views: 100, likes: 10, topicType: "ข่าวการเมือง" }), row({ date: "2026-10-02", platform: "TikTok", views: 300, topicType: "ข่าวการเมือง" }), row({ date: "2026-10-02", platform: "TikTok", views: 50, topicType: "บันเทิง" }), row({ date: "2026-10-02", platform: "TV", views: 999 })];
+  assert.equal(metricOf(rows.slice(0, 1), "er"), 0.1);
+  assert.deepEqual(platformValues(rows, "views").slice(0, 2), [{ platform: "TikTok", value: 350 }, { platform: "YouTube", value: 100 }]);
+  assert.deepEqual(platformValues(rows, "posts")[0], { platform: "TikTok", value: 2 });
+  assert.deepEqual(topTopics(rows, "views").map((x) => [x.topic, x.value]), [["ข่าวการเมือง", 400], ["บันเทิง", 50]]);
+  assert.equal(topTopics(rows, "er").length, 0); // fewer than 5 posts: no ER ranking
+});
+
+test("Digital vs TV per day; Facebook reach and clicks; hashtag share; tag 7-day line", () => {
+  const tv = { ...row({ date: "2026-10-02", platform: "TV" }), audienceTotal: 5000 };
+  const d = digitalVsTv([row({ date: "2026-10-01", views: 70 }), tv], "2026-10-01", "2026-10-02");
+  assert.deepEqual(d, [{ date: "2026-10-01", digital: 70, tv: 0 }, { date: "2026-10-02", digital: 0, tv: 5000 }]);
+  const fb = [{ ...row({ date: "d", platform: "Facebook" }), impressions: 900, linkClicks: 12 }, { ...row({ date: "d", platform: "Facebook" }), impressions: 0, linkClicks: null }];
+  assert.deepEqual(facebookReach(fb), { impressions: 900, impressionPosts: 1, linkClicks: 12, clickPosts: 1 });
+  assert.equal(hashtagShare([row({ date: "d", tags: "#a" }), row({ date: "d" })]), 0.5);
+  const t = { tag: "#a", rows: [row({ date: "2026-10-09", views: 5 }), row({ date: "2026-10-10", views: 7 }), row({ date: "2026-09-01", views: 99 })] };
+  assert.deepEqual(tagDaily(t, "2026-10-10", 3), [0, 5, 7]);
 });

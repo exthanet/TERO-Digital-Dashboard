@@ -136,9 +136,9 @@
   display: grid;
   gap: 2px;
 }
-.pi-tag-list button {
+.pi-tag-row {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 44px 70px 70px 74px;
+  grid-template-columns: 24px minmax(0, 1fr) 40px 56px minmax(90px, 1.3fr) 54px 74px;
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -152,10 +152,10 @@
   color: inherit;
   cursor: pointer;
 }
-.pi-tag-list button:hover {
+button.pi-tag-row:hover {
   background: #f8fafc;
 }
-.pi-tag-list button.on {
+button.pi-tag-row.on {
   background: #eef2ff;
 }
 .pi-rank {
@@ -253,11 +253,12 @@
   .pi-card {
     padding: 12px;
   }
-  .pi-tag-list button {
-    grid-template-columns: 20px minmax(0, 1fr) 36px 64px;
+  .pi-tag-row {
+    grid-template-columns: 20px minmax(0, 1fr) 34px minmax(70px, 1fr);
   }
-  .pi-tag-list .pi-num:nth-child(5),
-  .pi-tag-list .pi-num:nth-child(6) {
+  .pi-tag-row > :nth-child(4),
+  .pi-tag-row > :nth-child(6),
+  .pi-tag-row > :nth-child(7) {
     display: none;
   }
   .pi-spark {

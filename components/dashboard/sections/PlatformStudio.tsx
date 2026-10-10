@@ -15,6 +15,8 @@ import {
   episodeRatings,
   groupStats,
   hourMedians,
+  ownRatings,
+  sourceOf,
   interactionMix,
   lastDays,
   reachRings,
@@ -40,7 +42,7 @@ import type { GrowthEntry } from "@/lib/dashboard/growth";
 import type { YtDeepDiveData } from "@/lib/dashboard/ytDeepDive";
 
 type Digital = "YouTube" | "TikTok" | "Facebook" | "Instagram";
-type Metric = "views" | "hours" | "subs" | "posts" | "medianViews" | "er" | "sharesPer1k" | "commentsPer1k";
+type Metric = "views" | "hours" | "subs" | "posts" | "medianViews" | "er" | "sharesPer1k" | "commentsPer1k" | "likes" | "comments" | "shares" | "engagement" | "impressions" | "linkClicks";
 
 const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const shortDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "");
@@ -56,12 +58,19 @@ const METRICS: Record<Metric, { label: string; format: (v: number) => string; de
   er: { label: "ER", format: (v) => pct(v, 2), detail: "(Like + Comment + Share) ÷ วิว" },
   sharesPer1k: { label: "Share ต่อ 1,000 วิว", format: fixed(2), detail: "คนแชร์ต่อไปมากแค่ไหน" },
   commentsPer1k: { label: "Comment ต่อ 1,000 วิว", format: fixed(2), detail: "คนอยากพูดถึงมากแค่ไหน" },
+  likes: { label: "ไลก์", format: compact, detail: "ไลก์รวมของโพสต์ที่ลงในช่วงนี้" },
+  comments: { label: "คอมเมนต์", format: compact, detail: "คอมเมนต์รวมของโพสต์ที่ลงในช่วงนี้" },
+  shares: { label: "แชร์", format: compact, detail: "แชร์รวมของโพสต์ที่ลงในช่วงนี้" },
+  engagement: { label: "การมีส่วนร่วม", format: compact, detail: "Like + Comment + Share" },
+  impressions: { label: "การเข้าถึง", format: compact, detail: "Impressions ของโพสต์ที่ Facebook ส่งมา" },
+  linkClicks: { label: "คลิกลิงก์", format: compact, detail: "คลิกลิงก์ของโพสต์ที่ Facebook ส่งมา" },
 };
 const TILES: Record<Digital, Metric[]> = {
-  YouTube: ["views", "hours", "subs", "medianViews", "posts", "er", "sharesPer1k", "commentsPer1k"],
-  TikTok: ["views", "posts", "medianViews", "er", "sharesPer1k", "commentsPer1k"],
-  Facebook: ["views", "posts", "medianViews", "er", "sharesPer1k", "commentsPer1k"],
-  Instagram: ["views", "posts", "medianViews", "er", "sharesPer1k", "commentsPer1k"],
+  // As in output/platform-report-demo.html; per-post rates are in Platform Insight.
+  YouTube: ["views", "hours", "subs"],
+  TikTok: ["views", "likes", "comments", "shares"],
+  Facebook: ["views", "impressions", "engagement", "linkClicks"],
+  Instagram: ["views", "engagement", "posts"],
 };
 const SKIN: Record<Digital, { cls: string; accent: string; grid: string; text: string }> = {
   YouTube: { cls: "ps-yt", accent: "#065fd4", grid: "#e5e5e5", text: "#606060" },
@@ -244,10 +253,17 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
 
   const tiles = TILES[platform].filter((m) => (m === "hours" || m === "subs" ? deepOn : true));
   const metric: Metric = tiles.includes(metricPick) ? metricPick : "views";
-  const valueOf = (m: Metric, kk: typeof k | null, y: typeof yt): number | null => {
+  const valueOf = (m: Metric, rows: RecordRow[] | null, kk: typeof k | null, y: typeof yt): number | null => {
     if (m === "hours") return y ? y.hours : null;
     if (m === "subs") return y ? y.subs : null;
-    if (!kk) return null;
+    if (!rows || !kk) return null;
+    const sum = (f: (r: RecordRow) => number) => rows.reduce((a, r) => a + f(r), 0);
+    if (m === "likes") return sum((r) => r.likes);
+    if (m === "comments") return sum((r) => r.comments);
+    if (m === "shares") return sum((r) => r.shares);
+    if (m === "engagement") return sum((r) => r.likes + r.comments + r.shares);
+    if (m === "impressions") return sum((r) => r.impressions || 0);
+    if (m === "linkClicks") return sum((r) => r.linkClicks || 0);
     return m === "posts" ? kk.posts : (kk[m] as number | null);
   };
 
@@ -269,10 +285,10 @@ export function PlatformStudio({ platform, cur, prev, mine, startDate, endDate, 
   const motion = useMotion();
 
   const tileRow = (
-    <div className="ps-tiles">
+    <div className={`ps-tiles n${tiles.length}`}>
       {tiles.map((m) => {
-        const now = valueOf(m, k, yt);
-        const before = kp ? valueOf(m, kp, ytPrev) : null;
+        const now = valueOf(m, cur, k, yt);
+        const before = kp ? valueOf(m, prev, kp, ytPrev) : null;
         return (
           <button type="button" key={m} className={`ps-tile${metric === m ? " on" : ""}`} onClick={() => setMetric(m)} aria-pressed={metric === m} title={METRICS[m].detail}>
             <small>{METRICS[m].label}</small>
@@ -571,21 +587,20 @@ export function TvStudio({ cur, prev, mine, startDate, endDate, compareText }: T
   const tp = useMemo(() => (prev.length ? tvKpis(prev) : null), [prev]);
   const eps = useMemo(() => episodeRatings(cur, ch), [cur, ch]);
   const zones = useMemo(() => zoneRatings(cur), [cur]);
-  const source = useMemo(() => (sources || []).find((s) => (ch === "GMM25" ? /gmm/i.test(s.channel) : !/gmm/i.test(s.channel))), [sources, ch]);
-  const ranking = useMemo(() => {
-    if (!source) return [];
-    const own = new Map<string, number>();
-    for (const r of mine) {
-      if (r.program !== source.program) continue;
-      const v = ch === "GMM25" ? r.gmmRating : r.ratingTotal;
-      if (v > 0) own.set(r.date, v);
-    }
-    // Top 6, and ถกไม่เถียง's own place when it is below them.
-    const all = competitorRanking(source.rows, own, "channel", startDate, endDate).map((x, i) => ({ ...x, place: i + 1 }));
-    const top = all.slice(0, 6);
-    const mineRow = all.find((x) => x.own || x.key === OWN_KEY);
-    return mineRow && !top.includes(mineRow) ? [...top, mineRow] : top;
-  }, [source, mine, ch, startDate, endDate]);
+  // Competitors of both channels, always (not tied to the One31 / GMM25 switch).
+  const rankings = useMemo(
+    () =>
+      (["One31", "GMM25"] as const).map((c) => {
+        const source = sourceOf(sources || [], c);
+        if (!source) return { ch: c, list: [] };
+        // Top 6, and ถกไม่เถียง's own place when it is below them.
+        const all = competitorRanking(source.rows, ownRatings(mine, source.program, c), "channel", startDate, endDate).map((x, i) => ({ ...x, place: i + 1 }));
+        const top = all.slice(0, 6);
+        const mineRow = all.find((x) => x.own || x.key === OWN_KEY);
+        return { ch: c, list: mineRow && !top.includes(mineRow) ? [...top, mineRow] : top };
+      }),
+    [sources, mine, startDate, endDate],
+  );
   const color = ch === "GMM25" ? "#f59e0b" : "#10b981";
 
   const tiles: { label: string; now: number | null; before: number | null | undefined; format: (v: number) => string }[] = [
@@ -638,24 +653,34 @@ export function TvStudio({ cur, prev, mine, startDate, endDate, compareText }: T
           <h3>Rating ตามพื้นที่ · One31</h3>
           <p className="ps-muted">เฉลี่ยของเทปในช่วงนี้ · ไฟล์ TV มีแยกพื้นที่เฉพาะ One31</p>
           <Bars items={zones.filter((z) => z.rating !== null).map((z) => ({ label: z.label, value: z.rating as number }))} color="#10b981" format={fixed(3)} />
-          <h3 className="ps-gap">เทียบคู่แข่งช่วงเวลาเดียวกัน · {ch}</h3>
-          {sources === null ? (
-            <Skeleton lines={4} height={0} />
-          ) : ranking.length ? (
-            <ol className="ps-rank-list">
-              {ranking.map((x) => (
-                <li key={x.key} className={x.own || x.key === OWN_KEY ? "own" : ""}>
-                  <b>{x.place}</b>
-                  <span>{x.key}</span>
-                  <strong>{x.avg.toFixed(3)}</strong>
-                  <small>{x.winShare === null ? `${x.days} วัน` : `ชนะ ${pct(x.winShare, 0)}`}</small>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="ps-muted">ไม่มีข้อมูลคู่แข่งของ {ch} ในช่วงนี้</p>
-          )}
         </div>
+      </div>
+      <div className="ps-card">
+          <h3>เทียบคู่แข่งช่วงเวลาเดียวกัน</h3>
+          <p className="ps-muted">แสดงทั้ง 2 ช่องเสมอ ไม่ขึ้นกับปุ่มเลือกช่องด้านบน</p>
+          <div className="ps-comp2">
+            {rankings.map(({ ch: c, list }) => (
+              <div key={c}>
+                <span className={`ps-chip ${c === "GMM25" ? "gmm" : "one"}`}>{c}</span>
+                {sources === null ? (
+                  <Skeleton lines={4} height={0} />
+                ) : list.length ? (
+                  <ol className="ps-rank-list">
+                    {list.map((x) => (
+                      <li key={x.key} className={x.own || x.key === OWN_KEY ? "own" : ""}>
+                        <b>{x.place}</b>
+                        <span>{x.key}</span>
+                        <strong>{x.avg.toFixed(3)}</strong>
+                        <small>{x.winShare === null ? `${x.days} วัน` : `ชนะ ${pct(x.winShare, 0)}`}</small>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="ps-muted">ไม่มีข้อมูลคู่แข่งของ {c} ในช่วงนี้</p>
+                )}
+              </div>
+            ))}
+          </div>
       </div>
     </section>
   );

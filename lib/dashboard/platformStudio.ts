@@ -35,6 +35,14 @@ export interface DayPoint {
   er: number;
   sharesPer1k: number;
   commentsPer1k: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  /** Like + Comment + Share. */
+  engagement: number;
+  /** Facebook: impressions and link clicks of the posts that report them. */
+  impressions: number;
+  linkClicks: number;
   /** YouTube Analytics only (0 without it). */
   hours: number;
   subs: number;
@@ -43,8 +51,8 @@ export interface DayPoint {
 /** Every day of the range (publish date): posts, views, interaction; days without posts are 0. */
 export function dailySeries(rows: RecordRow[], start: string, end: string, deep?: Map<string, DeepNumbers>): DayPoint[] {
   if (!start || !end) return [];
-  const sums = new Map<string, { list: number[]; views: number; posts: number; likes: number; comments: number; shares: number; hours: number; subs: number }>();
-  for (const d of daysBetween(start, end)) sums.set(d, { list: [], views: 0, posts: 0, likes: 0, comments: 0, shares: 0, hours: 0, subs: 0 });
+  const sums = new Map<string, { list: number[]; views: number; posts: number; likes: number; comments: number; shares: number; impressions: number; linkClicks: number; hours: number; subs: number }>();
+  for (const d of daysBetween(start, end)) sums.set(d, { list: [], views: 0, posts: 0, likes: 0, comments: 0, shares: 0, impressions: 0, linkClicks: 0, hours: 0, subs: 0 });
   for (const r of rows) {
     const s = sums.get(r.date);
     if (!s) continue;
@@ -54,6 +62,8 @@ export function dailySeries(rows: RecordRow[], start: string, end: string, deep?
     s.likes += r.likes;
     s.comments += r.comments;
     s.shares += r.shares;
+    s.impressions += r.impressions || 0;
+    s.linkClicks += r.linkClicks || 0;
     const x = deep?.get(recordKey(r));
     if (x) {
       s.hours += x.hours;
@@ -68,6 +78,12 @@ export function dailySeries(rows: RecordRow[], start: string, end: string, deep?
     er: s.views > 0 ? (s.likes + s.comments + s.shares) / s.views : 0,
     sharesPer1k: per1k(s.shares, s.views),
     commentsPer1k: per1k(s.comments, s.views),
+    likes: s.likes,
+    comments: s.comments,
+    shares: s.shares,
+    engagement: s.likes + s.comments + s.shares,
+    impressions: s.impressions,
+    linkClicks: s.linkClicks,
     hours: s.hours,
     subs: s.subs,
   }));
@@ -316,8 +332,8 @@ export interface TagRank {
   rows: RecordRow[];
 }
 
-/** Hashtags by how often they were used (then views), channel / show tags left out, with the move against the period before. */
-export function hashtagRanking(rows: RecordRow[], prev: RecordRow[], hidden: Set<string>, minPosts = 2): TagRank[] {
+/** Hashtags by views (or by how often they were used), channel / show tags left out, with the move against the period before. */
+export function hashtagRanking(rows: RecordRow[], prev: RecordRow[], hidden: Set<string>, minPosts = 2, order: "posts" | "views" = "posts"): TagRank[] {
   const rank = (list: RecordRow[]) => {
     const by = new Map<string, RecordRow[]>();
     for (const r of list) for (const t of new Set(String(r.hashtags || "").split(/\s+/).filter((x) => x.startsWith("#")))) {
@@ -332,7 +348,7 @@ export function hashtagRanking(rows: RecordRow[], prev: RecordRow[], hidden: Set
         const views = g.reduce((a, r) => a + r.views, 0);
         return { tag, posts: g.length, views, medianViews: median(g.map((r) => r.views)) || 0, er: views > 0 ? g.reduce((a, r) => a + r.likes + r.comments + r.shares, 0) / views : 0, rows: [...g].sort((a, b) => b.views - a.views) };
       })
-      .sort((a, b) => b.posts - a.posts || b.views - a.views);
+      .sort((a, b) => (order === "views" ? b.views - a.views || b.posts - a.posts : b.posts - a.posts || b.views - a.views));
   };
   const before = new Map(rank(prev).map((x, i) => [x.tag, i + 1]));
   return rank(rows).map((x, i) => {
@@ -350,4 +366,93 @@ export function tagDetail(t: TagRank, hidden: Set<string>, platforms: readonly s
   const co = new Map<string, number>();
   for (const r of t.rows) for (const x of new Set(String(r.hashtags || "").split(/\s+/).filter((y) => y.startsWith("#")))) if (x !== t.tag && !hidden.has(x)) co.set(x, (co.get(x) || 0) + 1);
   return { byPlatform, together: [...co.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([tag, posts]) => ({ tag, posts })) };
+}
+
+// ---------- รายงานรวมแพลตฟอร์ม: top of the page (one metric switch for all) ----------
+
+export type PageMetric = "views" | "posts" | "er";
+export const PAGE_METRICS: { id: PageMetric; label: string }[] = [
+  { id: "views", label: "ยอดวิว" },
+  { id: "posts", label: "จำนวนโพสต์" },
+  { id: "er", label: "ER" },
+];
+
+/** A group's value for the metric: views, posts, or (Like + Comment + Share) ÷ views. */
+export function metricOf(rows: RecordRow[], m: PageMetric): number {
+  if (m === "posts") return rows.length;
+  const views = rows.reduce((a, r) => a + r.views, 0);
+  if (m === "views") return views;
+  return views > 0 ? rows.reduce((a, r) => a + r.likes + r.comments + r.shares, 0) / views : 0;
+}
+
+/** Each digital platform's value for the metric, biggest first. */
+export function platformValues(rows: RecordRow[], m: PageMetric, platforms: readonly string[] = DIGITAL) {
+  return platforms.map((p) => ({ platform: p, value: metricOf(rows.filter((r) => r.platform === p), m) })).sort((a, b) => b.value - a.value);
+}
+
+/** The topic types (ประเภทเนื้อหา) by the metric, digital posts only, top n. */
+export function topTopics(rows: RecordRow[], m: PageMetric, n = 8) {
+  const by = new Map<string, RecordRow[]>();
+  for (const r of rows) {
+    if (!(DIGITAL as readonly string[]).includes(r.platform)) continue;
+    const k = r.topicType || "ไม่ระบุ";
+    let g = by.get(k);
+    if (!g) by.set(k, (g = []));
+    g.push(r);
+  }
+  return [...by.entries()]
+    .map(([topic, g]) => ({ topic, value: metricOf(g, m), posts: g.length }))
+    .filter((x) => m !== "er" || x.posts >= 5)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, n);
+}
+
+/** Per day: digital views (publish date) and TV audience of the episodes aired that day. */
+export function digitalVsTv(rows: RecordRow[], start: string, end: string) {
+  if (!start || !end) return [];
+  const by = new Map(daysBetween(start, end).map((d) => [d, { date: d, digital: 0, tv: 0 }]));
+  for (const r of rows) {
+    const d = by.get(r.date);
+    if (!d) continue;
+    if (r.platform === "TV") d.tv += r.audienceTotal || 0;
+    else if ((DIGITAL as readonly string[]).includes(r.platform)) d.digital += r.views;
+  }
+  return [...by.values()];
+}
+
+/** Facebook tiles: impressions (การเข้าถึง) and link clicks over the posts that have them. */
+export function facebookReach(rows: RecordRow[]) {
+  const withImpr = rows.filter((r) => r.impressions > 0);
+  const withClicks = rows.filter((r) => r.linkClicks !== null && r.linkClicks !== undefined);
+  return {
+    impressions: withImpr.reduce((a, r) => a + r.impressions, 0),
+    impressionPosts: withImpr.length,
+    linkClicks: withClicks.reduce((a, r) => a + (r.linkClicks || 0), 0),
+    clickPosts: withClicks.length,
+  };
+}
+
+/** Share of the posts that carry at least one hashtag. */
+export const hashtagShare = (rows: RecordRow[]) => (rows.length ? rows.filter((r) => /#\S/.test(String(r.hashtags || ""))).length / rows.length : 0);
+
+/** Views per publish day of a tag's posts over the last `n` days of the range (the small line in the list). */
+export function tagDaily(t: TagRank, end: string, n = 7): number[] {
+  const days = lastDays(end, n);
+  const by = new Map(days.map((d) => [d, 0]));
+  for (const r of t.rows) if (by.has(r.date)) by.set(r.date, (by.get(r.date) || 0) + r.views);
+  return days.map((d) => by.get(d) || 0);
+}
+
+/** The TV workbook source of a channel (GMM25 by name, One31 = the other one). */
+export const sourceOf = <S extends { channel: string }>(sources: S[], ch: TvChannel) => sources.find((s) => (ch === "GMM25" ? /gmm/i.test(s.channel) : !/gmm/i.test(s.channel)));
+
+/** ถกไม่เถียง's own rating per day on a channel (merged TV rows: One31 in ratingTotal, GMM25 in gmmRating). */
+export function ownRatings(rows: RecordRow[], program: string, ch: TvChannel): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    if (r.platform !== "TV" || r.program !== program) continue;
+    const v = ch === "GMM25" ? r.gmmRating : r.ratingTotal;
+    if (v > 0) m.set(r.date, v);
+  }
+  return m;
 }

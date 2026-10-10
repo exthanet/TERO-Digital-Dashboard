@@ -1,21 +1,24 @@
 "use client";
 // วิเคราะห์เชิงลึก → รายงานรวมแพลตฟอร์ม: every platform on one page, laid out as
-// output/motion-demo.html: Cross Platform, a board per platform in its own look
-// (PlatformStudio.tsx), TV, Platform Insight and the Hashtag Report (PlatformInsight.tsx).
+// output/platform-report-demo.html: headline tiles, Cross Platform, Digital vs TV,
+// share / bars / top topics (ยอดวิว / จำนวนโพสต์ / ER switch), competitors on both
+// TV channels (PlatformTop.tsx), a board per platform in its own look (PlatformStudio.tsx),
+// TV, Platform Insight and the Hashtag Report (PlatformInsight.tsx).
 // Filters at the top apply, except the platform filter (every platform is shown).
 import { useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { inRange } from "@/lib/dashboard/platformReport";
-import { DIGITAL } from "@/lib/dashboard/platformStudio";
+import { DIGITAL, PAGE_METRICS, type PageMetric } from "@/lib/dashboard/platformStudio";
 import { PlatformStudio, TvStudio } from "@/components/dashboard/sections/PlatformStudio";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
+import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 
 const LOOK: Record<string, string> = {
-  YouTube: "หน้าตาแบบ YouTube Studio",
+  YouTube: "หน้าตาแบบ YouTube Studio · เวลาในการรับชม / ผู้ติดตาม เห็นเฉพาะสิทธิ์ YouTube Deep Dive",
   TikTok: "หน้าตาแบบ TikTok Studio",
   Facebook: "หน้าตาแบบ Meta Business Suite",
   Instagram: "หน้าตาแบบ Professional dashboard",
@@ -36,16 +39,18 @@ interface Props {
 
 export function PlatformReportSection({ rows, allRows, startDate, endDate, comparePeriod, latestDate, canDeepDive }: Props) {
   const [opened, setOpened] = useState<RecordRow | null>(null);
+  const [metric, setMetric] = useState<PageMetric>("views");
   const cur = useMemo(() => inRange(rows, startDate, endDate), [rows, startDate, endDate]);
   const prev = useMemo(() => (comparePeriod ? inRange(rows, comparePeriod.start, comparePeriod.end) : []), [rows, comparePeriod]);
   const compareText = comparePeriod ? `เทียบ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
   const of = (list: RecordRow[], p: string) => list.filter((r) => r.platform === p);
   const tvCur = useMemo(() => of(cur, "TV"), [cur]);
+  const tvAll = useMemo(() => of(rows, "TV"), [rows]);
 
   return (
     <section className="panel platform-report" id="platform-report">
       {opened && <ClipDetailPanel clip={opened} allRows={allRows} latestDate={latestDate} onClose={() => setOpened(null)} />}
-      <div className="panel-head">
+      <div className="panel-head pr-head">
         <div>
           <h2>
             <BarChart3 size={18} /> รายงานรวมแพลตฟอร์ม
@@ -54,6 +59,13 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
             {thDate(startDate)} – {thDate(endDate)} · ตามตัวกรองด้านบน (ยกเว้นแพลตฟอร์ม: แสดงทุกแพลตฟอร์ม){compareText ? ` · % ${compareText}` : ""}
           </p>
         </div>
+        <div className="segmented" role="group" aria-label="ตัวชี้วัดของกราฟด้านบน">
+          {PAGE_METRICS.map((m) => (
+            <button key={m.id} className={metric === m.id ? "active" : ""} onClick={() => setMetric(m.id)}>
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {!cur.length && <p className="growth-notice">ไม่มีข้อมูลในช่วงและตัวกรองนี้</p>}
@@ -61,13 +73,23 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
       {cur.length > 0 && (
         <>
           <CrossPlatform cur={cur} startDate={startDate} endDate={endDate} />
+          <TopKpis cur={cur} prev={prev} compareText={compareText} />
+          <div className="pt-grid g2">
+            <DigitalVsTv cur={cur} startDate={startDate} endDate={endDate} />
+            <PlatformShare cur={cur} metric={metric} />
+          </div>
+          <div className="pt-grid g11">
+            <PlatformBars cur={cur} metric={metric} />
+            <TopTopics cur={cur} metric={metric} />
+          </div>
+          <CompetitorLines tvRows={tvAll} startDate={startDate} endDate={endDate} />
 
           {DIGITAL.map((p) => {
             const c = of(cur, p);
             return (
               <div key={p} className="pr-block">
                 <h2 className="pr-sec">
-                  {p} <small>{LOOK[p]}</small>
+                  {p} <small>{p === "YouTube" && !canDeepDive ? "หน้าตาแบบ YouTube Studio" : LOOK[p]}</small>
                 </h2>
                 {c.length ? (
                   <PlatformStudio
@@ -94,7 +116,7 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
               TV Rating <small>One31 และ GMM25</small>
             </h2>
             {tvCur.length ? (
-              <TvStudio cur={tvCur} prev={of(prev, "TV")} mine={of(rows, "TV")} startDate={startDate} endDate={endDate} compareText={compareText} />
+              <TvStudio cur={tvCur} prev={of(prev, "TV")} mine={tvAll} startDate={startDate} endDate={endDate} compareText={compareText} />
             ) : (
               <p className="growth-notice">ไม่มีข้อมูล TV ในช่วงและตัวกรองนี้</p>
             )}
@@ -111,7 +133,7 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
             <h2 className="pr-sec">
               Hashtag Report <small>รวมทุกแพลตฟอร์ม และแยกแพลตฟอร์ม</small>
             </h2>
-            <HashtagReport cur={cur} prev={prev} onOpen={setOpened} />
+            <HashtagReport cur={cur} prev={prev} endDate={endDate} onOpen={setOpened} />
           </div>
         </>
       )}
