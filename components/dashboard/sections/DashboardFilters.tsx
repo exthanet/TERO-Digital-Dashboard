@@ -10,6 +10,7 @@ import { searchTerms } from "@/lib/dashboard/search";
 
 /** The program the dashboard opens with; "ล้างทั้งหมด" goes back to it. */
 const DEFAULT_PROGRAM = "ถกไม่เถียง";
+const shiftDay = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
 const thDay = (iso: string, withYear: boolean) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(
     new Date(`${iso}T00:00:00Z`),
@@ -71,9 +72,8 @@ export function DashboardFilters({
   | "dataFirstDate"
 >) {
   const groups = datePresetGroups(dataFirstDate);
-  const today = bangkokToday();
-  // Today is synced once, early in the morning: its numbers are partial.
-  const partialToday = !!endDate && endDate >= today;
+  // Today has no numbers until tomorrow morning's sync: the calendar stops at yesterday.
+  const yesterday = shiftDay(bangkokToday(), -1);
   // Every filter that is not the default, each with its own ×; search terms one by one.
   const terms = searchTerms(search);
   const chips: { key: string; label: string; clear: () => void }[] = [
@@ -129,7 +129,7 @@ export function DashboardFilters({
               start={startDate}
               end={endDate}
               min={dataFirstDate}
-              max={today}
+              max={yesterday}
               label={rangeLabel(startDate, endDate) || "เลือกช่วงวันที่"}
               onPick={(s, e) => {
                 setStartDate(s);
@@ -184,11 +184,6 @@ export function DashboardFilters({
           )}
         </label>
       </div>
-      {partialToday && (
-        <p className="date-partial-note" role="note">
-          ข้อมูลของวันนี้ยังไม่ครบ · ระบบอัปเดตวันละครั้งตอนเช้า ตัวเลขวันนี้จึงมีเฉพาะโพสต์ก่อนรอบ sync
-        </p>
-      )}
       {(chips.length > 0 || busy) && (
         <div className="active-filters" aria-label="ตัวกรองที่ใช้อยู่">
           {busy && (

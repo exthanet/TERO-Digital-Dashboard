@@ -1,7 +1,7 @@
 "use client";
 // The date label of the filter bar as a button: opens a calendar to pick a
 // range (click the first day, then the last). Thai month names, Buddhist years
-// like the label; days outside the data (before the first day, after today) are off.
+// like the label; days outside the data (before the first day, after yesterday) are off.
 import { useEffect, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -30,7 +30,7 @@ export function DateRangePicker({
   end: string;
   /** First selectable day ("" = no limit). */
   min: string;
-  /** Last selectable day (today). */
+  /** Last selectable day (yesterday: today is synced tomorrow morning). */
   max: string;
   label: string;
   /** A full range was picked (start ≤ end). */
