@@ -1,0 +1,240 @@
+/* รายงานรวมแพลตฟอร์ม: weekday × hour squares and the Hashtag Report, as in output/platform-report-demo.html. */
+.pi-heat-wrap {
+  position: relative;
+  overflow-x: auto;
+}
+.pi-heat {
+  display: grid;
+  grid-template-columns: 34px repeat(24, 1fr);
+  gap: 2px;
+  font-size: 10px;
+  color: #6a7892;
+  min-width: 520px;
+}
+.pi-heat-h {
+  text-align: center;
+}
+.pi-heat-d {
+  align-self: center;
+}
+.pi-heat-c {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: #e8f0ff;
+  cursor: default;
+}
+.pi-tip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background: #0f1b31;
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.ht-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.ht-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  background: #03152b;
+  border-radius: 10px;
+  padding: 3px;
+}
+.ht-seg button {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ht-seg button.on {
+  background: #fff;
+  color: #0757e8;
+  font-weight: 700;
+}
+.ht-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ht-kpis div {
+  background: #f8fafc;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+.ht-kpis small {
+  display: block;
+  color: #6a7892;
+  font-size: 11px;
+}
+.ht-kpis b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.ht-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.ht-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1.4fr) 56px 50px minmax(0, 1.2fr) 46px 74px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ht-row:hover,
+.ht-row.sel {
+  background: #eef4ff;
+}
+.ht-th {
+  color: #6a7892;
+  font-size: 11px;
+  cursor: default;
+  background: none !important;
+}
+.ht-row .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ht-row .tg {
+  color: #0757e8;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ht-row .mv {
+  font-size: 12px;
+  font-weight: 700;
+}
+.ht-row .mv.up {
+  color: #16a34a;
+}
+.ht-row .mv.down {
+  color: #dc2626;
+}
+.ht-row .vb {
+  display: grid;
+  grid-template-columns: 1fr 46px;
+  gap: 6px;
+  align-items: center;
+}
+.ht-row .vb div {
+  height: 10px;
+  background: #eef2f8;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ht-row .vb span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+}
+.ht-row .vb b {
+  font-size: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ht-side {
+  border-left: 1px dashed #dce3ee;
+  padding-left: 16px;
+  min-width: 0;
+}
+.ht-side h2 {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+.ht-side h3 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+.ht-split {
+  display: grid;
+  grid-template-columns: 80px 1fr 54px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin: 5px 0;
+}
+.ht-split div {
+  height: 10px;
+  background: #eef2f8;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ht-split span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+}
+.ht-split b {
+  text-align: right;
+}
+.ht-bubbles {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+@media (max-width: 900px) {
+  .ht-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ht-side {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px dashed #dce3ee;
+    padding-top: 12px;
+  }
+  .ht-row {
+    grid-template-columns: 22px minmax(0, 1fr) 44px minmax(0, 1fr) 60px;
+  }
+  .ht-row > :nth-child(4),
+  .ht-row > :nth-child(6) {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pi-heat-c {
+    animation: pi-fade 0.5s ease-out both;
+  }
+  .ht-row .vb span,
+  .ht-split span {
+    animation: ps-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: left;
+  }
+  .ht-bubble {
+    animation: ht-pop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-box: fill-box;
+  }
+}
+@keyframes ht-pop {
+  from {
+    opacity: 0;
+  }
+}

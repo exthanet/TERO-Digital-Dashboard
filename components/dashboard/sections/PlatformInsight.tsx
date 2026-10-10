@@ -2,7 +2,7 @@
 // รายงานรวมแพลตฟอร์ม: the parts that compare every platform at once
 // (Cross Platform, Platform Insight, Hashtag Report), as in output/motion-demo.html.
 // Numbers from lib/dashboard/platformStudio.ts and platformReport.ts.
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -23,7 +23,7 @@ import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { CHANNEL_TAGS } from "@/lib/dashboard/trendingHashtags";
-import { MIN_POSTS_PER_CELL, WEEKDAYS, bestSlots, change, postingHeatmap } from "@/lib/dashboard/platformReport";
+import { WEEKDAYS, change, postingHeatmap } from "@/lib/dashboard/platformReport";
 import { DIGITAL, crossDaily, hashtagRanking, hashtagShare, strengths, tagDaily, tagDetail } from "@/lib/dashboard/platformStudio";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { CountUp, useMotion } from "@/components/dashboard/shared/Motion";
@@ -146,8 +146,6 @@ export function PlatformInsight({ cur, prev, startDate, endDate, compareText }: 
   const daily = useMemo(() => crossDaily(cur, startDate, endDate), [cur, startDate, endDate]);
   const digital = useMemo(() => cur.filter((r) => (DIGITAL as readonly string[]).includes(r.platform)), [cur]);
   const heat = useMemo(() => postingHeatmap(digital), [digital]);
-  const slots = useMemo(() => bestSlots(heat), [heat]);
-  const heatMax = Math.max(0, ...heat.cells.flat().map((c) => c.medianViews || 0));
   const prevViews = useMemo(() => new Map(DIGITAL.map((p) => [p, prev.filter((r) => r.platform === p).reduce((a, r) => a + r.views, 0)])), [prev]);
 
   return (
@@ -206,59 +204,76 @@ export function PlatformInsight({ cur, prev, startDate, endDate, compareText }: 
 
       <article className="pi-card pi-wide">
         <h3>วันและเวลาที่โพสต์แล้วได้ผล (ทุกแพลตฟอร์ม)</h3>
-        <p className="ps-muted">
-          สีเข้ม = ค่ากลางวิวต่อโพสต์สูง (ต้องมีอย่างน้อย {MIN_POSTS_PER_CELL} โพสต์) · ตัวเลข = จำนวนโพสต์ · ชี้ช่องเพื่อดูตัวเลข
-          {heat.noTime > 0 && ` · ไม่มีเวลาโพสต์ ${num(heat.noTime)} โพสต์`}
-        </p>
-        {slots.length > 0 && (
-          <p className="platform-slots">
-            ดีที่สุด:{" "}
-            {slots.map((x, i) => (
-              <span key={i}>
-                {WEEKDAYS[x.day]} {hh(x.hour)} ({compact(x.medianViews)} วิว · {x.posts} โพสต์)
-              </span>
-            ))}
-          </p>
-        )}
-        <div className="table-scroll">
-          <table className="platform-heat">
-            <thead>
-              <tr>
-                <th />
-                {Array.from({ length: 24 }, (_, h) => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {heat.cells.map((row, d) => (
-                <tr key={d}>
-                  <th>{WEEKDAYS[d]}</th>
-                  {row.map((c, h) => (
-                    <td
-                      key={h}
-                      className={c.medianViews === null ? (c.posts ? "few" : "none") : ""}
-                      style={c.medianViews !== null && heatMax ? { background: `color-mix(in srgb, #4f46e5 ${Math.round(12 + (c.medianViews / heatMax) * 88)}%, white)`, color: c.medianViews / heatMax > 0.5 ? "#fff" : undefined } : undefined}
-                      title={`${WEEKDAYS[d]} ${hh(h)} · ${c.posts} โพสต์${c.medianViews !== null ? ` · ค่ากลาง ${num(c.medianViews)} วิว` : c.posts ? " · น้อยเกินไปที่จะสรุป" : ""}`}
-                    >
-                      {c.posts || ""}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="ps-muted">เวลาโพสต์เป็นเวลาไทยตามที่บันทึก · เป็นความสัมพันธ์จากข้อมูล ควรทดลองยืนยันก่อนเปลี่ยนแผน</p>
+        <p className="ps-muted">สีเข้ม = ค่ากลางวิวต่อโพสต์สูง · ชี้ช่องเพื่อดูตัวเลข · ช่องสีอ่อนไม่มีสี = โพสต์ไม่ถึง 3 โพสต์</p>
+        <HeatGrid heat={heat} />
       </article>
     </div>
   );
 }
 
-// ---------- Hashtag Report ----------
+/** Weekday × hour squares as in the demo: the darker, the higher the median views per post; hover for the numbers. */
+function HeatGrid({ heat }: { heat: ReturnType<typeof postingHeatmap> }) {
+  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
+  // Shade by rank among the cells with enough posts, so one very high hour does not wash out the rest.
+  const ranked = [...new Set(heat.cells.flat().map((c) => c.medianViews).filter((v): v is number => v !== null))].sort((a, b) => a - b);
+  const shade = (v: number) => (ranked.length > 1 ? ranked.indexOf(v) / (ranked.length - 1) : 1);
+  return (
+    <div className="pi-heat-wrap" onMouseLeave={() => setTip(null)}>
+      <div className="pi-heat">
+        <span />
+        {Array.from({ length: 24 }, (_, h) => (
+          <span key={h} className="pi-heat-h">
+            {h % 3 ? "" : h}
+          </span>
+        ))}
+        {heat.cells.map((row, d) => (
+          <Fragment key={d}>
+            <span className="pi-heat-d">{WEEKDAYS[d]}</span>
+            {row.map((c, h) => {
+              const text = `${WEEKDAYS[d]} ${hh(h)} · ${c.medianViews !== null ? `ค่ากลาง ${compact(c.medianViews)} วิว/โพสต์ · ${c.posts} โพสต์` : c.posts ? `${c.posts} โพสต์ (น้อยเกินไปที่จะสรุป)` : "ไม่มีโพสต์"}`;
+              return (
+                <div
+                  key={h}
+                  className="pi-heat-c"
+                  style={{
+                    backgroundColor: c.medianViews !== null ? `rgba(7, 87, 232, ${(0.12 + shade(c.medianViews) * 0.86).toFixed(2)})` : undefined,
+                    animationDelay: `${h * 18 + d * 40}ms`,
+                  }}
+                  onMouseEnter={(e) => {
+                    const box = e.currentTarget.closest(".pi-heat-wrap")!.getBoundingClientRect();
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setTip({ text, x: Math.min(box.width - 230, Math.max(0, r.left - box.left)), y: r.top - box.top - 34 });
+                  }}
+                  title={text}
+                />
+              );
+            })}
+          </Fragment>
+        ))}
+      </div>
+      {tip && (
+        <div className="pi-tip" style={{ left: tip.x, top: tip.y }}>
+          {tip.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Hashtag Report (as in output/platform-report-demo.html) ----------
 
 const TAG_TABS = ["รวมทุกแพลตฟอร์ม", ...DIGITAL] as const;
 const SHOW_TAGS = 10;
+/** Where the co-used tag bubbles sit (viewBox 360 × 200), biggest first. */
+const BUBBLE_AT = [
+  [70, 70],
+  [170, 60],
+  [270, 80],
+  [110, 150],
+  [215, 145],
+  [310, 155],
+  [40, 160],
+];
 
 function Spark({ values, color }: { values: number[]; color: string }) {
   const max = Math.max(0, ...values);
@@ -272,146 +287,145 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   );
 }
 
-export function HashtagReport({ cur, prev, endDate, onOpen }: { cur: RecordRow[]; prev: RecordRow[]; endDate: string; onOpen: (r: RecordRow) => void }) {
+export function HashtagReport({ cur, prev, endDate }: { cur: RecordRow[]; prev: RecordRow[]; endDate: string; onOpen?: (r: RecordRow) => void }) {
   const [tab, setTab] = useState<(typeof TAG_TABS)[number]>("รวมทุกแพลตฟอร์ม");
   const [pick, setPick] = useState("");
-  const [all, setAll] = useState(false);
   const inTab = useMemo(() => {
     const keep = (r: RecordRow) => (tab === "รวมทุกแพลตฟอร์ม" ? (DIGITAL as readonly string[]).includes(r.platform) : r.platform === tab);
     return { cur: cur.filter(keep), prev: prev.filter(keep) };
   }, [cur, prev, tab]);
-  const list = useMemo(() => hashtagRanking(inTab.cur, inTab.prev, CHANNEL_TAGS, 2, "views"), [inTab]);
-  const shown = all ? list : list.slice(0, SHOW_TAGS);
-  const chosen = list.find((t) => t.tag === pick) || list[0];
+  const all = useMemo(() => hashtagRanking(inTab.cur, inTab.prev, CHANNEL_TAGS, 2, "views"), [inTab]);
+  const list = useMemo(() => all.slice(0, SHOW_TAGS), [all]);
+  const chosen = useMemo(() => list.find((t) => t.tag === pick) || list[0], [list, pick]);
   const detail = useMemo(() => (chosen ? tagDetail(chosen, CHANNEL_TAGS) : null), [chosen]);
-  const color = tab === "รวมทุกแพลตฟอร์ม" ? "#4f46e5" : COLORS[tab];
-  const maxViews = Math.max(1, ...shown.map((t) => t.views));
-  const splitSum = detail ? detail.byPlatform.reduce((a, x) => a + x.views, 0) : 0;
-  const splitMax = detail ? Math.max(1, ...detail.byPlatform.map((x) => x.views)) : 1;
-  const coMax = detail ? Math.max(1, ...detail.together.map((x) => x.posts)) : 1;
-  const topViews = list.slice(0, SHOW_TAGS).reduce((a, t) => a + t.views, 0);
+  const color = tab === "รวมทุกแพลตฟอร์ม" ? "#0757e8" : COLORS[tab];
+  const maxViews = Math.max(1, ...list.map((t) => t.views));
+  const split = detail ? detail.byPlatform.filter((x) => x.posts).sort((a, b) => b.views - a.views) : [];
+  const splitSum = split.reduce((a, x) => a + x.views, 0);
+  const splitMax = Math.max(1, ...split.map((x) => x.views));
+  const bubbles = detail ? detail.together.slice(0, BUBBLE_AT.length) : [];
+  const coMax = Math.max(1, ...bubbles.map((x) => x.posts));
 
   return (
-    <article className="pi-card">
-      <div className="pi-head">
-        <div className="segmented" role="group" aria-label="แพลตฟอร์มของ hashtag">
+    <article className="pi-card ht">
+      <div className="ht-head">
+        <div className="ht-seg" role="group" aria-label="แพลตฟอร์มของ hashtag">
           {TAG_TABS.map((t) => (
-            <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
+            <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
         </div>
-      </div>
-      <div className="pt-kpis three">
-        <div className="pt-kpi flat">
-          <small>แท็กที่ติดอันดับ</small>
-          <b>{num(list.length)}</b>
-        </div>
-        <div className="pt-kpi flat">
-          <small>โพสต์ที่มี Hashtag</small>
-          <b>
-            <CountUp value={hashtagShare(inTab.cur)} format={(v) => pct(v, 0)} />
-          </b>
-        </div>
-        <div className="pt-kpi flat" title="โพสต์ที่มีหลายแท็กถูกนับในทุกแท็กที่มี">
-          <small>วิวจากแท็ก 10 อันดับ</small>
-          <b>
-            <CountUp value={topViews} format={compact} />
-          </b>
+        <div className="ht-kpis">
+          <div>
+            <small>แท็กที่ติดอันดับ</small>
+            <b>{num(list.length)}</b>
+          </div>
+          <div>
+            <small>โพสต์ที่มี Hashtag</small>
+            <b>
+              <CountUp value={hashtagShare(inTab.cur)} format={(v) => pct(v, 0)} />
+            </b>
+          </div>
+          <div title="โพสต์ที่มีหลายแท็กถูกนับในทุกแท็กที่มี">
+            <small>วิวจากแท็ก 10 อันดับ</small>
+            <b>
+              <CountUp value={list.reduce((a, t) => a + t.views, 0)} format={compact} />
+            </b>
+          </div>
         </div>
       </div>
       {!list.length ? (
         <p className="growth-notice">ยังไม่มี hashtag ที่ใช้อย่างน้อย 2 โพสต์ในช่วงนี้</p>
       ) : (
-        <div className="pi-tags">
+        <div className="ht-grid">
           <div>
-            <div className="pi-tag-row pi-tag-th">
+            <div className="ht-row ht-th">
               <span>#</span>
               <span>Hashtag</span>
               <span>อันดับ</span>
-              <span className="pi-num">โพสต์</span>
+              <span className="n">โพสต์</span>
               <span>วิว</span>
-              <span className="pi-num">ER</span>
+              <span className="n">ER</span>
               <span>7 วัน</span>
             </div>
-            <ol className="pi-tag-list">
-              {shown.map((t) => (
-                <li key={t.tag}>
-                  <button type="button" className={`pi-tag-row${chosen?.tag === t.tag ? " on" : ""}`} onClick={() => setPick(t.tag)}>
-                    <b className="pi-rank">{t.rank}</b>
-                    <span className="pi-tag-name">{t.tag}</span>
-                    <span className={`pi-move ${t.move === null ? "new" : t.move > 0 ? "up" : t.move < 0 ? "down" : ""}`}>
-                      {t.move === null ? (prev.length ? "ใหม่" : "") : t.move > 0 ? `▲${t.move}` : t.move < 0 ? `▼${-t.move}` : "■"}
+            <div>
+              {list.map((t, i) => (
+                <button type="button" key={t.tag} className={`ht-row${chosen?.tag === t.tag ? " sel" : ""}`} onClick={() => setPick(t.tag)}>
+                  <span>{i + 1}</span>
+                  <span className="tg">{t.tag}</span>
+                  {t.move === null ? (
+                    <span className="mv" style={{ color: "#7c3aed" }}>
+                      {prev.length ? "ใหม่" : ""}
                     </span>
-                    <span className="pi-num">{num(t.posts)}</span>
-                    <span className="pi-views">
-                      <span className="pi-tag-bar">
-                        <span style={{ width: `${(t.views / maxViews) * 100}%`, background: color }} />
-                      </span>
-                      <small>{compact(t.views)}</small>
+                  ) : t.move > 0 ? (
+                    <span className="mv up">▲{t.move}</span>
+                  ) : t.move < 0 ? (
+                    <span className="mv down">▼{-t.move}</span>
+                  ) : (
+                    <span className="mv" style={{ color: "#94a3b8" }}>
+                      ■
                     </span>
-                    <span className="pi-num">{pct(t.er, 1)}</span>
-                    <Spark values={tagDaily(t, endDate)} color={color} />
-                  </button>
-                </li>
+                  )}
+                  <span className="n">{num(t.posts)}</span>
+                  <span className="vb">
+                    <div>
+                      <span style={{ width: `${(t.views / maxViews) * 100}%`, background: color }} />
+                    </div>
+                    <b>{compact(t.views)}</b>
+                  </span>
+                  <span className="n">{pct(t.er, 1)}</span>
+                  <Spark values={tagDaily(t, endDate)} color={color} />
+                </button>
               ))}
-            </ol>
-            <p className="ps-muted">กดแท็กเพื่อดูรายละเอียดทางขวา · เรียงตามยอดวิว · ▲▼ = อันดับเทียบช่วงก่อน · ซ่อนแท็กของช่อง / รายการ เช่น #ถกไม่เถียง · 7 วัน = วิวของโพสต์ที่ลงใน 7 วันสุดท้ายของช่วง</p>
-            {list.length > SHOW_TAGS && (
-              <button type="button" className="ranking-more" onClick={() => setAll((v) => !v)}>
-                {all ? "แสดง 10 อันดับ" : `ดูทั้งหมด ${list.length} hashtag`}
-              </button>
-            )}
+            </div>
+            <p className="ps-muted" style={{ marginTop: 8 }}>
+              กดแท็กเพื่อดูรายละเอียดทางขวา · ▲▼ = อันดับเทียบช่วงก่อน · ซ่อนแท็กของช่อง/รายการ เช่น #ถกไม่เถียง
+            </p>
           </div>
           {chosen && detail && (
-            <aside className="pi-tag-detail">
-              <h4>{chosen.tag}</h4>
+            <div className="ht-side">
+              <h2>{chosen.tag}</h2>
               <p className="ps-muted">
                 {num(chosen.posts)} โพสต์ · วิวรวม {compact(chosen.views)} · ER {pct(chosen.er, 1)}
               </p>
-              <h5>แยกตามแพลตฟอร์ม</h5>
-              {detail.byPlatform
-                .filter((x) => x.posts)
-                .sort((a, b) => b.views - a.views)
-                .map((x) => (
-                  <div key={x.platform} className="ps-bar" title={`${x.posts} โพสต์ · ${num(x.views)} วิว`}>
-                    <span className="ps-bar-label">{x.platform}</span>
-                    <span className="ps-bar-track">
-                      <span style={{ width: `${(x.views / splitMax) * 100}%`, background: COLORS[x.platform] }} />
-                    </span>
-                    <b>{splitSum ? pct(x.views / splitSum, 0) : "-"}</b>
+              <h3>แยกตามแพลตฟอร์ม</h3>
+              {split.map((x) => (
+                <div key={x.platform} className="ht-split" title={`${x.posts} โพสต์ · ${num(x.views)} วิว`}>
+                  <span>{x.platform}</span>
+                  <div>
+                    <span style={{ width: `${(x.views / splitMax) * 100}%`, background: COLORS[x.platform] }} />
                   </div>
-                ))}
-              <h5>แท็กที่ใช้คู่กันบ่อย</h5>
-              {detail.together.length ? (
-                <div className="pi-bubbles">
-                  {detail.together.map((x) => (
-                    <button
-                      key={x.tag}
-                      type="button"
-                      style={{ fontSize: `${11 + (x.posts / coMax) * 7}px`, background: `color-mix(in srgb, #4f46e5 ${Math.round(8 + (x.posts / coMax) * 22)}%, white)` }}
-                      onClick={() => list.some((t) => t.tag === x.tag) && setPick(x.tag)}
-                      title={`ใช้คู่กัน ${x.posts} โพสต์`}
-                    >
-                      {x.tag}
-                    </button>
-                  ))}
+                  <b>{splitSum ? pct(x.views / splitSum, 0) : "-"}</b>
                 </div>
+              ))}
+              <h3 style={{ marginTop: 12 }}>แท็กที่ใช้คู่กันบ่อย</h3>
+              {bubbles.length ? (
+                <svg className="ht-bubbles" viewBox="0 0 360 200" role="img" aria-label="แท็กที่ใช้คู่กันบ่อย">
+                  {bubbles.map((x, i) => {
+                    const r = 16 + 26 * (x.posts / coMax);
+                    const can = all.some((t) => t.tag === x.tag) && list.some((t) => t.tag === x.tag);
+                    return (
+                      <g
+                        key={x.tag}
+                        transform={`translate(${BUBBLE_AT[i][0]},${BUBBLE_AT[i][1]})`}
+                        style={{ cursor: can ? "pointer" : "default", animationDelay: `${i * 60}ms` }}
+                        className="ht-bubble"
+                        onClick={() => can && setPick(x.tag)}
+                      >
+                        <title>{`${x.tag} · ใช้คู่กัน ${x.posts} โพสต์`}</title>
+                        <circle r={r} fill="#0757e8" fillOpacity={0.12 + r / 160} />
+                        <text textAnchor="middle" y={4} fontSize={r > 30 ? 12 : 10} fill="#0f1b31">
+                          {x.tag}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
               ) : (
                 <p className="ps-muted">ไม่มีแท็กอื่นที่ใช้คู่กัน</p>
               )}
-              <h5>คลิปวิวสูงสุด</h5>
-              <ol className="ps-mini-list">
-                {chosen.rows.slice(0, 5).map((r, i) => (
-                  <li key={`${r.url || r.contentId}-${i}`}>
-                    <button type="button" className="clip-open" onClick={() => onOpen(r)}>
-                      {r.topic || "ไม่ระบุประเด็น"}
-                    </button>
-                    <b>{compact(r.views)}</b>
-                  </li>
-                ))}
-              </ol>
-            </aside>
+            </div>
           )}
         </div>
       )}
