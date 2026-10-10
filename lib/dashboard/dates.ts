@@ -22,11 +22,15 @@ const TH_MONTH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค
 /**
  * Date range of a preset. Rolling ranges and the current year/month/quarter
  * end yesterday: today is not over and the morning sync only has part of it.
+ * "TODAY" is the one exception, asked for on purpose (the page says it is partial).
  * `data` is the first/last day in the data, for "ทั้งหมด".
  */
 export function getDatePresetRange(preset: DatePreset, data?: { first: string; last: string }, now = new Date()): [string, string] {
-  const yesterday = shift(bangkokToday(now), -1);
-  const rolling = preset.match(/^LAST_(\d+)_DAYS$/);
+  const today = bangkokToday(now);
+  const yesterday = shift(today, -1);
+  if (preset === "TODAY") return [today, today];
+  if (preset === "YESTERDAY") return [yesterday, yesterday];
+  const rolling =preset.match(/^LAST_(\d+)_DAYS$/);
   if (rolling) return [shift(yesterday, -(Number(rolling[1]) - 1)), yesterday];
   if (preset === "ALL") return [data?.first || "", data?.last || ""];
   const year = preset.match(/^YEAR_(\d{4})$/);
@@ -70,6 +74,13 @@ export function datePresetGroups(firstDataDate: string, now = new Date()): Prese
     quarters.push({ value: `QUARTER_${yy}_${q}` as DatePreset, label: `ไตรมาส ${q}/${yy + 543} (${TH_MONTH[first]}–${TH_MONTH[first + 2]})` });
   }
   return [
+    {
+      label: "รายวัน",
+      options: [
+        { value: "TODAY", label: "วันนี้ (ข้อมูลยังไม่ครบ)" },
+        { value: "YESTERDAY", label: "เมื่อวาน" },
+      ],
+    },
     {
       label: "ช่วงล่าสุด (ถึงเมื่อวาน)",
       options: [

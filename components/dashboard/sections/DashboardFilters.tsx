@@ -2,7 +2,8 @@
 import { SelectBox } from "@/components/dashboard/shared/SelectBox";
 import { Input } from "@/components/ui/input";
 import type { DashboardModel } from "@/hooks/useDashboard";
-import { datePresetGroups } from "@/lib/dashboard/dates";
+import { bangkokToday, datePresetGroups } from "@/lib/dashboard/dates";
+import { DateRangePicker } from "@/components/dashboard/shared/DateRangePicker";
 import type { DatePreset } from "@/lib/dashboard/types";
 import { Search, X } from "lucide-react";
 import { searchTerms } from "@/lib/dashboard/search";
@@ -13,9 +14,9 @@ const thDay = (iso: string, withYear: boolean) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(
     new Date(`${iso}T00:00:00Z`),
   );
-/** "3 ก.ย. – 30 ก.ย. 2569" for the selected range. */
+/** "3 ก.ย. – 30 ก.ย. 2569" for the selected range; one day: "10 ต.ค. 2569". */
 const rangeLabel = (start: string, end: string) =>
-  start && end ? `${thDay(start, start.slice(0, 4) !== end.slice(0, 4))} – ${thDay(end, true)}` : "";
+  !start || !end ? "" : start === end ? thDay(end, true) : `${thDay(start, start.slice(0, 4) !== end.slice(0, 4))} – ${thDay(end, true)}`;
 
 export function DashboardFilters({
   program,
@@ -70,7 +71,9 @@ export function DashboardFilters({
   | "dataFirstDate"
 >) {
   const groups = datePresetGroups(dataFirstDate);
-  const custom = datePreset === "CUSTOM";
+  const today = bangkokToday();
+  // Today is synced once, early in the morning: its numbers are partial.
+  const partialToday = !!endDate && endDate >= today;
   // Every filter that is not the default, each with its own ×; search terms one by one.
   const terms = searchTerms(search);
   const chips: { key: string; label: string; clear: () => void }[] = [
@@ -102,12 +105,13 @@ export function DashboardFilters({
           options={options.programs}
           locked={programLocked ? "ทุกรายการ (หน้านี้แสดงทุกรายการ)" : undefined}
         />
-        <label className="filter-box date-filter">
+        <div className="filter-box date-filter" role="group" aria-label="วันเดือนปี">
           <span>วันเดือนปี</span>
           <div>
             <select
               className="quick-range"
               value={datePreset}
+              aria-label="ช่วงวันที่"
               onChange={(e) => applyDatePreset(e.target.value as DatePreset)}
             >
               {groups.map((g) => (
@@ -120,33 +124,21 @@ export function DashboardFilters({
                 </optgroup>
               ))}
             </select>
-            {custom ? (
-              <>
-            <input
-              className="date-input"
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
+            {/* The range label opens the calendar; picking a range there makes the menu "กำหนดเอง". */}
+            <DateRangePicker
+              start={startDate}
+              end={endDate}
+              min={dataFirstDate}
+              max={today}
+              label={rangeLabel(startDate, endDate) || "เลือกช่วงวันที่"}
+              onPick={(s, e) => {
+                setStartDate(s);
+                setEndDate(e);
                 setDatePreset("CUSTOM");
               }}
             />
-            <b>–</b>
-            <input
-              className="date-input"
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                setDatePreset("CUSTOM");
-              }}
-            />
-              </>
-            ) : (
-              <span className="date-range-text">{rangeLabel(startDate, endDate)}</span>
-            )}
           </div>
-        </label>
+        </div>
         <SelectBox
           className="mobile-hide"
           label="Cross Platform"
@@ -192,6 +184,11 @@ export function DashboardFilters({
           )}
         </label>
       </div>
+      {partialToday && (
+        <p className="date-partial-note" role="note">
+          ข้อมูลของวันนี้ยังไม่ครบ · ระบบอัปเดตวันละครั้งตอนเช้า ตัวเลขวันนี้จึงมีเฉพาะโพสต์ก่อนรอบ sync
+        </p>
+      )}
       {(chips.length > 0 || busy) && (
         <div className="active-filters" aria-label="ตัวกรองที่ใช้อยู่">
           {busy && (

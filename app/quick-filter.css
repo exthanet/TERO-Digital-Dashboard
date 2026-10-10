@@ -493,3 +493,46 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Date label = button that opens the range calendar (components/dashboard/shared/DateRangePicker.tsx). */
+.date-filter .date-range-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px dashed #c7d2e3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+}
+.date-filter .date-range-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.date-filter .date-range-btn:hover,
+.date-filter .date-range-btn[data-state="open"] {
+  border-color: #0757e8;
+  color: #0757e8;
+}
+.date-range-pop {
+  width: auto;
+  padding: 6px;
+}
+.date-range-hint {
+  margin: 4px 8px 6px;
+  font-size: 12px;
+  color: #6a7892;
+}
+.date-partial-note {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #8a5a00;
+  font-size: 13px;
+}

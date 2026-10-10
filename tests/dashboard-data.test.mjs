@@ -237,6 +237,10 @@ test("28 วันล่าสุด: 28 full days ending yesterday (Bangkok)", 
 test("date menu: ranges end yesterday; years, months, quarters from the data", async () => {
   const { getDatePresetRange, datePresetGroups } = await import("../lib/dashboard/dates.ts");
   const now = new Date("2026-10-01T03:00:00Z"); // 10:00 in Bangkok, 1 Oct 2026
+  assert.deepEqual(getDatePresetRange("TODAY", undefined, now), ["2026-10-01", "2026-10-01"]);
+  assert.deepEqual(getDatePresetRange("YESTERDAY", undefined, now), ["2026-09-30", "2026-09-30"]);
+  // 23:30 on 30 Sep in UTC is already 1 Oct in Bangkok.
+  assert.deepEqual(getDatePresetRange("TODAY", undefined, new Date("2026-09-30T23:30:00Z")), ["2026-10-01", "2026-10-01"]);
   assert.deepEqual(getDatePresetRange("LAST_7_DAYS", undefined, now), ["2026-09-24", "2026-09-30"]);
   assert.deepEqual(getDatePresetRange("LAST_90_DAYS", undefined, now), ["2026-07-03", "2026-09-30"]);
   assert.deepEqual(getDatePresetRange("LAST_365_DAYS", undefined, now), ["2025-10-01", "2026-09-30"]);
@@ -247,6 +251,7 @@ test("date menu: ranges end yesterday; years, months, quarters from the data", a
   assert.deepEqual(getDatePresetRange("QUARTER_2026_3", undefined, now), ["2026-07-01", "2026-09-30"]);
   const groups = datePresetGroups("2025-08-06", now);
   const values = (label) => groups.find((g) => g.label === label).options.map((o) => o.value);
+  assert.deepEqual(values("รายวัน"), ["TODAY", "YESTERDAY"]);
   assert.deepEqual(values("รายปี"), ["YEAR_2026", "YEAR_2025"]);
   assert.deepEqual(values("รายเดือน"), ["MONTH_2026-09", "MONTH_2026-08", "MONTH_2026-07"]); // 1 Oct: no full day of Oct yet
   assert.deepEqual(values("รายไตรมาส"), ["QUARTER_2026_3", "QUARTER_2026_2", "QUARTER_2026_1"]);

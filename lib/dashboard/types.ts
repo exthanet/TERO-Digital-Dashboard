@@ -81,6 +81,8 @@ export type IntegrationMap = Record<
 
 /** Date menu: rolling ranges end yesterday; years, months and quarters carry their year. */
 export type DatePreset =
+  | "TODAY"
+  | "YESTERDAY"
   | "LAST_7_DAYS"
   | "LAST_28_DAYS"
   | "LAST_90_DAYS"
