@@ -160,7 +160,7 @@ export function useDashboard(enabled = true) {
   const [grain, setGrain] = useState<"day" | "month" | "year">("day");
   const [ratingGrain, setRatingGrain] = useState<"day" | "month" | "year">("day");
   const fileRef = useRef<HTMLInputElement>(null);
-  const [executiveChartType, setExecutiveChartType] = useState<"line" | "bar">(
+  const [executiveChartType, setExecutiveChartType] = useState<"line" | "bar" | "area" | "pct">(
     "line",
   );
   const [comparePage, setComparePage] = useState(1),

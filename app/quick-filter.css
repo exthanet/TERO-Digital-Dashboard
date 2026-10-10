@@ -528,3 +528,37 @@
   font-size: 12px;
   color: #6a7892;
 }
+
+/* Cross Platform / VDO Type: hidden series in the legend, totals under the chart. */
+.chart-legend-item.off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+.series-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.series-totals div {
+  border-left: 4px solid;
+  padding: 2px 10px;
+  min-width: 0;
+}
+.series-totals small {
+  display: block;
+  color: #6a7892;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.series-totals b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.series-totals span {
+  margin-left: 6px;
+  color: #6a7892;
+  font-size: 12px;
+}
