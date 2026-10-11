@@ -141,9 +141,3 @@ export function summarizeGrowth(
     drops,
   };
 }
-
-/** Share of the clip's lifetime views that came in this range (capped at 100%: counts come from different syncs). */
-export function gainShare(c: Pick<GrowthClip, "views"> & { row: Pick<RecordRow, "views"> }): number | null {
-  if (!(c.row.views > 0) || c.views <= 0) return null;
-  return Math.min(1, c.views / c.row.views);
-}

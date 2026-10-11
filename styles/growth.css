@@ -2244,25 +2244,3 @@
     transform: none;
   }
 }
-
-/* การเติบโต → Top วิวที่เพิ่มขึ้นจริง (TopGainBox.tsx). */
-.top-gain-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  align-items: center;
-  justify-content: space-between;
-}
-.top-gain-head h3 {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-}
-.top-gain {
-  margin-bottom: 14px;
-}
-.growth-tag.new {
-  background: #e0f2fe;
-  color: #075985;
-}
