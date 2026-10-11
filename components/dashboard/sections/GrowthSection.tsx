@@ -2,7 +2,7 @@
 // Advanced → การเติบโต: views gained per day (growthDaily, see lib/dashboard/growth.ts),
 // for the posts that pass the dashboard filters (program, platform, type, search).
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, ExternalLink, History, MousePointerClick, TrendingUp } from "lucide-react";
+import { Activity, History, MousePointerClick, TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
@@ -16,6 +16,7 @@ import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { EarlySignalBox } from "@/components/dashboard/sections/EarlySignalBox";
 import { EvergreenBox } from "@/components/dashboard/sections/EvergreenBox";
+import { TopGainBox } from "@/components/dashboard/sections/TopGainBox";
 import { evergreen } from "@/lib/dashboard/evergreen";
 import { track } from "@/lib/loadingBar";
 
@@ -42,7 +43,6 @@ interface Props {
 export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod }: Props) {
   const [firstDay, setFirstDay] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [opened, setOpened] = useState<RecordRow | null>(null);
   // Daily chart: stacked bars (total per day) or one line per platform; remembered per viewer.
   const [chart, setChartState] = useState<ChartKind>(() => {
@@ -138,8 +138,6 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
   const change = (a: number, b: number) => (comparable && b ? (a - b) / Math.abs(b) : null);
   const compareText = comparePeriod ? `เทียบกับ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
 
-  const clips = s ? (showAll ? s.clips.slice(0, 100) : s.clips.slice(0, 20)) : [];
-
   // New clips by start speed: peers from every row, listed for the rows that pass the filters.
   const early = useMemo(() => (ready ? earlySignals(days!.map, growthSyncTimes(), allRows) : []), [ready, days, allRows]);
   const freshClips = useMemo(() => {
@@ -170,7 +168,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
           <History size={15} />
           {firstDay
             ? `มีข้อมูลรายวันตั้งแต่ ${thDate(firstDay)} · ช่วงก่อนหน้านั้นยังไม่มีข้อมูล`
-            : "ยังไม่มีข้อมูลรายวัน · ระบบจะเริ่มเก็บจากการ sync รอบถัดไป (ทุกวัน 05:17 น.)"}
+            : "ยังไม่มีข้อมูลรายวัน · ระบบจะเริ่มเก็บจากการ sync รอบถัดไป (ทุกเช้าราว 8 โมง)"}
         </p>
       )}
 
@@ -190,6 +188,8 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
               {comparePeriod && " (ไม่แสดง % เปรียบเทียบเพราะข้อมูลไม่ครบช่วง)"}
             </p>
           )}
+
+          <TopGainBox clips={s.clips} startDate={startDate} endDate={endDate} onOpen={setOpened} />
 
           <div className="kpi-grid growth-kpis">
             <Kpi
@@ -285,68 +285,9 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
 
           <EvergreenBox items={green.items} daysWithData={green.daysWithData} onOpen={setOpened} />
 
-          <article className="growth-table">
-            <h3>คลิปที่วิวเพิ่มมากที่สุดในช่วงนี้</h3>
-            <p className="growth-hint">กดชื่อคลิปเพื่อดูการวิเคราะห์คลิปนั้น (ทุกแพลตฟอร์ม วิวรายวัน ช่วงเวลาโพสต์)</p>
-            {clips.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>คลิป</th>
-                      <th>โพสต์เมื่อ</th>
-                      <th className="num">วิวที่เพิ่ม</th>
-                      <th className="num">Engagement ที่เพิ่ม</th>
-                      <th className="num">วิวสะสมล่าสุด</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clips.map((c, i) => (
-                      <tr key={c.key}>
-                        <td>{i + 1}</td>
-                        <td className="growth-clip">
-                          <span className="growth-clip-title">
-                            <button type="button" className="clip-open" onClick={() => setOpened(c.row)} title="วิเคราะห์คลิปนี้">
-                              {c.row.topic || "ไม่ระบุประเด็น"}
-                            </button>
-                            {c.row.url && (
-                              <a href={c.row.url} target="_blank" rel="noreferrer" aria-label="เปิดคลิป" title="เปิดคลิป">
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
-                          </span>
-                          <small>
-                            <span className="tag">{c.row.platform}</span> {c.row.vdoType}
-                            {c.row.date < startDate && <span className="growth-tag old">คลิปเก่า</span>}
-                            {c.dropped && (
-                              <span className="growth-tag drop" title="มีบางวันที่ตัวเลขจาก API ลดลง (แสดงตามจริง)">
-                                <AlertTriangle size={11} /> ตัวเลขลดลง
-                              </span>
-                            )}
-                          </small>
-                        </td>
-                        <td>{thDate(c.row.date, { day: "numeric", month: "short", year: "2-digit" })}</td>
-                        <td className="num strong">{num(c.views)}</td>
-                        <td className="num">{num(c.likes + c.comments + c.shares)}</td>
-                        <td className="num">{num(c.row.views)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="ranking-empty">ไม่มีคลิปที่มีวิวเพิ่มในช่วงนี้</p>
-            )}
-            {s.clips.length > 20 && (
-              <button type="button" className="ranking-more" onClick={() => setShowAll((v) => !v)}>
-                {showAll ? "แสดง 20 อันดับ" : `แสดงเพิ่ม (สูงสุด 100 จาก ${num(s.clips.length)} คลิป)`}
-              </button>
-            )}
-          </article>
 
           <p className="ai-note growth-note">
-            วิธีนับ: ระบบ sync ทุกเช้า 05:17 น. ยอดที่เพิ่มของวันหนึ่ง = ตัวเลขรอบเช้าวันถัดไป − ตัวเลขรอบเช้าวันนั้น
+            วิธีนับ: ระบบ sync ทุกเช้า (ราว 8 โมง) ยอดที่เพิ่มของวันหนึ่ง = ตัวเลขรอบเช้าวันถัดไป − ตัวเลขรอบเช้าวันนั้น
             (ค่าดิบจาก API ไม่มีการปรับ) · คลิปใหม่นับจาก 0 · ไม่รวม TV · นับเฉพาะคลิปที่โพสต์ใน 90 วันล่าสุดของแต่ละวัน
             (คลิปเก่ากว่านั้นไม่ถูกอัปเดตทุกวัน) · Facebook Post นับวิวเป็นจำนวนการเห็น
             {s.drops > 0 && ` · มี ${num(s.drops)} รายการที่ตัวเลขลดลง แสดงตามจริงและทำเครื่องหมายไว้`}
