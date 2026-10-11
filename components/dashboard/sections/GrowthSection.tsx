@@ -9,12 +9,12 @@ import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { GROWTH_MAX_DAYS, addDays, daysBetween, recordKey, summarizeGrowth, type GrowthEntry } from "@/lib/dashboard/growth";
 import { firstGrowthDay, growthSyncTimes, loadGrowthDays } from "@/lib/growthData";
-import { earlySignals, newClips } from "@/lib/dashboard/earlySignal";
+import { dailyGains, earlySignals, newClips } from "@/lib/dashboard/earlySignal";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
-import { EarlySignalBox } from "@/components/dashboard/sections/EarlySignalBox";
+import { DayBars, EarlySignalBox } from "@/components/dashboard/sections/EarlySignalBox";
 import { EvergreenBox } from "@/components/dashboard/sections/EvergreenBox";
 import { evergreen } from "@/lib/dashboard/evergreen";
 import { track } from "@/lib/loadingBar";
@@ -139,13 +139,21 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
   const compareText = comparePeriod ? `เทียบกับ ${thDate(comparePeriod.start)} – ${thDate(comparePeriod.end)}` : "";
 
   const clips = s ? (showAll ? s.clips.slice(0, 100) : s.clips.slice(0, 20)) : [];
+  // Views gained per day in the range, for the listed clips.
+  const clipGains = useMemo(() => {
+    if (!ready || !rangeDays.length) return new Map();
+    const inRange = new Map(rangeDays.filter((d) => days!.map.has(d)).map((d) => [d, days!.map.get(d) ?? null]));
+    return dailyGains(clips, inRange, rangeDays[rangeDays.length - 1]);
+  }, [ready, days, rangeDays, clips]);
 
   // New clips by start speed: peers from every row, listed for the rows that pass the filters.
   const early = useMemo(() => (ready ? earlySignals(days!.map, growthSyncTimes(), allRows) : []), [ready, days, allRows]);
-  const freshClips = useMemo(() => {
-    if (!ready) return [];
+  const fresh = useMemo(() => {
+    if (!ready) return { clips: [], gains: new Map() };
     const latest = [...rangeDays].reverse().find((d) => days!.map.get(d));
-    return latest ? newClips(early, latest, new Set(rows.map(recordKey))) : [];
+    if (!latest) return { clips: [], gains: new Map() };
+    const clips = newClips(early, latest, new Set(rows.map(recordKey)));
+    return { clips, gains: dailyGains(clips, days!.map, latest) };
   }, [ready, days, rangeDays, early, rows]);
   // Older content still gaining nearly every day; grouped across platforms from the filtered rows.
   const green = useMemo(() => (ready ? evergreen(days!.map, rangeDays, rows) : { items: [], daysWithData: 0 }), [ready, days, rangeDays, rows]);
@@ -281,7 +289,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
             </div>
           </article>
 
-          <EarlySignalBox clips={freshClips} onOpen={setOpened} />
+          <EarlySignalBox clips={fresh.clips} gains={fresh.gains} onOpen={setOpened} />
 
           <EvergreenBox items={green.items} daysWithData={green.daysWithData} onOpen={setOpened} />
 
@@ -297,6 +305,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                       <th>คลิป</th>
                       <th>โพสต์เมื่อ</th>
                       <th className="num">วิวที่เพิ่ม</th>
+                      <th title="วิวที่เพิ่มในแต่ละวันของช่วงที่เลือก นับจากวันแรกที่คลิปมีวิวเพิ่ม · เอาเมาส์ชี้แท่งเพื่อดูตัวเลข">วิวที่เพิ่มรายวัน</th>
                       <th className="num">Engagement ที่เพิ่ม</th>
                       <th className="num">วิวสะสมล่าสุด</th>
                     </tr>
@@ -328,6 +337,7 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
                         </td>
                         <td>{thDate(c.row.date, { day: "numeric", month: "short", year: "2-digit" })}</td>
                         <td className="num strong">{num(c.views)}</td>
+                        <td>{clipGains.get(c.key)?.length ? <DayBars points={clipGains.get(c.key)!} /> : "-"}</td>
                         <td className="num">{num(c.likes + c.comments + c.shares)}</td>
                         <td className="num">{num(c.row.views)}</td>
                       </tr>

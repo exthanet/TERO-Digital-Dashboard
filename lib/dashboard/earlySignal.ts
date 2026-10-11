@@ -124,3 +124,36 @@ export function newClips(clips: EarlyClip[], latestDay: string, filtered: Set<st
     .filter((c) => c.row.date >= from && filtered.has(c.key))
     .sort((a, b) => (b.percentile ?? -1) - (a.percentile ?? -1) || (b.perHour ?? -1) - (a.perHour ?? -1) || b.firstViews - a.firstViews);
 }
+
+export interface DayGain {
+  date: string;
+  /** Views gained that day; null for a day without growth data. */
+  views: number | null;
+}
+
+/**
+ * Views gained per day for each clip, from the first growth day that has it (a post
+ * made before the morning sync counts on the day before) to the latest growth day,
+ * loaded days only. The first day is the views the sync first saw.
+ */
+export function dailyGains(clips: Pick<EarlyClip, "key">[], days: Map<string, GrowthEntry[] | null>, latestDay: string): Map<string, DayGain[]> {
+  const loaded = [...days.keys()].filter((d) => d <= latestDay).sort();
+  const perDay = new Map<string, Map<string, number> | null>();
+  for (const d of loaded) {
+    const list = days.get(d);
+    perDay.set(d, list ? new Map(list.map(([key, views]) => [key, views])) : null);
+  }
+  const out = new Map<string, DayGain[]>();
+  for (const c of clips) {
+    const first = loaded.findIndex((d) => perDay.get(d)?.has(c.key));
+    if (first < 0) continue;
+    out.set(
+      c.key,
+      loaded.slice(first).map((d) => {
+        const m = perDay.get(d);
+        return { date: d, views: m ? m.get(c.key) ?? 0 : null };
+      }),
+    );
+  }
+  return out;
+}

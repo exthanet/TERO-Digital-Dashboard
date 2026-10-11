@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalize } from "../lib/dashboard/normalize.ts";
-import { earlySignals, newClips, postedAt, runIdTime } from "../lib/dashboard/earlySignal.ts";
+import { dailyGains, earlySignals, newClips, postedAt, runIdTime } from "../lib/dashboard/earlySignal.ts";
 
 const tk = (n, date, time, extra = {}) =>
   normalize({ Date: date, Publish_Time: time, Program: "ถกไม่เถียง", Topic: `clip ${n}`, Platform: "TikTok", VDO_Type: "TikTok", URL: `https://www.tiktok.com/@a/video/9${String(n).padStart(18, "0")}`, Views: "1", ...extra });
@@ -56,4 +56,23 @@ test("small groups say so instead of ranking", () => {
   const clips = earlySignals(new Map([["2026-10-01", [[key(1), 100, 0, 0, 0, 1], [key(2), 50, 0, 0, 0, 1]]]]), sync, rows);
   assert.deepEqual(clips.map((c) => c.level), ["few", "few"]);
   assert.equal(clips[0].percentile, null);
+});
+
+test("views gained per day from the first day the sync saw the clip; no data stays a gap", () => {
+  const days = new Map([
+    ["2026-09-30", [[key(6), 50, 0, 0, 0, 1]]],
+    // Posted 10-02 04:00, before that morning's sync: counted on growth day 10-01.
+    ["2026-10-01", [[key(5), 1200, 0, 0, 0, 1]]],
+    ["2026-10-02", null],
+    ["2026-10-03", [[key(5), 300, 0, 0, 0, 0]]],
+    ["2026-10-04", []],
+    ["2026-10-05", [[key(5), 999, 0, 0, 0, 0]]],
+  ]);
+  assert.deepEqual(dailyGains([{ key: key(5) }], days, "2026-10-04").get(key(5)), [
+    { date: "2026-10-01", views: 1200 },
+    { date: "2026-10-02", views: null },
+    { date: "2026-10-03", views: 300 },
+    { date: "2026-10-04", views: 0 },
+  ]);
+  assert.equal(dailyGains([{ key: key(8) }], days, "2026-10-04").has(key(8)), false);
 });

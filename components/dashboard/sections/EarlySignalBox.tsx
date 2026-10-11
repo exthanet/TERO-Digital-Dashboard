@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ExternalLink, Flame } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
-import { MIN_PEERS, NEW_DAYS, type EarlyClip } from "@/lib/dashboard/earlySignal";
+import { MIN_PEERS, NEW_DAYS, type DayGain, type EarlyClip } from "@/lib/dashboard/earlySignal";
 
 const thDate = (iso: string) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -22,7 +22,37 @@ export function levelText(c: EarlyClip): { label: string; tone: string; detail: 
   return { label: "คำนวณไม่ได้", tone: "muted", detail: c.row.publishTime ? "เวลาวัดไม่อยู่ในช่วง 0.5–48 ชม. หลังโพสต์" : "ไม่มีเวลาโพสต์" };
 }
 
-export function EarlySignalBox({ clips, onOpen }: { clips: EarlyClip[]; onOpen: (row: RecordRow) => void }) {
+/** More days than this: thin bars without labels (hover for the number). */
+const DENSE_DAYS = 7;
+
+/** Small bars: views gained on each day since the sync first saw the clip (hover for the number). */
+export function DayBars({ points }: { points: DayGain[] }) {
+  const max = Math.max(1, ...points.map((p) => p.views || 0));
+  const dense = points.length > DENSE_DAYS;
+  return (
+    <span className={`early-bars${dense ? " dense" : ""}`} role="img" aria-label={points.map((p) => `${thDate(p.date)} ${p.views === null ? "ไม่มีข้อมูล" : num(p.views)}`).join(", ")}>
+      {points.map((p) => (
+        <span key={p.date} className="early-bar" title={`${thDate(p.date)} · ${p.views === null ? "ไม่มีข้อมูลวันนี้" : `+${num(p.views)} วิว`}`}>
+          <span className="early-bar-track">
+            {p.views === null ? (
+              <i className="gap" />
+            ) : (
+              <i style={{ height: `${Math.max(p.views > 0 ? 6 : 0, (p.views / max) * 100)}%` }} />
+            )}
+          </span>
+          {!dense && (
+            <>
+              <small>{compact(p.views || 0)}</small>
+              <small className="early-bar-day">{thDate(p.date)}</small>
+            </>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function EarlySignalBox({ clips, gains, onOpen }: { clips: EarlyClip[]; gains: Map<string, DayGain[]>; onOpen: (row: RecordRow) => void }) {
   const [all, setAll] = useState(false);
   const shown = all ? clips : clips.slice(0, SHOWN);
   const hot = clips.filter((c) => c.level === "hot").length;
@@ -32,7 +62,7 @@ export function EarlySignalBox({ clips, onOpen }: { clips: EarlyClip[]; onOpen: 
         <Flame size={16} /> คลิปใหม่ที่เริ่มต้นแรง
       </h3>
       <p className="growth-hint">
-        คลิปที่โพสต์ใน {NEW_DAYS} วันล่าสุด {num(clips.length)} คลิป{hot ? ` · เริ่มต้นแรง ${num(hot)} คลิป` : ""} · วัดวิวรอบแรกที่ sync เจอ ÷ ชั่วโมงหลังโพสต์
+        คลิปที่โพสต์ใน {NEW_DAYS} วันล่าสุด {num(clips.length)} คลิป{hot ? ` · เริ่มต้นแรง ${num(hot)} คลิป` : ""} · วัดวิวรอบแรกที่ sync เจอ ÷ ชั่วโมงหลังโพสต์ · กราฟแท่ง = วิวที่เพิ่มแต่ละวันในช่วงที่เลือก
         แล้วเทียบกับคลิปรายการ แพลตฟอร์ม และรูปแบบเดียวกัน · กดชื่อคลิปเพื่อดูวิเคราะห์
       </p>
       {clips.length ? (
@@ -44,6 +74,7 @@ export function EarlySignalBox({ clips, onOpen }: { clips: EarlyClip[]; onOpen: 
                 <th>โพสต์</th>
                 <th className="num">วิวรอบแรก</th>
                 <th className="num">วิว/ชม.</th>
+                <th title="วิวที่เพิ่มในแต่ละวันที่มีคนดู นับจากวันแรกที่ sync เจอคลิป (วันแรก = วิวรอบแรก)">วิวที่เพิ่มรายวัน</th>
                 <th>เทียบคลิปรูปแบบเดียวกัน</th>
                 <th className="num" title="Share และ Comment ต่อ 1,000 วิวในรอบแรก">Share · Comment /1K</th>
                 <th>โอกาสแมส</th>
@@ -78,6 +109,7 @@ export function EarlySignalBox({ clips, onOpen }: { clips: EarlyClip[]; onOpen: 
                       {c.hours !== null && <small className="early-sub">ใน {c.hours.toFixed(1)} ชม.</small>}
                     </td>
                     <td className="num strong">{c.perHour === null ? "-" : perHourText(c.perHour)}</td>
+                    <td>{gains.get(c.key)?.length ? <DayBars points={gains.get(c.key)!} /> : "-"}</td>
                     <td>
                       <span className={`early-level ${lv.tone}`}>
                         {c.level === "hot" && <Flame size={12} />} {lv.label}

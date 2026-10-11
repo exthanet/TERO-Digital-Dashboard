@@ -2244,3 +2244,67 @@
     transform: none;
   }
 }
+
+/* Views gained per day, per new clip (EarlySignalBox). */
+.early-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.early-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+
+.early-bar-track {
+  display: flex;
+  align-items: flex-end;
+  width: 18px;
+  height: 36px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.early-bar-track i {
+  display: block;
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: #f97316;
+}
+
+.early-bar-track i.gap {
+  height: 100%;
+  border: 1px dashed #cbd5e1;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.early-bar small {
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.early-bar small.early-bar-day {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Long ranges: thin bars, numbers on hover. */
+.early-bars.dense {
+  gap: 2px;
+}
+
+.early-bars.dense .early-bar {
+  min-width: 0;
+}
+
+.early-bars.dense .early-bar-track {
+  width: 6px;
+  height: 30px;
+}
