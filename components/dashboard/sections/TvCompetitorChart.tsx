@@ -2,6 +2,7 @@
 // TV competitors: ถกไม่เถียง's rating against same-slot channels or fixed
 // news/talk shows, from the TV workbook (lib/dashboard/competitors.ts).
 import { useEffect, useMemo, useState } from "react";
+import { programMatches } from "@/lib/dashboard/programFilter";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { dateLabel } from "@/lib/dashboard/format";
@@ -64,7 +65,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
     () => (source ? competitorRanking(source.rows, own, view, startDate, endDate) : []),
     [source, own, view, startDate, endDate],
   );
-  const otherProgram = !!source && program !== "ALL" && program !== source.program;
+  const otherProgram = !!source && !programMatches(program, source.program);
   const skipped = useMemo(() => (source ? outOfRange(source.rows, startDate, endDate) : []), [source, startDate, endDate]);
   const colorOf = (key: string, i: number) => (key === OWN_KEY ? OWN_COLOR : TOPIC_COLORS[(i + 1) % TOPIC_COLORS.length]);
 

@@ -1,5 +1,7 @@
 "use client";
 import { SelectBox } from "@/components/dashboard/shared/SelectBox";
+import { ProgramChecks } from "@/components/dashboard/shared/ProgramChecks";
+import { programLabel } from "@/lib/dashboard/programFilter";
 import { Input } from "@/components/ui/input";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { bangkokToday, datePresetGroups } from "@/lib/dashboard/dates";
@@ -82,7 +84,7 @@ export function DashboardFilters({
       label: `ค้นหา: ${t}`,
       clear: () => setSearch(terms.filter((x) => x !== t).join(", ")),
     })),
-    ...(!programLocked && program !== DEFAULT_PROGRAM ? [{ key: "program", label: `รายการ: ${program === "ALL" ? "ทั้งหมด" : program}`, clear: () => setProgram(DEFAULT_PROGRAM) }] : []),
+    ...(!programLocked && program !== DEFAULT_PROGRAM ? [{ key: "program", label: `รายการ: ${programLabel(program)}`, clear: () => setProgram(DEFAULT_PROGRAM) }] : []),
     ...(platform !== "ALL" ? [{ key: "platform", label: `แพลตฟอร์ม: ${platform}`, clear: () => setPlatform("ALL") }] : []),
     ...(vdoType !== "ALL" ? [{ key: "vdo", label: `VDO Type: ${vdoType}`, clear: () => setVdoType("ALL") }] : []),
     ...(topicType !== "ALL" ? [{ key: "topic", label: `Topic Type: ${topicType}`, clear: () => setTopicType("ALL") }] : []),
@@ -98,13 +100,11 @@ export function DashboardFilters({
     <>
       {/* Phones keep only รายการ and วันเดือนปี; app/dashboard.tsx resets the rest */}
       <div className="topbar">
-        <SelectBox
-          label="รายการทั้งหมด"
-          value={program}
-          onChange={setProgram}
-          options={options.programs}
-          locked={programLocked ? "ทุกรายการ (หน้านี้แสดงทุกรายการ)" : undefined}
-        />
+        {programLocked ? (
+          <SelectBox label="รายการทั้งหมด" value={program} onChange={setProgram} options={options.programs} locked="ทุกรายการ (หน้านี้แสดงทุกรายการ)" />
+        ) : (
+          <ProgramChecks label="รายการทั้งหมด" value={program} onChange={setProgram} options={options.programs} />
+        )}
         <div className="filter-box date-filter" role="group" aria-label="วันเดือนปี">
           <span>วันเดือนปี</span>
           <div>

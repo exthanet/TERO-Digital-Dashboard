@@ -1,5 +1,6 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
+import { programMatches } from "@/lib/dashboard/programFilter";
 import {
   loadMasterDataFromFirebase,
   saveMasterDataToFirebase,
@@ -250,7 +251,7 @@ export function useDashboard(enabled = true) {
     () =>
       rows.filter(
         (r) =>
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
@@ -264,7 +265,7 @@ export function useDashboard(enabled = true) {
     () =>
       rows.filter(
         (r) =>
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           (!startDate || r.date >= startDate) &&
@@ -279,7 +280,7 @@ export function useDashboard(enabled = true) {
       rows.filter(
         (r) =>
           r.platform !== "TV" &&
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
@@ -936,7 +937,7 @@ export function useDashboard(enabled = true) {
         (r) =>
           r.platform !== "TV" &&
           r.date &&
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
@@ -951,7 +952,7 @@ export function useDashboard(enabled = true) {
       rows.filter(
         (r) =>
           r.date &&
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (platform === "ALL" || r.platform === platform) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
@@ -965,7 +966,7 @@ export function useDashboard(enabled = true) {
       rows.filter(
         (r) =>
           r.date &&
-          (program === "ALL" || r.program === program) &&
+          programMatches(program, r.program) &&
           (vdoType === "ALL" || r.vdoType === vdoType) &&
           (topicType === "ALL" || r.topicType === topicType) &&
           matchesSearch(r, terms),
