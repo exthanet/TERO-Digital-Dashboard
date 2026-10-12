@@ -69,16 +69,30 @@ export function TopKpis({ cur, prev, compareText }: { cur: RecordRow[]; prev: Re
 export function DigitalVsTv({ cur, startDate, endDate }: { cur: RecordRow[]; startDate: string; endDate: string }) {
   const motion = useMotion();
   const data = useMemo(() => digitalVsTv(cur, startDate, endDate), [cur, startDate, endDate]);
+  // Digital in the top half, TV in the bottom half: each axis is stretched so the lines never cross.
+  const axes = useMemo(() => {
+    const d = data.map((x) => x.digital);
+    const t = data.map((x) => x.tv).filter((v) => v > 0);
+    const dMin = d.length ? Math.min(...d) : 0;
+    const dMax = d.length ? Math.max(...d) : 0;
+    const tMax = t.length ? Math.max(...t) : 0;
+    const span = Math.max(dMax - dMin, dMax * 0.2, 1);
+    const three = (lo: number, hi: number) => [...new Set([lo, (lo + hi) / 2, hi].map(Math.round))];
+    return {
+      digital: { domain: [dMin - span * 1.15, dMax + span * 0.05] as [number, number], ticks: three(dMin, dMax) },
+      tv: { domain: [0, Math.max(tMax, 1) * 2.3] as [number, number], ticks: three(0, tMax) },
+    };
+  }, [data]);
   return (
     <article className="pi-card">
       <h3>แนวโน้ม Digital vs TV</h3>
-      <p className="ps-muted">ยอดวิว Digital ตามวันที่ลงโพสต์ (แกนซ้าย) เทียบผู้ชม TV ของเทปที่ออกอากาศวันนั้น (แกนขวา)</p>
+      <p className="ps-muted">ยอดวิว Digital ตามวันที่ลงโพสต์ (เส้นบน แกนซ้าย) เทียบผู้ชม TV ของเทปที่ออกอากาศวันนั้น (เส้นล่าง แกนขวา)</p>
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="#e2e8f0" vertical={false} />
           <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={24} />
-          <YAxis yAxisId="d" tickFormatter={compact} tick={{ fontSize: 11 }} width={52} />
-          <YAxis yAxisId="t" orientation="right" tickFormatter={compact} tick={{ fontSize: 11 }} width={52} />
+          <YAxis yAxisId="d" domain={axes.digital.domain} ticks={axes.digital.ticks} tickFormatter={compact} tick={{ fontSize: 11, fill: "#0757e8" }} width={52} />
+          <YAxis yAxisId="t" orientation="right" domain={axes.tv.domain} ticks={axes.tv.ticks} tickFormatter={compact} tick={{ fontSize: 11, fill: "#d97706" }} width={52} />
           <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [Number(v) ? num(Number(v)) : "-", n === "digital" ? "Digital (วิว)" : "TV (ผู้ชม)"]} />
           <Line yAxisId="d" type="monotone" dataKey="digital" stroke="#0757e8" strokeWidth={2.5} dot={false} isAnimationActive={motion} animationDuration={1100} />
           <Line yAxisId="t" type="monotone" dataKey={(d: { tv: number }) => d.tv || null} name="tv" stroke="#f59e0b" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={motion} animationDuration={1100} />
