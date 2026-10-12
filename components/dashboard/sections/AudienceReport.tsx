@@ -3,11 +3,11 @@
 // Facebook post CTR, for clips posted in the report range (lib/dashboard/audience.ts).
 import { useMemo, useState } from "react";
 import { Heart, MessageCircle, MessagesSquare, MousePointerClick } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, dateLabel, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
-import { audienceTotals, engagementByPlatform, facebookCtr, viewsByPostHour } from "@/lib/dashboard/audience";
+import { audienceTotals, engagementByPlatform, facebookCtr, topCommented, viewsByPostHour } from "@/lib/dashboard/audience";
 import { Kpi } from "@/components/dashboard/shared/Kpi";
 import { Growth } from "@/components/dashboard/shared/Growth";
 import { Empty } from "@/components/dashboard/shared/Empty";
@@ -21,6 +21,64 @@ interface Props {
   compareText: string;
 }
 
+const LIKE = "#2563eb";
+const COMMENT = "#ea580c";
+/** Likes as whole numbers; comments with one decimal (they are small). */
+const likeText = (v: number) => num(Math.round(v));
+const commentText = (v: number) => (v < 10 ? v.toFixed(1) : num(Math.round(v)));
+
+/**
+ * Like and comment per 1,000 views in two columns, each with its own heading and
+ * scale, so platforms are compared within a column (not likes against comments).
+ */
+function PlatformRates({ platforms }: { platforms: ReturnType<typeof engagementByPlatform> }) {
+  const list = [...platforms].sort((a, b) => b.commentsPer1k - a.commentsPer1k);
+  const maxLike = Math.max(0, ...list.map((p) => p.likesPer1k));
+  const maxComment = Math.max(0, ...list.map((p) => p.commentsPer1k));
+  const topLike = [...list].sort((a, b) => b.likesPer1k - a.likesPer1k)[0];
+  const topComment = list[0];
+  return (
+    <div className="aud-rates">
+      <div className="aud-rate aud-rate-head">
+        <span />
+        <span style={{ color: LIKE }}>
+          กด Like <small>ทุก 1,000 วิว</small>
+        </span>
+        <span style={{ color: COMMENT }}>
+          คอมเมนต์ <small>ทุก 1,000 วิว</small>
+        </span>
+      </div>
+      {list.map((p) => (
+        <div key={p.platform} className="aud-rate">
+          <span className="aud-rate-name">
+            <i style={{ background: PLATFORM_COLORS[p.platform] || "#64748b" }} />
+            {p.platform}
+          </span>
+          <span className="aud-rate-cell" title={`${p.platform} · Like รวม ${num(p.likes)} จาก ${num(p.views)} วิว`}>
+            <span className="aud-rate-bar">
+              <span style={{ width: maxLike ? `${(p.likesPer1k / maxLike) * 100}%` : 0, background: LIKE }} />
+            </span>
+            <b style={{ color: LIKE }}>{likeText(p.likesPer1k)} ครั้ง</b>
+          </span>
+          <span className="aud-rate-cell" title={`${p.platform} · คอมเมนต์รวม ${num(p.comments)} จาก ${num(p.views)} วิว`}>
+            <span className="aud-rate-bar">
+              <span style={{ width: maxComment ? `${(p.commentsPer1k / maxComment) * 100}%` : 0, background: COMMENT }} />
+            </span>
+            <b style={{ color: COMMENT }}>{commentText(p.commentsPer1k)} ครั้ง</b>
+          </span>
+        </div>
+      ))}
+      {topLike && topComment && (
+        <p className="aud-rate-sum">
+          {topLike.platform === topComment.platform
+            ? `${topLike.platform} คนกด Like และคอมเมนต์มากที่สุด (เทียบต่อวิว)`
+            : `${topLike.platform} คนกด Like มากที่สุด · ${topComment.platform} คนคอมเมนต์มากที่สุด (เทียบต่อวิว)`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const change = (a: number | null, b: number | null) => (a !== null && b ? (a - b) / b : null);
 
 export function AudienceReport({ rows, prevRows, grain, compareText }: Props) {
@@ -28,6 +86,7 @@ export function AudienceReport({ rows, prevRows, grain, compareText }: Props) {
   const prev = useMemo(() => (prevRows.length ? audienceTotals(prevRows) : null), [prevRows]);
   const hours = useMemo(() => viewsByPostHour(rows), [rows]);
   const platforms = useMemo(() => engagementByPlatform(rows), [rows]);
+  const talked = useMemo(() => topCommented(rows), [rows]);
   const ctr = useMemo(() => facebookCtr(rows, grain), [rows, grain]);
   const [hourMode, setHourMode] = useState<"total" | "median">("total");
 
@@ -108,32 +167,29 @@ export function AudienceReport({ rows, prevRows, grain, compareText }: Props) {
           <div className="audience-box-head">
             <div>
               <h3>Like &amp; Comment แยกแพลตฟอร์ม</h3>
-              <p>Comment ต่อ 1,000 วิว บอกว่าแพลตฟอร์มไหนคนคุยกันมาก</p>
+              <p>ต่อ 1,000 วิว เทียบได้แม้วิวไม่เท่ากัน · เรียงตาม Comment · ชี้แท่งเพื่อดูจำนวนรวม</p>
             </div>
           </div>
           {platforms.length ? (
             <>
-              <div className="chart-md">
-                <ResponsiveContainer>
-                  <BarChart data={platforms}>
-                    <CartesianGrid vertical={false} stroke="#e8edf5" />
-                    <XAxis dataKey="platform" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v) => num(Number(v))} />
-                    <Legend />
-                    <Bar dataKey="likes" name="Like" fill="#d946ef" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="comments" name="Comment" fill="#0757e8" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="audience-chips">
-                {platforms.map((p) => (
-                  <span key={p.platform}>
-                    <i style={{ background: PLATFORM_COLORS[p.platform] || "#64748b" }} />
-                    {p.platform}: <b>{p.commentsPer1k.toFixed(2)}</b> comment / 1K วิว
-                  </span>
-                ))}
-              </div>
+              <PlatformRates platforms={platforms} />
+              {talked.length > 0 && (
+                <>
+                  <h4 className="audience-top-head">คลิปที่คนคอมเมนต์มากที่สุด</h4>
+                  <ol className="audience-top">
+                    {talked.map(({ row: r, per1k }, i) => (
+                      <li key={`${r.platform}-${r.contentId || r.url}-${i}`}>
+                        <a href={r.url || undefined} target="_blank" rel="noreferrer" title={r.topic}>
+                          {r.topic || "ไม่ระบุประเด็น"}
+                        </a>
+                        <small>
+                          {r.platform} · {num(r.comments)} คอมเมนต์{per1k === null ? "" : ` · ${commentText(per1k)} ครั้ง ทุก 1,000 วิว`}
+                        </small>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
             </>
           ) : (
             <Empty />

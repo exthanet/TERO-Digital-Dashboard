@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalize } from "../lib/dashboard/normalize.ts";
-import { audienceTotals, engagementByPlatform, facebookCtr, postHour, viewsByPostHour } from "../lib/dashboard/audience.ts";
+import { audienceTotals, engagementByPlatform, facebookCtr, postHour, topCommented, viewsByPostHour } from "../lib/dashboard/audience.ts";
 
 const row = (o) => normalize({ Date: "2026-09-20", Program: "ถกไม่เถียง", Topic: "c", Platform: "YouTube", Views: "1000", Likes: "10", Comments: "2", Shares: "0", ...o });
 
@@ -59,4 +59,14 @@ test("per platform engagement and Facebook CTR trend", () => {
   const c = facebookCtr(rows, "day");
   assert.deepEqual(c.trend, [{ date: "2026-09-01", ctr: 2, clicks: 40 }, { date: "2026-09-02", ctr: 1, clicks: 5 }]);
   assert.deepEqual(c.top.map((r) => r.topic), ["b", "a", "c"]);
+});
+
+test("most commented clips: digital only, ties by views, per 1,000 views", () => {
+  const rows = [
+    row({ Platform: "Facebook", Date: "2026-09-01", Views: "2000", Comments: "10", Topic: "a" }),
+    row({ Platform: "TikTok", Date: "2026-09-01", Views: "5000", Comments: "10", Topic: "b" }),
+    row({ Platform: "YouTube", Date: "2026-09-01", Views: "100", Comments: "0", Topic: "c" }),
+    row({ Platform: "TV", Date: "2026-09-01", Comments: "99", Topic: "tv" }),
+  ];
+  assert.deepEqual(topCommented(rows).map((x) => [x.row.topic, x.per1k]), [["b", 2], ["a", 5]]);
 });

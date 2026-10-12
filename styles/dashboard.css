@@ -1201,3 +1201,71 @@ footer {
   max-width: 460px;
   white-space: normal;
 }
+
+/* Audience Report: Like / Comment per 1,000 views by platform (PlatformRates). */
+.aud-rates {
+  display: grid;
+  gap: 12px;
+  padding: 4px 2px 2px;
+}
+.aud-rate {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+.aud-rate-head {
+  font-size: 12px;
+  font-weight: 800;
+}
+.aud-rate-head small {
+  margin-left: 4px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.aud-rate-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+}
+.aud-rate-name i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.aud-rate-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  gap: 8px;
+  align-items: center;
+}
+.aud-rate-cell b {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.aud-rate-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+.aud-rate-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.aud-rate-sum {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 12px;
+}
+.audience-top-head {
+  margin: 16px 0 4px;
+  padding-top: 12px;
+  border-top: 1px solid #eef2f7;
+  color: #172139;
+  font-size: 13px;
+}

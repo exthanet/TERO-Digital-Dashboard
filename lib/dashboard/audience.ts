@@ -11,6 +11,8 @@ export interface AudienceTotals {
   views: number;
   /** Comments per 1,000 views, over content that has views. */
   commentsPer1k: number;
+  /** Likes per 1,000 views, the same way. */
+  likesPer1k: number;
   /** Facebook posts with click data: clicks ÷ impressions; null = no click data. */
   ctr: number | null;
   ctrPosts: number;
@@ -30,6 +32,7 @@ export function audienceTotals(rows: RecordRow[]): AudienceTotals {
     comments: d.reduce((a, r) => a + r.comments, 0),
     views,
     commentsPer1k: views ? (viewed.reduce((a, r) => a + r.comments, 0) / views) * 1000 : 0,
+    likesPer1k: views ? (viewed.reduce((a, r) => a + r.likes, 0) / views) * 1000 : 0,
     ctr: impressions ? ctrRows.reduce((a, r) => a + (r.clicks as number), 0) / impressions : null,
     ctrPosts: ctrRows.length,
   };
@@ -85,6 +88,7 @@ export interface PlatformEngagement {
   comments: number;
   views: number;
   commentsPer1k: number;
+  likesPer1k: number;
 }
 
 export function engagementByPlatform(rows: RecordRow[]): PlatformEngagement[] {
@@ -92,7 +96,7 @@ export function engagementByPlatform(rows: RecordRow[]): PlatformEngagement[] {
   return [...new Set(d.map((r) => r.platform))]
     .map((platform) => {
       const t = audienceTotals(d.filter((r) => r.platform === platform));
-      return { platform, likes: t.likes, comments: t.comments, views: t.views, commentsPer1k: t.commentsPer1k };
+      return { platform, likes: t.likes, comments: t.comments, views: t.views, commentsPer1k: t.commentsPer1k, likesPer1k: t.likesPer1k };
     })
     .sort((a, b) => b.likes + b.comments - (a.likes + a.comments));
 }
@@ -113,4 +117,13 @@ export function facebookCtr(rows: RecordRow[], grain: "day" | "month") {
     .map(([date, x]) => ({ date, ctr: Math.round((x.clicks / x.impressions) * 10000) / 100, clicks: x.clicks }));
   const top = [...list].sort((a, b) => (b.clicks as number) - (a.clicks as number)).slice(0, 5);
   return { trend, top, posts: list.length };
+}
+
+/** The clips with the most comments (digital), ties by views; with comments per 1,000 views. */
+export function topCommented(rows: RecordRow[], n = 5): { row: RecordRow; per1k: number | null }[] {
+  return digital(rows)
+    .filter((r) => r.comments > 0)
+    .sort((a, b) => b.comments - a.comments || b.views - a.views)
+    .slice(0, n)
+    .map((row) => ({ row, per1k: row.views > 0 ? (row.comments / row.views) * 1000 : null }));
 }
