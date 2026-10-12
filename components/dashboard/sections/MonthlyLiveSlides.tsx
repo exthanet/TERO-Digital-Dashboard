@@ -7,6 +7,7 @@ import type { RecordRow } from "@/lib/dashboard/types";
 import { inRange } from "@/lib/dashboard/platformReport";
 import { monthPeriod } from "@/lib/dashboard/monthlyReport";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
+import { EngagementReport } from "@/components/dashboard/sections/EngagementReport";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
 /** Width the pages are laid out at before they are scaled into the slide. */
@@ -88,7 +89,7 @@ export function useLiveData(rows: RecordRow[], month: string, prevMonth: string)
   }, [rows, month, prevMonth]);
 }
 
-/** The five live pages, in order (titles as the deck shows them). */
+/** The live pages, in order (titles as the deck shows them). */
 export function liveSlides(d: LiveData, dataAt: string): { title: string; cover?: boolean; body: React.ReactNode }[] {
   const page = (body: React.ReactNode) => (
     <div className="mr-live">
@@ -142,6 +143,14 @@ export function liveSlides(d: LiveData, dataAt: string): { title: string; cover?
       body: page(
         <div className="mr-live-page">
           <HashtagReport cur={d.cur} prev={d.prev} endDate={d.end} />
+        </div>,
+      ),
+    },
+    {
+      title: "Like & คอมเมนต์",
+      body: page(
+        <div className="mr-live-page">
+          <EngagementReport cur={d.cur} prev={d.prev} compareText={d.compareText} />
         </div>,
       ),
     },
