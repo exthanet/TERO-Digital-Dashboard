@@ -23,30 +23,22 @@ interface Props {
 
 const LIKE = "#2563eb";
 const COMMENT = "#ea580c";
-/** Likes as whole numbers; comments with one decimal (they are small). */
-const likeText = (v: number) => num(Math.round(v));
-const commentText = (v: number) => (v < 10 ? v.toFixed(1) : num(Math.round(v)));
-
 /**
- * Like and comment per 1,000 views in two columns, each with its own heading and
- * scale, so platforms are compared within a column (not likes against comments).
+ * Total likes and comments per platform in two columns, each with its own heading
+ * and scale, so platforms are compared within a column (not likes against comments).
  */
 function PlatformRates({ platforms }: { platforms: ReturnType<typeof engagementByPlatform> }) {
-  const list = [...platforms].sort((a, b) => b.commentsPer1k - a.commentsPer1k);
-  const maxLike = Math.max(0, ...list.map((p) => p.likesPer1k));
-  const maxComment = Math.max(0, ...list.map((p) => p.commentsPer1k));
-  const topLike = [...list].sort((a, b) => b.likesPer1k - a.likesPer1k)[0];
+  const list = [...platforms].sort((a, b) => b.comments - a.comments);
+  const maxLike = Math.max(0, ...list.map((p) => p.likes));
+  const maxComment = Math.max(0, ...list.map((p) => p.comments));
+  const topLike = [...list].sort((a, b) => b.likes - a.likes)[0];
   const topComment = list[0];
   return (
     <div className="aud-rates">
       <div className="aud-rate aud-rate-head">
         <span />
-        <span style={{ color: LIKE }}>
-          กด Like <small>ทุก 1,000 วิว</small>
-        </span>
-        <span style={{ color: COMMENT }}>
-          คอมเมนต์ <small>ทุก 1,000 วิว</small>
-        </span>
+        <span style={{ color: LIKE }}>Like รวม</span>
+        <span style={{ color: COMMENT }}>คอมเมนต์รวม</span>
       </div>
       {list.map((p) => (
         <div key={p.platform} className="aud-rate">
@@ -54,25 +46,25 @@ function PlatformRates({ platforms }: { platforms: ReturnType<typeof engagementB
             <i style={{ background: PLATFORM_COLORS[p.platform] || "#64748b" }} />
             {p.platform}
           </span>
-          <span className="aud-rate-cell" title={`${p.platform} · Like รวม ${num(p.likes)} จาก ${num(p.views)} วิว`}>
+          <span className="aud-rate-cell" title={`${p.platform} · Like ${num(p.likes)} · วิว ${num(p.views)}`}>
             <span className="aud-rate-bar">
-              <span style={{ width: maxLike ? `${(p.likesPer1k / maxLike) * 100}%` : 0, background: LIKE }} />
+              <span style={{ width: maxLike ? `${(p.likes / maxLike) * 100}%` : 0, background: LIKE }} />
             </span>
-            <b style={{ color: LIKE }}>{likeText(p.likesPer1k)} ครั้ง</b>
+            <b style={{ color: LIKE }}>{compact(p.likes)}</b>
           </span>
-          <span className="aud-rate-cell" title={`${p.platform} · คอมเมนต์รวม ${num(p.comments)} จาก ${num(p.views)} วิว`}>
+          <span className="aud-rate-cell" title={`${p.platform} · คอมเมนต์ ${num(p.comments)} · วิว ${num(p.views)}`}>
             <span className="aud-rate-bar">
-              <span style={{ width: maxComment ? `${(p.commentsPer1k / maxComment) * 100}%` : 0, background: COMMENT }} />
+              <span style={{ width: maxComment ? `${(p.comments / maxComment) * 100}%` : 0, background: COMMENT }} />
             </span>
-            <b style={{ color: COMMENT }}>{commentText(p.commentsPer1k)} ครั้ง</b>
+            <b style={{ color: COMMENT }}>{compact(p.comments)}</b>
           </span>
         </div>
       ))}
       {topLike && topComment && (
         <p className="aud-rate-sum">
           {topLike.platform === topComment.platform
-            ? `${topLike.platform} คนกด Like และคอมเมนต์มากที่สุด (เทียบต่อวิว)`
-            : `${topLike.platform} คนกด Like มากที่สุด · ${topComment.platform} คนคอมเมนต์มากที่สุด (เทียบต่อวิว)`}
+            ? `${topLike.platform} ได้ Like และคอมเมนต์มากที่สุด`
+            : `${topLike.platform} ได้ Like มากที่สุด · ${topComment.platform} ได้คอมเมนต์มากที่สุด`}
         </p>
       )}
     </div>
@@ -167,7 +159,7 @@ export function AudienceReport({ rows, prevRows, grain, compareText }: Props) {
           <div className="audience-box-head">
             <div>
               <h3>Like &amp; Comment แยกแพลตฟอร์ม</h3>
-              <p>ต่อ 1,000 วิว เทียบได้แม้วิวไม่เท่ากัน · เรียงตาม Comment · ชี้แท่งเพื่อดูจำนวนรวม</p>
+              <p>จำนวนจริงของคลิปที่โพสต์ในช่วงนี้ · เรียงตามคอมเมนต์ · ชี้แท่งเพื่อดูตัวเลขเต็ม</p>
             </div>
           </div>
           {platforms.length ? (
@@ -177,13 +169,13 @@ export function AudienceReport({ rows, prevRows, grain, compareText }: Props) {
                 <>
                   <h4 className="audience-top-head">คลิปที่คนคอมเมนต์มากที่สุด</h4>
                   <ol className="audience-top">
-                    {talked.map(({ row: r, per1k }, i) => (
+                    {talked.map(({ row: r }, i) => (
                       <li key={`${r.platform}-${r.contentId || r.url}-${i}`}>
                         <a href={r.url || undefined} target="_blank" rel="noreferrer" title={r.topic}>
                           {r.topic || "ไม่ระบุประเด็น"}
                         </a>
                         <small>
-                          {r.platform} · {num(r.comments)} คอมเมนต์{per1k === null ? "" : ` · ${commentText(per1k)} ครั้ง ทุก 1,000 วิว`}
+                          {r.platform} · {compact(r.comments)} คอมเมนต์ · {compact(r.likes)} Like · {compact(r.views)} วิว
                         </small>
                       </li>
                     ))}
