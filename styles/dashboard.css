@@ -1188,3 +1188,16 @@ footer {
 .program-checks-only:focus-visible {
   visibility: visible;
 }
+
+/* TV Rating 7 วันล่าสุด: one row per episode, newest first. */
+.main-grid > .tv-last-week {
+  grid-column: 1 / -1;
+}
+.tv-last-week .table-scroll table {
+  min-width: 720px;
+}
+.tv-last-week .table-scroll td.tv-last-week-topic {
+  min-width: 260px;
+  max-width: 460px;
+  white-space: normal;
+}

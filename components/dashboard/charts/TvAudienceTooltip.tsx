@@ -4,21 +4,29 @@ export function TvAudienceTooltip({
   active,
   payload,
   label,
+  formatLabel = dateLabel,
+  perEpisode = false,
 }: {
+  /** The point's title (a day by default; "ก.ย. 69" for a month). */
+  formatLabel?: (label: string) => string;
+  /** Month / year points: each value is the average per episode. */
+  perEpisode?: boolean;
   active?: boolean;
   payload?: Array<{
     name?: string;
     value?: number;
     color?: string;
-    payload?: { topics?: string[] };
+    payload?: { topics?: string[]; oneEpisodes?: number; gmmEpisodes?: number };
   }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
-  const topics = payload[0]?.payload?.topics || [];
+  const point = payload[0]?.payload;
+  const topics = perEpisode ? [] : point?.topics || [];
   return (
     <div className="performance-tooltip">
-      <strong>{dateLabel(String(label))}</strong>
+      <strong>{formatLabel(String(label))}</strong>
+      {perEpisode && <small>ผู้ชมเฉลี่ยต่อเทป · One31 {num(point?.oneEpisodes || 0)} เทป · GMM25 {num(point?.gmmEpisodes || 0)} เทป</small>}
       {payload.map((x, i) => (
         <div className="tooltip-value" key={`${x.name}-${i}`}>
           <i style={{ background: x.color || "#1261dc" }} />

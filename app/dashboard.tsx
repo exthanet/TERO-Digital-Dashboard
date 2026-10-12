@@ -402,6 +402,7 @@ export default function Dashboard() {
               ratingGrain={model.ratingGrain}
               setRatingGrain={model.setRatingGrain}
               tvRatingBreakdown={model.tvRatingBreakdown}
+              tvLastWeek={model.tvLastWeek}
               tvAudience={model.tvAudience}
               download={model.download}
               tvCompetitors={

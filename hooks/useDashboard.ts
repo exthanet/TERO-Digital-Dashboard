@@ -1,6 +1,7 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
 import { programMatches } from "@/lib/dashboard/programFilter";
+import { autoGrain, lastWeekRatings, tvAudienceTrend } from "@/lib/dashboard/tvTrend";
 import {
   loadMasterDataFromFirebase,
   saveMasterDataToFirebase,
@@ -626,6 +627,8 @@ export function useDashboard(enabled = true) {
         .slice(0, 5),
     [performanceFiltered, tvMode],
   );
+  // TV Overview: a range longer than a month opens month by month (the buttons still switch).
+  useEffect(() => setRatingGrain(autoGrain(startDate, endDate)), [startDate, endDate]);
   const rating = useMemo(() => {
     const m = new Map<
       string,
@@ -679,29 +682,8 @@ export function useDashboard(enabled = true) {
         "15+RURAL": x.count ? x.rural / x.count : 0,
       }));
   }, [filtered, ratingGrain]);
-  const tvAudience = useMemo(() => {
-    const m = new Map<
-      string,
-      { date: string; ONE31: number; GMM25: number; topics: string[] }
-    >();
-    filtered
-      .filter((r) => r.platform === "TV" || r.ratingTotal > 0)
-      .forEach((r) => {
-        const x = m.get(r.date) || {
-          date: r.date,
-          ONE31: 0,
-          GMM25: 0,
-          topics: [],
-        };
-        x.ONE31 += r.audienceTotal;
-        x.GMM25 += r.gmmAudience;
-        if (r.topic && !x.topics.includes(r.topic)) x.topics.push(r.topic);
-        m.set(r.date, x);
-      });
-    return [...m.values()]
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-31);
-  }, [filtered]);
+  // Same grain as TV Rating Score; a month or year point = average audience per episode.
+  const tvAudience = useMemo(() => tvAudienceTrend(filtered, ratingGrain), [filtered, ratingGrain]);
   const tvRatingBreakdown = useMemo(() => {
     const m = new Map<string, { program: string; channel: string; rating: number; audience: number; episodes: number }>();
     // Each merged TV row carries both channels; split them back so every line
@@ -721,6 +703,8 @@ export function useDashboard(enabled = true) {
     });
     return [...m.values()].map((x) => ({ ...x, rating: x.episodes ? x.rating / x.episodes : 0 })).sort((a, b) => b.audience - a.audience);
   }, [filtered]);
+  // TV Rating 7 วันล่าสุด: each episode of the latest 7 aired days, newest first.
+  const tvLastWeek = useMemo(() => lastWeekRatings(filtered, endDate), [filtered, endDate]);
 
   const compare = useMemo(() => {
     type Cluster = Omit<CompareRow, "tvAudience" | "online" | "total"> & {
@@ -1416,6 +1400,7 @@ export function useDashboard(enabled = true) {
     rating,
     tvAudience,
     tvRatingBreakdown,
+    tvLastWeek,
     compare,
     compareSorted,
     compareTotals,

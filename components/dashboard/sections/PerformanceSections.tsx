@@ -8,6 +8,11 @@ import {
 } from "@/lib/dashboard/constants";
 import { compact, dateLabel, num, pct } from "@/lib/dashboard/format";
 import { Download } from "lucide-react";
+import { grainLabel } from "@/lib/dashboard/tvTrend";
+
+/** "พ. 1 ต.ค. 69" */
+const thaiDay = (iso: string) =>
+  new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", year: "2-digit" }).format(new Date(`${iso}T00:00:00Z`));
 import {
   Bar,
   BarChart,
@@ -39,6 +44,7 @@ export function PerformanceSections({
   setRatingGrain,
   tvAudience,
   tvRatingBreakdown,
+  tvLastWeek,
   download,
   audienceReport,
   tvCompetitors,
@@ -60,6 +66,7 @@ export function PerformanceSections({
   | "rating"
   | "tvAudience"
   | "tvRatingBreakdown"
+  | "tvLastWeek"
   | "download"
 >) {
   return (
@@ -233,13 +240,7 @@ export function PerformanceSections({
                       <CartesianGrid vertical={false} stroke="#e8edf5" />
                       <XAxis
                         dataKey="date"
-                        tickFormatter={(label) =>
-                          ratingGrain === "year"
-                            ? String(label)
-                            : ratingGrain === "month"
-                              ? String(label)
-                              : dateLabel(String(label))
-                        }
+                        tickFormatter={(label) => (ratingGrain === "day" ? dateLabel(String(label)) : grainLabel(String(label), ratingGrain))}
                         tick={{ fontSize: 11 }}
                       />
                       <YAxis
@@ -252,7 +253,7 @@ export function PerformanceSections({
                           ratingGrain === "year"
                             ? `ปี ${label}`
                             : ratingGrain === "month"
-                              ? `เดือน ${label}`
+                              ? `เดือน ${grainLabel(String(label), "month")}`
                               : dateLabel(String(label ?? ""))
                         }
                       />
@@ -281,7 +282,11 @@ export function PerformanceSections({
                 <div className="panel-head">
                   <div>
                     <h2>TV Audience</h2>
-                    <p>จำนวนผู้ชมจริง · Hover เพื่อดู Topic</p>
+                    <p>
+                      {ratingGrain === "day"
+                        ? "จำนวนผู้ชมจริงรายวัน · Hover เพื่อดู Topic"
+                        : `ผู้ชมเฉลี่ยต่อเทป${ratingGrain === "month" ? "รายเดือน" : "รายปี"} · เปลี่ยนรายวัน/รายเดือนที่ปุ่มของ TV Rating Score`}
+                    </p>
                   </div>
                 </div>
                 <div className="chart-lg">
@@ -291,11 +296,18 @@ export function PerformanceSections({
                         <CartesianGrid vertical={false} stroke="#e8edf5" />
                         <XAxis
                           dataKey="date"
-                          tickFormatter={dateLabel}
+                          tickFormatter={(label) => (ratingGrain === "day" ? dateLabel(String(label)) : grainLabel(String(label), ratingGrain))}
                           tick={{ fontSize: 11 }}
                         />
                         <YAxis tickFormatter={compact} tick={{ fontSize: 11 }} />
-                        <Tooltip content={<TvAudienceTooltip />} />
+                        <Tooltip
+                          content={
+                            <TvAudienceTooltip
+                              perEpisode={ratingGrain !== "day"}
+                              formatLabel={(l) => (ratingGrain === "day" ? dateLabel(l) : grainLabel(l, ratingGrain))}
+                            />
+                          }
+                        />
                         <Legend />
                         <Line
                           type="monotone"
@@ -333,6 +345,50 @@ export function PerformanceSections({
                 </div>
               </article>
             </div>
+            <article className="panel tv-last-week">
+              <div className="panel-head">
+                <div>
+                  <h2>TV Rating 7 วันล่าสุด</h2>
+                  <p>
+                    {tvLastWeek.to
+                      ? `รายเทป เรียงจากวันล่าสุด · ${dateLabel(tvLastWeek.from)} – ${dateLabel(tvLastWeek.to)} (7 วันล่าสุดที่มี Rating ในช่วงที่เลือก)`
+                      : "ยังไม่มีเทปที่มี Rating ในช่วงที่เลือก"}
+                  </p>
+                </div>
+              </div>
+              {tvLastWeek.episodes.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>วันที่ออกอากาศ</th>
+                        <th>รายการ</th>
+                        <th>ประเด็น</th>
+                        <th className="num">One31</th>
+                        <th className="num">GMM25</th>
+                        <th className="num">ผู้ชม One31</th>
+                        <th className="num">ผู้ชม GMM25</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tvLastWeek.episodes.map((r, i) => (
+                        <tr key={`${r.date}-${r.program}-${i}`}>
+                          <td>{thaiDay(r.date)}</td>
+                          <td>{r.program}</td>
+                          <td className="tv-last-week-topic">{r.topic || "-"}</td>
+                          <td className="num strong">{r.ratingTotal > 0 ? r.ratingTotal.toFixed(3) : "-"}</td>
+                          <td className="num">{r.gmmRating > 0 ? r.gmmRating.toFixed(3) : "-"}</td>
+                          <td className="num">{r.audienceTotal > 0 ? compact(r.audienceTotal) : "-"}</td>
+                          <td className="num">{r.gmmAudience > 0 ? compact(r.gmmAudience) : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty text="ไม่มีเทปที่มี Rating ในช่วงที่เลือก" />
+              )}
+            </article>
             {tvCompetitors}
           </div>
         </section>
