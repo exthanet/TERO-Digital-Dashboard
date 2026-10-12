@@ -10,6 +10,7 @@ import type { GrowthEntry } from "./growth.ts";
 import { addDays, daysBetween, recordKey } from "./growth.ts";
 import { MIN_POSTS_PER_CELL, hourOf } from "./platformReport.ts";
 import { joinVideos, type YtDeepDiveData } from "./ytDeepDive.ts";
+import { AUDIENCE_PER_POINT } from "../integrations/tvSheet.ts";
 
 const median = (xs: number[]): number | null => {
   if (!xs.length) return null;
@@ -286,6 +287,18 @@ export function crossDaily(rows: RecordRow[], start: string, end: string, platfo
     if (day && platforms.includes(r.platform)) day[r.platform] = (day[r.platform] as number) + r.views;
   }
   return [...by.values()];
+}
+
+/** TV per air date as views: one channel's rating of every episode that day × 700,000, summed. */
+export function tvViewsDaily(rows: RecordRow[], start: string, end: string, ch: TvChannel): Map<string, number> {
+  const m = new Map<string, number>();
+  if (!start || !end) return m;
+  for (const r of rows) {
+    const v = ch === "GMM25" ? r.gmmRating : r.ratingTotal;
+    if (r.platform !== "TV" || !(v > 0) || r.date < start || r.date > end) continue;
+    m.set(r.date, (m.get(r.date) || 0) + v * AUDIENCE_PER_POINT);
+  }
+  return m;
 }
 
 /** The radar's axes, as in output/platform-report-demo.html. */

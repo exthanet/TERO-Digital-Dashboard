@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { watchPct, digitalVsTv, facebookReach, hashtagShare, metricOf, platformValues, tagDaily, topTopics, crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
+import { watchPct, digitalVsTv, facebookReach, hashtagShare, metricOf, platformValues, tagDaily, topTopics, crossDaily, hashtagRanking, strengths, tagDetail, dailySeries, episodeRatings, groupStats, hourMedians, interactionMix, lastDays, reachRings, recentGains, skipStats, topPosts, tvViewsDaily, ytStudio, zoneRatings } from "../lib/dashboard/platformStudio.ts";
 
 const row = (o) => ({
   date: o.date,
@@ -179,4 +179,11 @@ test("% watched: watch time ÷ length weighted by views, capped at the whole cli
   assert.equal(watchPct([r(100, 30, 60), r(300, 10, 100)]), (0.5 * 100 + 0.1 * 300) / 400);
   assert.equal(watchPct([r(100, 90, 60)]), 1);
   assert.equal(watchPct([r(100, 0, 60)]), 0);
+});
+
+test("Cross Platform TV: each channel's rating × 700,000 per air date, episodes summed, outside the range left out", () => {
+  const tv = (date, ratingTotal, gmmRating) => ({ ...row({ date, platform: "TV" }), ratingTotal, gmmRating });
+  const rows = [tv("2026-10-01", 0.25, 0.5), tv("2026-10-01", 0.25, 0), tv("2026-10-02", 0, 0.125), tv("2026-10-05", 1, 1), row({ date: "2026-10-01", views: 9 })];
+  assert.deepEqual([...tvViewsDaily(rows, "2026-10-01", "2026-10-02", "One31")], [["2026-10-01", 350000]]);
+  assert.deepEqual([...tvViewsDaily(rows, "2026-10-01", "2026-10-02", "GMM25")], [["2026-10-01", 350000], ["2026-10-02", 87500]]);
 });

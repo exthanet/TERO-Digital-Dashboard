@@ -17,10 +17,10 @@ import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { CHANNEL_TAGS } from "@/lib/dashboard/trendingHashtags";
 import { WEEKDAYS, change, postingHeatmap } from "@/lib/dashboard/platformReport";
-import { DIGITAL, STRENGTH_AXES, crossDaily, hashtagRanking, hashtagShare, strengths, tagDaily, tagDetail } from "@/lib/dashboard/platformStudio";
+import { DIGITAL, STRENGTH_AXES, crossDaily, hashtagRanking, hashtagShare, strengths, tagDaily, tagDetail, tvViewsDaily } from "@/lib/dashboard/platformStudio";
 import { CountUp, useMotion } from "@/components/dashboard/shared/Motion";
 
-const COLORS: Record<string, string> = { ...PLATFORM_COLORS, TikTok: "#0f172a" };
+const COLORS: Record<string, string> = { ...PLATFORM_COLORS, TikTok: "#0f172a", One31: "#10b981", GMM25: "#f59e0b" };
 const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const shortDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "");
@@ -46,13 +46,24 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "lines", label: "แยกเส้น" },
   { id: "pct", label: "สัดส่วน 100%" },
 ];
+/** Cross Platform series: the four digital platforms, then both TV channels as views (rating × 700,000). */
+const SERIES = [...DIGITAL, "One31", "GMM25"] as const;
+const seriesName = (p: string) => (p === "One31" || p === "GMM25" ? `TV ${p} (Rating × 700,000)` : p);
 
 export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; startDate: string; endDate: string }) {
   const motion = useMotion();
   const [mode, setMode] = useState<Mode>("stack");
   const { off, toggle } = useToggle();
-  const data = useMemo(() => crossDaily(cur, startDate, endDate), [cur, startDate, endDate]);
-  const shown = DIGITAL.filter((p) => !off.has(p));
+  const data = useMemo(() => {
+    const one = tvViewsDaily(cur, startDate, endDate, "One31");
+    const gmm = tvViewsDaily(cur, startDate, endDate, "GMM25");
+    return crossDaily(cur, startDate, endDate).map((d): Record<string, number | string> => ({
+      ...d,
+      One31: one.get(String(d.date)) || 0,
+      GMM25: gmm.get(String(d.date)) || 0,
+    }));
+  }, [cur, startDate, endDate]);
+  const shown = SERIES.filter((p) => !off.has(p));
   const view = useMemo(
     () =>
       mode !== "pct"
@@ -63,7 +74,7 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
           }),
     [data, mode, shown],
   );
-  const totals = DIGITAL.map((p) => ({ p, v: data.reduce((a, d) => a + (Number(d[p]) || 0), 0) }));
+  const totals = SERIES.map((p) => ({ p, v: data.reduce((a, d) => a + (Number(d[p]) || 0), 0) }));
   const all = totals.reduce((a, t) => a + t.v, 0);
   const f = mode === "pct" ? (v: number) => pct(v, 0) : compact;
   // As the demo: filled bands with their own line on top; "แยกเส้น" keeps a faint fill under each line.
@@ -72,7 +83,10 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
   return (
     <article className="pi-card xp">
       <h3>Cross Platform · ยอดวิวรายวันแยกแพลตฟอร์ม</h3>
-      <p className="ps-muted">สลับ “ซ้อนกัน / แยกเส้น / สัดส่วน 100%” แล้วกราฟจะเปลี่ยนรูปต่อเนื่อง · กดชื่อแพลตฟอร์มเพื่อซ่อน/แสดง · ชี้กราฟดูตัวเลขรายวัน</p>
+      <p className="ps-muted">
+        สลับ “ซ้อนกัน / แยกเส้น / สัดส่วน 100%” แล้วกราฟจะเปลี่ยนรูปต่อเนื่อง · กดชื่อแพลตฟอร์มเพื่อซ่อน/แสดง · ชี้กราฟดูตัวเลขรายวัน · TV One31 และ GMM25 =
+        Rating ของเทปที่ออกอากาศวันนั้น × 700,000 (รวมทุกเทปของวัน)
+      </p>
       <div className="xp-bar">
         <div className="ht-seg" role="group" aria-label="รูปแบบกราฟ">
           {MODES.map((m) => (
@@ -82,7 +96,7 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
           ))}
         </div>
         <div className="xp-legend">
-          {DIGITAL.map((p) => (
+          {SERIES.map((p) => (
             <button key={p} type="button" className={off.has(p) ? "off" : ""} onClick={() => toggle(p)} aria-pressed={!off.has(p)}>
               <i style={{ background: COLORS[p] }} />
               {p}
@@ -95,7 +109,7 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
           <CartesianGrid stroke="#dce3ee" vertical={false} />
           <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11, fill: "#6a7892" }} stroke="#dce3ee" minTickGap={28} />
           <YAxis tickFormatter={f} tick={{ fontSize: 11, fill: "#6a7892" }} width={56} stroke="none" tickCount={5} domain={mode === "pct" ? [0, 1] : [0, "auto"]} />
-          <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [f(Number(v)), String(n)]} itemSorter={(i) => DIGITAL.indexOf(i.dataKey as (typeof DIGITAL)[number])} />
+          <Tooltip labelFormatter={(d) => fullDate(String(d))} formatter={(v, n) => [f(Number(v)), seriesName(String(n))]} itemSorter={(i) => SERIES.indexOf(i.dataKey as (typeof SERIES)[number])} />
           {shown.map((p) => (
             <Area
               key={p}
@@ -115,7 +129,7 @@ export function CrossPlatform({ cur, startDate, endDate }: { cur: RecordRow[]; s
       <div className="xp-sum">
         {totals.map((t) => (
           <div key={t.p} style={{ borderColor: COLORS[t.p] }} className={off.has(t.p) ? "off" : ""}>
-            <small>{t.p}</small>
+            <small>{seriesName(t.p)}</small>
             <b>
               <CountUp value={t.v} format={compact} />
             </b>{" "}
