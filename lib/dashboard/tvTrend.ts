@@ -1,5 +1,5 @@
-// TV Overview Report: how the TV charts group their points, and the latest week's
-// rating per program and channel. Raw ratings and audiences from the TV rows.
+// TV Overview Report: how the TV charts group their points, and the episode list.
+// Raw ratings and audiences from the TV rows.
 //
 // Relative imports only: tests run this file directly with Node.
 import type { RecordRow } from "./types.ts";
@@ -54,41 +54,9 @@ export function tvAudienceTrend(rows: RecordRow[], grain: TvGrain): AudiencePoin
   return list.map((x) => ({ ...x, ONE31: x.oneEpisodes ? x.ONE31 / x.oneEpisodes : 0, GMM25: x.gmmEpisodes ? x.GMM25 / x.gmmEpisodes : 0 }));
 }
 
-export interface LastWeek {
-  /** The 7 days: from the latest aired day with a rating (up to `end`) back 6 days; "" when none. */
-  from: string;
-  to: string;
-  /** Average rating per "program|channel", episodes with a rating only. */
-  ratings: Map<string, { rating: number; episodes: number }>;
-  /** Every TV episode in those 7 days, newest first. */
-  episodes: RecordRow[];
-}
-
 const isTv = (r: RecordRow) => r.platform === "TV" || r.ratingTotal > 0;
 
-/** The latest 7 days of TV ratings in the rows: TV files can trail the range end by days. */
-export function lastWeekRatings(rows: RecordRow[], end: string): LastWeek {
-  const out = new Map<string, { rating: number; episodes: number }>();
-  let to = "";
-  for (const r of rows) if (isTv(r) && (r.ratingTotal > 0 || r.gmmRating > 0) && (!end || r.date <= end) && r.date > to) to = r.date;
-  if (!to) return { from: "", to: "", ratings: out, episodes: [] };
-  const from = new Date(Date.parse(`${to}T00:00:00Z`) - 6 * 86400000).toISOString().slice(0, 10);
-  const last = to;
-  const add = (key: string, v: number) => {
-    if (!(v > 0)) return;
-    const x = out.get(key) || { rating: 0, episodes: 0 };
-    x.rating += v;
-    x.episodes++;
-    out.set(key, x);
-  };
-  const episodes: RecordRow[] = [];
-  for (const r of rows) {
-    if (!isTv(r) || r.date < from || r.date > last) continue;
-    episodes.push(r);
-    add(`${r.program}|One31`, r.ratingTotal);
-    add(`${r.program}|GMM25`, r.gmmRating);
-  }
-  for (const x of out.values()) x.rating /= x.episodes;
-  episodes.sort((a, b) => b.date.localeCompare(a.date) || a.program.localeCompare(b.program));
-  return { from, to, ratings: out, episodes };
+/** Every TV episode in the rows, newest first (then by program). */
+export function tvEpisodes(rows: RecordRow[]): RecordRow[] {
+  return rows.filter(isTv).sort((a, b) => b.date.localeCompare(a.date) || a.program.localeCompare(b.program));
 }

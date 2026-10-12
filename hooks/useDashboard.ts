@@ -1,7 +1,7 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
 import { programMatches } from "@/lib/dashboard/programFilter";
-import { autoGrain, lastWeekRatings, tvAudienceTrend } from "@/lib/dashboard/tvTrend";
+import { autoGrain, tvAudienceTrend, tvEpisodes as episodesOf } from "@/lib/dashboard/tvTrend";
 import {
   loadMasterDataFromFirebase,
   saveMasterDataToFirebase,
@@ -703,8 +703,8 @@ export function useDashboard(enabled = true) {
     });
     return [...m.values()].map((x) => ({ ...x, rating: x.episodes ? x.rating / x.episodes : 0 })).sort((a, b) => b.audience - a.audience);
   }, [filtered]);
-  // TV Rating 7 วันล่าสุด: each episode of the latest 7 aired days, newest first.
-  const tvLastWeek = useMemo(() => lastWeekRatings(filtered, endDate), [filtered, endDate]);
+  // TV Rating รายเทป: every episode in the date filter, newest first.
+  const tvEpisodes = useMemo(() => episodesOf(filtered), [filtered]);
 
   const compare = useMemo(() => {
     type Cluster = Omit<CompareRow, "tvAudience" | "online" | "total"> & {
@@ -1400,7 +1400,7 @@ export function useDashboard(enabled = true) {
     rating,
     tvAudience,
     tvRatingBreakdown,
-    tvLastWeek,
+    tvEpisodes,
     compare,
     compareSorted,
     compareTotals,

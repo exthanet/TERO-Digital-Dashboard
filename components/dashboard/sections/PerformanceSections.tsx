@@ -9,10 +9,7 @@ import {
 import { compact, dateLabel, num, pct } from "@/lib/dashboard/format";
 import { Download } from "lucide-react";
 import { grainLabel } from "@/lib/dashboard/tvTrend";
-
-/** "พ. 1 ต.ค. 69" */
-const thaiDay = (iso: string) =>
-  new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", year: "2-digit" }).format(new Date(`${iso}T00:00:00Z`));
+import { TvEpisodeTable } from "@/components/dashboard/sections/TvEpisodeTable";
 import {
   Bar,
   BarChart,
@@ -44,7 +41,7 @@ export function PerformanceSections({
   setRatingGrain,
   tvAudience,
   tvRatingBreakdown,
-  tvLastWeek,
+  tvEpisodes,
   download,
   audienceReport,
   tvCompetitors,
@@ -66,7 +63,7 @@ export function PerformanceSections({
   | "rating"
   | "tvAudience"
   | "tvRatingBreakdown"
-  | "tvLastWeek"
+  | "tvEpisodes"
   | "download"
 >) {
   return (
@@ -345,50 +342,7 @@ export function PerformanceSections({
                 </div>
               </article>
             </div>
-            <article className="panel tv-last-week">
-              <div className="panel-head">
-                <div>
-                  <h2>TV Rating 7 วันล่าสุด</h2>
-                  <p>
-                    {tvLastWeek.to
-                      ? `รายเทป เรียงจากวันล่าสุด · ${dateLabel(tvLastWeek.from)} – ${dateLabel(tvLastWeek.to)} (7 วันล่าสุดที่มี Rating ในช่วงที่เลือก)`
-                      : "ยังไม่มีเทปที่มี Rating ในช่วงที่เลือก"}
-                  </p>
-                </div>
-              </div>
-              {tvLastWeek.episodes.length ? (
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>วันที่ออกอากาศ</th>
-                        <th>รายการ</th>
-                        <th>ประเด็น</th>
-                        <th className="num">One31</th>
-                        <th className="num">GMM25</th>
-                        <th className="num">ผู้ชม One31</th>
-                        <th className="num">ผู้ชม GMM25</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tvLastWeek.episodes.map((r, i) => (
-                        <tr key={`${r.date}-${r.program}-${i}`}>
-                          <td>{thaiDay(r.date)}</td>
-                          <td>{r.program}</td>
-                          <td className="tv-last-week-topic">{r.topic || "-"}</td>
-                          <td className="num strong">{r.ratingTotal > 0 ? r.ratingTotal.toFixed(3) : "-"}</td>
-                          <td className="num">{r.gmmRating > 0 ? r.gmmRating.toFixed(3) : "-"}</td>
-                          <td className="num">{r.audienceTotal > 0 ? compact(r.audienceTotal) : "-"}</td>
-                          <td className="num">{r.gmmAudience > 0 ? compact(r.gmmAudience) : "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <Empty text="ไม่มีเทปที่มี Rating ในช่วงที่เลือก" />
-              )}
-            </article>
+            <TvEpisodeTable episodes={tvEpisodes} />
             {tvCompetitors}
           </div>
         </section>
