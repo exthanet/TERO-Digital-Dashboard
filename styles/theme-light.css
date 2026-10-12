@@ -1,0 +1,161 @@
+/* Light theme (Ink & Indigo): <html data-theme="light">, set by ThemeSwitch on the pages that
+   use it. Without the attribute the dashboard keeps its original look (Black). */
+
+/* ---- shared: flat cards, thin borders, quiet KPI tiles ---- */
+html[data-theme="light"] .panel,
+html[data-theme="light"] .kpi-card,
+html[data-theme="light"] .pi-card,
+html[data-theme="light"] .filter-box,
+html[data-theme="light"] .search-box {
+  box-shadow: none;
+  border-color: var(--tp-line);
+}
+html[data-theme="light"] .kpi-card,
+html[data-theme="light"] .kpi-card.blue,
+html[data-theme="light"] .kpi-card.green,
+html[data-theme="light"] .kpi-card.violet,
+html[data-theme="light"] .kpi-card.orange,
+html[data-theme="light"] .kpi-card.sky,
+html[data-theme="light"] .kpi-card.indigo {
+  background: var(--tp-card);
+  border-color: var(--tp-line);
+}
+html[data-theme="light"] .kpi-icon,
+html[data-theme="light"] .green .kpi-icon,
+html[data-theme="light"] .violet .kpi-icon,
+html[data-theme="light"] .orange .kpi-icon,
+html[data-theme="light"] .sky .kpi-icon,
+html[data-theme="light"] .indigo .kpi-icon {
+  background: var(--tp-accent-soft);
+  color: var(--tp-accent);
+  box-shadow: none;
+}
+html[data-theme="light"] body {
+  background: var(--tp-bg);
+  color: var(--tp-ink);
+}
+html[data-theme="light"] .panel,
+html[data-theme="light"] .pi-card,
+html[data-theme="light"] .filter-box,
+html[data-theme="light"] .search-box {
+  background: var(--tp-card);
+}
+html[data-theme="light"] .panel-head p,
+html[data-theme="light"] .kpi-card small,
+html[data-theme="light"] .report-group-head p {
+  color: var(--tp-muted);
+}
+html[data-theme="light"] .report-group-head h2,
+html[data-theme="light"] .filter-box > span {
+  color: var(--tp-ink);
+}
+html[data-theme="light"] .sidebar {
+  background: var(--tp-side);
+  border-right: 1px solid var(--tp-side-line);
+}
+html[data-theme="light"] .sidebar nav a {
+  color: var(--tp-side-text);
+}
+html[data-theme="light"] .sidebar nav a:hover {
+  background: var(--tp-side-hover);
+  color: var(--tp-side-strong);
+}
+html[data-theme="light"] .sidebar nav a.active {
+  background: var(--tp-side-active);
+  color: var(--tp-side-active-text);
+  box-shadow: none;
+}
+html[data-theme="light"] .sidebar-group-head {
+  color: var(--tp-side-muted);
+}
+html[data-theme="light"] .sidebar-foot {
+  border-top-color: var(--tp-side-line);
+}
+html[data-theme="light"] .segmented button.active,
+html[data-theme="light"] .ht-seg button.on {
+  background: var(--tp-accent);
+  color: #fff;
+  box-shadow: none;
+}
+html[data-theme="light"] .panel-head > button {
+  background: var(--tp-accent-soft);
+  color: var(--tp-accent);
+}
+
+/* ---- Ink & Indigo colours ---- */
+html[data-theme="light"] {
+  --primary: #4f46e5;
+  --tp-bg: #f6f7f9;
+  --tp-card: #fff;
+  --tp-line: #e6e8ec;
+  --tp-ink: #111827;
+  --tp-muted: #6b7280;
+  --tp-accent: #4f46e5;
+  --tp-accent-soft: #eef0ff;
+  --tp-side: #fff;
+  --tp-side-line: #e6e8ec;
+  --tp-side-text: #4b5563;
+  --tp-side-muted: #9ca3af;
+  --tp-side-strong: #111827;
+  --tp-side-hover: #f3f4f6;
+  --tp-side-active: #eef0ff;
+  --tp-side-active-text: #3b3fd9;
+}
+html[data-theme="light"] .sidebar .brand,
+html[data-theme="light"] .sidebar h1,
+html[data-theme="light"] .sidebar .sidebar-foot,
+html[data-theme="light"] .sidebar .sidebar-foot * {
+  color: #111827;
+}
+
+
+/* Tabs carry inline colours: these need !important. */
+html[data-theme="light"] .tab-btn.active {
+  color: var(--tp-accent) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--tp-line) !important;
+}
+html[data-theme="light"] .date-filter .quick-range {
+  background: var(--tp-accent-soft);
+  color: var(--tp-accent);
+}
+html[data-theme="light"] .collapse-controls button:hover {
+  border-color: var(--tp-accent);
+  color: var(--tp-accent);
+}
+
+/* The Light / Black switch (ThemeSwitch). */
+.page-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.page-tools .collapse-controls {
+  margin: 0;
+}
+.theme-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+}
+.theme-switch button {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.theme-switch button.on {
+  background: #0f1b31;
+  color: #fff;
+}
+html[data-theme="light"] .theme-switch button.on {
+  background: var(--tp-accent);
+}

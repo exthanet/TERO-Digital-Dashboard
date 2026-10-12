@@ -21,6 +21,7 @@ import { KpiSummary } from "@/components/dashboard/sections/KpiSummary";
 import { TopLoadingBar } from "@/components/dashboard/sections/TopLoadingBar";
 import { Freeze } from "@/components/dashboard/shared/Freeze";
 import { CollapseControls } from "@/components/dashboard/shared/CollapseControls";
+import { ThemeSwitch } from "@/components/dashboard/shared/ThemeSwitch";
 import { effectivePerms } from "@/lib/auth/permissions";
 import { MobileHeader } from "@/components/dashboard/sections/MobileHeader";
 import { PerformanceSections } from "@/components/dashboard/sections/PerformanceSections";
@@ -47,6 +48,7 @@ import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { UserManagementModal } from "@/components/auth/UserManagementModal";
 import { loadSyncStatus, type SyncStatus } from "@/lib/sync/status";
 import "@/styles/auth.css";
+import "@/styles/theme-light.css";
 
 import RevenueReport from "@/components/dashboard/RevenueReport";
 import AffiliateReport from "@/components/dashboard/AffiliateReport";
@@ -195,7 +197,10 @@ export default function Dashboard() {
           onTabChange={setActiveTab}
           canRevenue={perms.revenue}
         />
-        <CollapseControls />
+        <div className="page-tools">
+          <ThemeSwitch active={activeTab === "overview"} />
+          <CollapseControls />
+        </div>
 
         {(activeTab === "overview" || activeTab === "platform" || activeTab === "search" || activeTab === "trending" || activeTab === "programs" || ((activeTab === "growth" || activeTab === "quality" || activeTab === "thumbnail" || activeTab === "advice") && perms.advanced) || (activeTab === "youtube" && perms.deepDive)) && (
             <DashboardFilters
