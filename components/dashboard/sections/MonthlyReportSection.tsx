@@ -32,6 +32,8 @@ import "@/styles/monthly-report.css";
 
 interface Props {
   rows: RecordRow[];
+  /** The dashboard's รายการ filter: the clip pages follow it (the rest is the whole company). */
+  program: string;
   latestDate: string;
   isAdmin: boolean;
   userName: string;
@@ -850,7 +852,7 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
   return pages;
 }
 
-export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Props) {
+export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userName }: Props) {
   const [saved, setSaved] = useState<SavedReport[] | null>(null);
   const [error, setError] = useState("");
   const [month, setMonth] = useState("");
@@ -875,7 +877,7 @@ export function MonthlyReportSection({ rows, latestDate, isAdmin, userName }: Pr
   const current = saved?.find((s) => s.month === month);
   const report = draft && draft.month === month ? draft : current?.report || null;
   // The saved (frozen) pages, then five live pages of รายงานรวมแพลตฟอร์ม for the same month.
-  const live = useLiveData(rows, report?.month || "", report?.prevMonth || "");
+  const live = useLiveData(rows, report?.month || "", report?.prevMonth || "", program);
   const slides = useMemo(() => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true)) : [])] : []), [report, live]);
   // Admin's page order, hidden pages and texts (lib/dashboard/reportLayout.ts): numbers are never edited.
   const [editing, setEditing] = useState(false);

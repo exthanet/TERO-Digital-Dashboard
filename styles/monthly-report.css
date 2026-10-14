@@ -760,3 +760,140 @@
   margin-top: 8px;
   font-size: 11px;
 }
+
+/* Live pages "5 คลิปดีที่สุด / ต่ำกว่าปกติที่สุด" (MonthlyClipPicks). */
+.cp-page {
+  --cp-tone: #16a34a;
+  --cp-soft: #ecfdf3;
+}
+.cp-page.worst {
+  --cp-tone: #dc2626;
+  --cp-soft: #fef2f2;
+}
+.cp-intro {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 13px;
+}
+.cp-intro svg {
+  color: var(--cp-tone);
+}
+.cp-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-card {
+  display: grid;
+  grid-template-columns: 32px 120px minmax(0, 1.4fr) 200px minmax(0, 1.4fr);
+  gap: 14px;
+  align-items: center;
+  padding: 7px 14px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--cp-tone);
+  border-radius: 0;
+  background: #fff;
+}
+.cp-rank {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cp-soft);
+  color: var(--cp-tone);
+  font-size: 16px;
+}
+.cp-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.cp-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: none;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.cp-meta {
+  color: #64748b;
+  font-size: 11.5px;
+}
+.cp-plats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 11.5px;
+  color: #334155;
+}
+.cp-plats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cp-plats i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.cp-num {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+.cp-num > b {
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.cp-num small {
+  color: #64748b;
+  font-size: 11px;
+}
+.cp-index {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--cp-soft);
+  color: var(--cp-tone);
+  font-size: 12px;
+  font-weight: 800;
+}
+.cp-why {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 16px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.cp-sum {
+  margin: 10px 0 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cp-cover {
+  display: block;
+  width: 120px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e2e8f0, #f1f5f9);
+}
+.cp-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

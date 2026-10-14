@@ -6,8 +6,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { inRange } from "@/lib/dashboard/platformReport";
 import { monthPeriod } from "@/lib/dashboard/monthlyReport";
+import { programLabel, programMatches } from "@/lib/dashboard/programFilter";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
 import { EngagementReport } from "@/components/dashboard/sections/EngagementReport";
+import { MonthlyClipPicks } from "@/components/dashboard/sections/MonthlyClipPicks";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
 /** Width the pages are laid out at before they are scaled into the slide. */
@@ -62,6 +64,11 @@ function LiveNote({ dataAt }: { dataAt: string }) {
 }
 
 interface LiveData {
+  /** Every row: the clip pages compare with the 30 days before the month. */
+  all: RecordRow[];
+  /** The clip pages: rows of the dashboard's รายการ filter, and its name. */
+  programRows: RecordRow[];
+  programName: string;
   cur: RecordRow[];
   prev: RecordRow[];
   tv: RecordRow[];
@@ -73,12 +80,15 @@ interface LiveData {
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 
 /** The month's rows and the month before, as รายงานรวมแพลตฟอร์ม uses them. */
-export function useLiveData(rows: RecordRow[], month: string, prevMonth: string): LiveData | null {
+export function useLiveData(rows: RecordRow[], month: string, prevMonth: string, program = "ALL"): LiveData | null {
   return useMemo(() => {
     if (!month) return null;
     const p = monthPeriod(month);
     const q = prevMonth ? monthPeriod(prevMonth) : null;
     return {
+      all: rows,
+      programRows: rows.filter((r) => programMatches(program, r.program)),
+      programName: programLabel(program),
       cur: inRange(rows, p.start, p.end),
       prev: q ? inRange(rows, q.start, q.end) : [],
       tv: rows.filter((r) => r.platform === "TV"),
@@ -86,7 +96,7 @@ export function useLiveData(rows: RecordRow[], month: string, prevMonth: string)
       end: p.end,
       compareText: q ? `เทียบ ${thDate(q.start)} – ${thDate(q.end)}` : "",
     };
-  }, [rows, month, prevMonth]);
+  }, [rows, month, prevMonth, program]);
 }
 
 /** The live pages, in order (titles as the deck shows them). */
@@ -151,6 +161,22 @@ export function liveSlides(d: LiveData, dataAt: string): { title: string; cover?
       body: page(
         <div className="mr-live-page">
           <EngagementReport cur={d.cur} prev={d.prev} compareText={d.compareText} />
+        </div>,
+      ),
+    },
+    {
+      title: "5 คลิปดีที่สุดของเดือน",
+      body: page(
+        <div className="mr-live-page">
+          <MonthlyClipPicks all={d.programRows} program={d.programName} start={d.start} end={d.end} kind="best" />
+        </div>,
+      ),
+    },
+    {
+      title: "5 คลิปแย่ที่สุดของเดือน",
+      body: page(
+        <div className="mr-live-page">
+          <MonthlyClipPicks all={d.programRows} program={d.programName} start={d.start} end={d.end} kind="worst" />
         </div>,
       ),
     },

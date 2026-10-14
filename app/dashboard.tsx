@@ -294,7 +294,7 @@ export default function Dashboard() {
         )}
 
         {activeTab === "monthly" && perms.monthlyReport && (
-          <MonthlyReportSection rows={model.rows} latestDate={model.dataLatestDate} isAdmin={isAdmin} userName={auth.user?.name || auth.user?.email || ""} />
+          <MonthlyReportSection rows={model.rows} program={model.program} latestDate={model.dataLatestDate} isAdmin={isAdmin} userName={auth.user?.name || auth.user?.email || ""} />
         )}
 
         {activeTab === "help" && <HelpSection isAdmin={isAdmin || perms.advanced} />}
