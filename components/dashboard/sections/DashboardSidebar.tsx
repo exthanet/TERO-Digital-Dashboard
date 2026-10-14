@@ -232,6 +232,8 @@ export function DashboardSidebar({
     setMenuOpen(false);
     const tab = item.tab || "overview";
     if (onTabChange && activeTab !== tab) onTabChange(tab);
+    // A page of its own opens at its top, not where the last page was scrolled to.
+    if (item.tab) window.scrollTo({ top: 0, behavior: "instant" });
     if (!item.tab) setSection(item.id);
   };
   const isActive = (item: NavItem) => (item.tab ? activeTab === item.tab : activeTab === "overview" && section === item.id);
