@@ -5,7 +5,10 @@
 //
 // Relative imports only: tests run this file directly with Node.
 
-/** The workbook's columns F–O, in order (row 52 of the sheet). */
+/**
+ * The workbook's columns F–P, in order (row 52 of the sheet). "Gifted memberships" came
+ * later: it is P, after the ten the workbook was built with, so nothing above moves.
+ */
 export const SOURCE_COLUMNS = [
   "Estimated partner ad revenue",
   "YouTube Premium",
@@ -17,6 +20,7 @@ export const SOURCE_COLUMNS = [
   "Super Stickers",
   "Super Thanks",
   "YouTube Player for Education",
+  "Gifted memberships",
 ] as const;
 
 export interface ZipName {

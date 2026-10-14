@@ -12,8 +12,9 @@
 // Writes "Report Earning - Youtube - YYYY MM (generated).xlsx" next to them:
 //   rows 7–30 (template only)  C–L from the dashboard export; what is typed by hand each month
 //            (M5 rate, N5 W/T, AdSense, bank charges, B53:B63) is emptied and marked yellow
-//   F53:O76  each channel's revenue by source (as in the file; "-" without a file)
-//   P53:Q76  the export's own Total (sources overlap, so it is not their sum), and
+//   F53:P76  each channel's revenue by source (as in the file; "-" without a file);
+//            P (Gifted memberships) is added when the workbook does not have it yet
+//   Q53:R76  the export's own Total (sources overlap, so it is not their sum), and
 //            Ad + Premium against the table above (K+L)
 //   Summary  links to the month sheet again (it held #REF!); O30 uses $M$31 like the other rows
 //
@@ -66,8 +67,24 @@ async function csvFrom(zipPath, name) {
   return entry ? entry.async("string") : null;
 }
 
-const cmsZip = files.find((f) => /CMS\.zip$/i.test(f));
+// The CMS channel export ("Channel … CMS.zip"): titles → channel IDs, and its Total row.
+const CHANNEL_CMS = /^Channel .*CMS\.zip$/i;
+const cmsZip = files.find((f) => CHANNEL_CMS.test(f));
 const cms = cmsZip ? parseCmsChannels((await csvFrom(path.join(dir, cmsZip), "Table data.csv")) || "") : new Map();
+if (!cmsZip) {
+  // Channel IDs do not change month to month: take them from another month's export.
+  const parent = path.dirname(path.resolve(dir));
+  const other = fs
+    .readdirSync(parent)
+    .filter((d) => /^\d{2}$/.test(d) && d !== folderMonth && fs.statSync(path.join(parent, d)).isDirectory())
+    .flatMap((d) => fs.readdirSync(path.join(parent, d)).filter((f) => CHANNEL_CMS.test(f)).map((f) => path.join(parent, d, f)))
+    .sort()
+    .pop();
+  if (other) {
+    for (const [k, v] of parseCmsChannels((await csvFrom(other, "Table data.csv")) || "")) cms.set(k, v);
+    report.push(`ไม่มีไฟล์ Channel … CMS.zip ในโฟลเดอร์นี้: ใช้ Channel ID จาก ${path.relative(parent, other)} (ID ไม่เปลี่ยนตามเดือน)`);
+  } else report.push("ไม่มีไฟล์ Channel … CMS.zip: จับคู่ช่องด้วยชื่อเท่านั้น");
+}
 
 const wb = new ExcelJS.Workbook();
 await wb.xlsx.readFile(template || path.join(dir, book));
@@ -135,10 +152,34 @@ if (template) {
   report.push("ต้องกรอกเองเดือนนี้ (สีเหลือง): M5 อัตราแลกเปลี่ยน, N5 W/T รวม, B35–B36 AdSense, B42 Withholding, B44 Bank charge, B48 Processing fee");
 }
 
-// Check the block is where it was built: row 52 holds the source names in F–O.
+// Check the block is where it was built: row 52 holds the source names in F–P. A column
+// added later (P) may still be missing: it gets its heading and the look of column O.
+const LAST = 6 + SOURCE_COLUMNS.length - 1;
 SOURCE_COLUMNS.forEach((s, i) => {
-  const head = text(sheet.getCell(52, 6 + i).value);
+  const cell = sheet.getCell(52, 6 + i);
+  const head = text(cell.value);
+  const wasOurs = /^Total ตามไฟล์ Studio|^Ad + Premium/.test(head);
+  if ((!head || wasOurs) && 6 + i > 15) {
+    cell.value = s;
+    cell.style = { ...sheet.getCell(52, 15).style };
+    for (let r = 53; r <= 76; r++) sheet.getCell(r, 6 + i).style = { ...sheet.getCell(r, 15).style };
+    sheet.getColumn(6 + i).width = sheet.getColumn(15).width;
+    return;
+  }
   if (!head.toLowerCase().startsWith(s.toLowerCase().slice(0, 20))) throw new Error(`แถว 52 คอลัมน์ ${String.fromCharCode(70 + i)} ควรเป็น "${s}" แต่เป็น "${head}"`);
+});
+// The all-channel table on the left (A52:B…) gets a row for the added source too.
+SOURCE_COLUMNS.forEach((s) => {
+  for (let r = 53; r <= 70; r++) {
+    const label = text(sheet.getCell(r, 1).value);
+    if (label.toLowerCase() === s.toLowerCase()) return;
+    if (!label) {
+      sheet.getCell(r, 1).value = s;
+      sheet.getCell(r, 1).style = { ...sheet.getCell(r - 1, 1).style };
+      sheet.getCell(r, 2).style = { ...sheet.getCell(r - 1, 2).style };
+      return;
+    }
+  }
 });
 
 const rows = [];
@@ -160,7 +201,7 @@ for (const f of files) {
   if (/\bCMS\b/i.test(z.channel)) {
     if (z.start !== monthStart) report.push(`เตือน: ${f} เป็นช่วง ${z.start} ถึง ${z.end} ไม่ใช่เดือน ${year}-${month}`);
     accountSources = parseSourceTable((await csvFrom(path.join(dir, f), "Table data.csv")) || "");
-    report.push(`B53–B63 ← ${f} (Revenue source ทั้ง CMS)`);
+    report.push(`ตารางซ้าย A52:B ← ${f} (Revenue source ทั้ง CMS)`);
     continue;
   }
   const m = matchRow(z.channel, rows, cms);
@@ -204,17 +245,19 @@ if (accountSources || template) {
           .pop(),
       )
     : NaN;
-  for (let r = 53; r <= 63; r++) {
+  for (let r = 53; r <= 53 + SOURCE_COLUMNS.length; r++) {
     const label = text(sheet.getCell(r, 1).value);
+    if (!label) continue;
     const cell = sheet.getCell(r, 2);
     const i = SOURCE_COLUMNS.findIndex((s) => s.toLowerCase() === label.toLowerCase());
     if (accountSources) cell.value = label in accountSources ? accountSources[label] : null;
     else if (label === "Total" && Number.isFinite(cmsTotal)) cell.value = cmsTotal;
+    else if (label === "Total") mark(cell);
     else if (i >= 0) cell.value = { formula: `SUM(${String.fromCharCode(70 + i)}53:${String.fromCharCode(70 + i)}76)` };
     else mark(cell);
   }
   if (!accountSources) {
-    sheet.getCell("C52").value = `Total จาก ${cmsZip || "-"} · ประเภทอื่น = ผลรวมตารางรายช่อง (F–O แถว 53–76)`;
+    sheet.getCell("C52").value = `Total จาก ${cmsZip || "-"} · ประเภทอื่น = ผลรวมตารางรายช่อง (F–${String.fromCharCode(64 + LAST)} แถว 53–76)`;
     report.push(`B53 Total ← ${cmsZip || "(ไม่มีไฟล์ CMS: ต้องกรอกเอง)"} · B54–B63 = ผลรวมจากตารางรายช่อง (ไม่มีไฟล์ Revenue source ทั้ง CMS)`);
   }
 }
@@ -223,18 +266,18 @@ if (accountSources || template) {
 // Q: Ad + Premium against the table above. TERO Digital's channel is split above into
 // TERO Digital + ถกไม่เถียง + เงินทองของจริง, so it is compared with all three.
 const SPLIT = ["TERO Digital", "ถกไม่เถียง", "เงินทองของจริง"];
-sheet.getCell(52, 16).value = "Total ตามไฟล์ Studio (USD)";
-sheet.getCell(52, 17).value = "Ad + Premium − ตารางบน (USD)";
+sheet.getCell(52, LAST + 1).value = "Total ตามไฟล์ Studio (USD)";
+sheet.getCell(52, LAST + 2).value = "Ad + Premium − ตารางบน (USD)";
 for (const r of rows) {
   if (!filled.has(r.row)) continue;
-  sheet.getCell(r.row, 16).value = totals.get(r.row) ?? null;
+  sheet.getCell(r.row, LAST + 1).value = totals.get(r.row) ?? null;
   const names = r.name === "TERO Digital" ? SPLIT : [r.name];
   const ups = names.map((n) => upper.get(n)).filter(Boolean);
-  if (ups.length === names.length) sheet.getCell(r.row, 17).value = { formula: `F${r.row}+G${r.row}-(${ups.map((u) => `K${u.row}+L${u.row}`).join("+")})` };
+  if (ups.length === names.length) sheet.getCell(r.row, LAST + 2).value = { formula: `F${r.row}+G${r.row}-(${ups.map((u) => `K${u.row}+L${u.row}`).join("+")})` };
 }
 // Widths only: the cells keep the sheet's number format (setting numFmt here would also
 // change every cell that shares the style).
-for (const c of [16, 17]) sheet.getColumn(c).width = Math.max(sheet.getColumn(c).width || 0, 22);
+for (const c of [LAST + 1, LAST + 2]) sheet.getColumn(c).width = Math.max(sheet.getColumn(c).width || 0, 22);
 
 // Fixes asked for: O30 like the other rows; Summary back on the month sheet.
 const o30 = sheet.getCell("O30");
