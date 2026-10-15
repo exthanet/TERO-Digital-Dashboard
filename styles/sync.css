@@ -366,3 +366,10 @@
   color: #64748b;
   font-size: 12px;
 }
+
+/* TV Rating section of the sync status window. */
+.sync-tv-sum {
+  margin: 0 0 8px;
+  color: #334155;
+  font-size: 13px;
+}

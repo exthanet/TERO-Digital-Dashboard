@@ -38,6 +38,30 @@ export function bangkokTime(iso: string): string {
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
 
+const FROM: Record<string, string> = { link: "ลิงก์ SharePoint", sharepoint: "Microsoft Graph", upload: "ไฟล์ที่อัปโหลด", file: "ไฟล์ในเครื่อง" };
+const dayTh = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}` : iso);
+
+/**
+ * The TV line of the message: new episodes (air days), updated, latest day with a
+ * rating, waiting and where it was read from; null when the run had no TV source.
+ */
+export function tvLine(report: Partial<RunReport>): string | null {
+  const sources = report.tvSources || [];
+  if (!sources.length) return null;
+  const tv = report.tv;
+  const days = [...new Set(tv?.inserted || [])].sort().map(dayTh);
+  const pending = Math.max(0, ...sources.map((s) => s.pending || 0));
+  const from = [...new Set(sources.filter((s) => s.ok && s.from).map((s) => FROM[s.from!] || s.from!))].join(" / ");
+  const parts = [
+    days.length ? `ใหม่ ${days.join(", ")}` : "ไม่มีเทปใหม่",
+    tv?.updated ? `อัปเดต ${n(tv.updated)} เทป` : "",
+    tv?.latest ? `ล่าสุดมี rating ${dayTh(tv.latest)}` : "",
+    pending ? `รอ rating ${n(pending)}` : "",
+    from ? `จาก${from}` : "",
+  ].filter(Boolean);
+  return `📺 TV: ${parts.join(" · ")}`;
+}
+
 /**
  * The message for one sync job. `report` = this job's run report (null when the
  * job stopped before writing one). `jobStatus` = GitHub's job.status.
@@ -67,11 +91,16 @@ export function syncMessage(
     return `⚠️ Data sync ไม่สำเร็จ${test} ก่อนบันทึกรายงาน (ข้อมูลเดิมไม่ถูกแตะ)${link}`;
   }
   if (report.status === "success" && opts.jobStatus === "success") {
-    const tv = t.tvUpdated || t.tvInserted ? ` · TV ${n(t.tvUpdated)} เทป` : "";
+    const tvText = tvLine(report);
+    const tv = tvText ? `
+${tvText}` : "";
     const problems = Object.entries(report.platforms || {}).filter(([, p]) => p && !p.ok).map(([k]) => k);
-    const integrations = Object.entries(report.integrations || {}).filter(([, s]) => s && !s.ok).map(([k]) => k);
+    const integrations = [
+      ...Object.entries(report.integrations || {}).filter(([, s]) => s && !s.ok).map(([k]) => k),
+      ...(report.tvSources || []).filter((s) => !s.ok || s.error).map((s) => `TV ${s.name}`),
+    ];
     const warn = [...problems, ...integrations].length ? `\nควรดู: ${[...problems, ...integrations].join(", ")}` : "";
-    return `✅ Data sync ${when}${test}\nอัปเดต ${n(t.updated)} · ใหม่ ${n(t.inserted)} · รวม ${n(t.rowsAfter)} แถว${tv}${time}${warn}${link}`;
+    return `✅ Data sync ${when}${test}\nอัปเดต ${n(t.updated)} · ใหม่ ${n(t.inserted)} · รวม ${n(t.rowsAfter)} แถว${time}${tv}${warn}${link}`;
   }
   const why = report.message || (report.status === "blocked" ? "ไม่ผ่านการตรวจ จึงไม่ได้เขียนข้อมูล" : "ไม่สำเร็จ");
   return `⚠️ Data sync ${report.status === "blocked" ? "ไม่ผ่านการตรวจ" : "ไม่สำเร็จ"}${test}${when ? ` · ${when}` : ""}\n${why}${time}${link}`;

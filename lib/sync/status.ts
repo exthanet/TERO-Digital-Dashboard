@@ -20,7 +20,7 @@ export interface TvSourceStatus {
   cancelled?: number;
   competitors?: number;
   error?: string;
-  /** Where the numbers came from: "upload" (admin upload) or "sharepoint". */
+  /** Where the numbers came from: "link" (sharing link), "sharepoint" (Graph), "upload" (admin upload) or "file". */
   from?: string;
 }
 
@@ -51,6 +51,8 @@ export interface SyncRun extends Omit<SyncStatus, "lastSuccessAt"> {
   window: { since: string; until: string };
   totals: Record<string, number>;
   checks: SyncCheck[];
+  /** TV this run: air days of new episodes, episodes updated, latest air day with a rating. */
+  tv?: { inserted: string[]; updated: number; latest: string };
   backupId?: string;
   githubRunUrl?: string;
 }

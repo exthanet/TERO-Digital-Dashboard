@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, X, XCircle } from "lucide-react";
-import { num } from "@/lib/dashboard/format";
+import { dateLabel, num } from "@/lib/dashboard/format";
 import {
   SYNC_WORKFLOW_URL,
   isStale,
@@ -41,6 +41,8 @@ const STATE: Record<SyncState, { label: string; tone: string; Icon: typeof Check
 
 const TRIGGER: Record<string, string> = { schedule: "อัตโนมัติ", manual: "สั่งรันเอง", local: "รันจากเครื่อง" };
 const PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube"];
+/** Where a TV tab was read from (scripts/metricool-sync.mjs tvStep). */
+const TV_FROM: Record<string, string> = { link: "อ่านจากลิงก์ SharePoint", sharepoint: "อ่านผ่าน Microsoft Graph", upload: "ใช้ไฟล์ที่อัปโหลด", file: "ไฟล์ในเครื่อง" };
 
 export function SyncStatusModal({
   open,
@@ -141,6 +143,31 @@ export function SyncStatusModal({
                 );
               })}
             </div>
+
+            {(latest.tvSources || []).length > 0 && (
+              <>
+                <h3>TV Rating</h3>
+                <p className="sync-tv-sum">
+                  {latest.tv?.inserted?.length
+                    ? `เทปใหม่รอบนี้: ${[...new Set(latest.tv.inserted)].sort().map((d) => dateLabel(d)).join(", ")}`
+                    : "ไม่มีเทปใหม่รอบนี้"}
+                  {latest.tv?.updated ? ` · อัปเดต ${latest.tv.updated} เทป` : ""}
+                  {latest.tv?.latest ? ` · วันล่าสุดที่มี rating ${dateLabel(latest.tv.latest)}` : ""}
+                </p>
+                <div className="sync-platforms">
+                  {(latest.tvSources || []).map((s) => (
+                    <div key={s.id} className={s.ok && !s.error ? "ok" : "bad"} title={s.error || ""}>
+                      <b>{s.name}</b>
+                      <span>{s.ok ? `✅ ${TV_FROM[s.from || ""] || "อ่านได้"}` : "❌ อ่านไม่ได้"}</span>
+                      <small>
+                        {s.ok ? `${s.episodes ?? 0} เทป${s.pending ? ` · รอ rating ${s.pending}` : ""}${s.cancelled ? ` · งด ${s.cancelled}` : ""}` : ""}
+                        {s.error ? `${s.ok ? " · " : ""}${s.error.slice(0, 90)}` : ""}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {Object.keys(latest.integrations || {}).length > 0 && (
               <>

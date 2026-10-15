@@ -62,3 +62,21 @@ test("sendTelegram posts plain text to the chat and never reveals the token in e
   const down = async () => { throw new TypeError("fetch failed https://api.telegram.org/botSECRET/sendMessage"); };
   assert.doesNotMatch(await sendTelegram({ token: "SECRET", chatId: "x" }, "hi", down), /SECRET/);
 });
+
+test("TV line: new air days, latest rated day, waiting, source; an unread tab is named", () => {
+  const tvReport = {
+    ...report,
+    tvSources: [
+      { id: "a", name: "ถกไม่เถียง ONE31", ok: true, episodes: 200, pending: 15, from: "link" },
+      { id: "b", name: "ถกไม่เถียง GMM25", ok: true, episodes: 196, pending: 15, from: "link" },
+    ],
+    tv: { inserted: ["2026-10-09", "2026-10-09"], updated: 0, latest: "2026-10-09" },
+  };
+  const text = syncMessage(tvReport, { jobStatus: "success", runUrl });
+  assert.match(text, /\n📺 TV: ใหม่ 9\/10 · ล่าสุดมี rating 9\/10 · รอ rating 15 · จากลิงก์ SharePoint\n/);
+  assert.doesNotMatch(text, /ควรดู/);
+  const bad = syncMessage({ ...tvReport, tvSources: [{ id: "a", name: "ถกไม่เถียง ONE31", ok: false, error: "ลิงก์ 403" }], tv: { inserted: [], updated: 0, latest: "2026-10-09" } }, { jobStatus: "success", runUrl });
+  assert.match(bad, /📺 TV: ไม่มีเทปใหม่ · ล่าสุดมี rating 9\/10/);
+  assert.match(bad, /ควรดู: TV ถกไม่เถียง ONE31/);
+  assert.doesNotMatch(syncMessage(report, { jobStatus: "success", runUrl }), /📺/);
+});

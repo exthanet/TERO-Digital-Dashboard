@@ -495,6 +495,15 @@ const report = baseReport(allOk ? "success" : "blocked");
 const tvTotals = tvRun.result ? { tvUpdated: tvRun.result.updated.length, tvInserted: tvRun.result.inserted.length, tvMerged: tvRun.result.removed.length } : {};
 report.totals = { ...summary.totals, duplicatesRemoved: dedupe.removed.length, ...tvTotals, rowsAfter: finalRows.length };
 report.checks = allChecks;
+// TV for the report: new episodes' air days, updated, latest air day with a rating.
+if (tvStatus.length) {
+  const rated = finalRows.filter((r) => r.Platform === "TV" && Number(r.TV_Rating_Total) > 0).map((r) => String(r.Date)).sort();
+  report.tv = {
+    inserted: (tvRun.result?.inserted || []).map((r) => String(r.Date)),
+    updated: tvRun.result?.updated.length || 0,
+    latest: rated[rated.length - 1] || "",
+  };
+}
 if (!allOk) {
   const failed = allChecks.filter((c) => !c.pass).map((c) => c.name).join(", ");
   report.message = `ไม่ได้เขียนข้อมูล เพราะไม่ผ่านการตรวจ: ${failed} (ข้อมูลเดิมไม่ถูกแตะ)`;

@@ -156,6 +156,8 @@ export interface RunReport {
   platforms: Record<string, PlatformStatus>;
   sources: Record<string, unknown>[];
   tvSources?: TvSourceStatus[];
+  /** TV this run: air days of new episodes, episodes updated, latest air day with a rating. */
+  tv?: { inserted: string[]; updated: number; latest: string };
   integrations?: Record<string, IntegrationStatus>;
   notify?: { ok: boolean; at: string; to: number; error?: string };
   totals: Record<string, number>;
