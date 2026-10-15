@@ -59,3 +59,40 @@ export async function sharedFileModified(url: string, token: string): Promise<st
   const body = (await res.json().catch(() => ({}))) as { lastModifiedDateTime?: string };
   return body.lastModifiedDateTime || "";
 }
+
+// Without the Graph app: a link shared as "Anyone with the link · Can view" can be
+// downloaded as is. "?download=1" asks SharePoint for the file instead of the viewer.
+
+/** The download address of a sharing link. */
+export function anonymousDownloadUrl(url: string): string {
+  const u = new URL(url.trim());
+  u.searchParams.set("download", "1");
+  return u.toString();
+}
+
+/** An .xlsx is a zip: it starts with "PK". A sign-in page (HTML) is not. */
+export const isXlsx = (buf: Uint8Array) => buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b;
+
+/** The workbook behind an "Anyone with the link" sharing link, with no sign-in. */
+export async function downloadAnonymousLink(url: string): Promise<Buffer> {
+  // SharePoint answers 403 to a cold download: the link is opened first, step by
+  // step, to get the guest cookie (FedAuth) it sets; then the download is asked again.
+  const jar = new Map<string, string>();
+  const cookie = () => [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+  let next = url.trim();
+  for (let i = 0; i < 8 && next; i++) {
+    const res = await fetch(next, { redirect: "manual", headers: { cookie: cookie() } });
+    for (const c of res.headers.getSetCookie()) {
+      const kv = c.split(";")[0];
+      const eq = kv.indexOf("=");
+      if (eq > 0) jar.set(kv.slice(0, eq), kv.slice(eq + 1));
+    }
+    const loc = res.headers.get("location");
+    next = loc ? new URL(loc, next).toString() : "";
+  }
+  const res = await fetch(anonymousDownloadUrl(url), { redirect: "follow", headers: { cookie: cookie() } });
+  if (!res.ok) throw new Error(`ลิงก์ ${res.status}: ดาวน์โหลดไม่ได้ (ลิงก์ต้องแชร์แบบ "Anyone with the link")`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (!isXlsx(buf)) throw new Error('ลิงก์ไม่ได้ส่งไฟล์ Excel กลับมา (อาจต้องล็อกอิน: แชร์ลิงก์แบบ "Anyone with the link" หรือให้ admin ตั้งค่า Microsoft Graph)');
+  return buf;
+}

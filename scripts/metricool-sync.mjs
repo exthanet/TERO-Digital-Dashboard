@@ -63,7 +63,7 @@ import { buildGrowth, growthDayFor, writeGrowth } from "../lib/integrations/grow
 import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts";
 import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
-import { downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
+import { downloadAnonymousLink, downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, integrationProblems, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
 import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
 
@@ -752,11 +752,24 @@ async function tvStep(rows) {
             status.error = `SharePoint อ่านไม่ได้ ใช้ไฟล์ที่อัปโหลดแทน: ${String(e.message).slice(0, 120)}`;
           }
         }
+      } else if (s.url) {
+        // No Graph app: the link itself, shared as "Anyone with the link · Can view".
+        // An upload is used when the link cannot be read.
+        try {
+          const buf = await downloadAnonymousLink(s.url);
+          parsed = fromBook(() => buf, s);
+          status.from = "link";
+        } catch (e) {
+          if (!upload) throw e;
+          parsed = fromUpload(upload, s);
+          status.from = "upload";
+          status.error = `ลิงก์อ่านไม่ได้ ใช้ไฟล์ที่อัปโหลดแทน: ${String(e.message).slice(0, 120)}`;
+        }
       } else if (upload) {
         parsed = fromUpload(upload, s);
         status.from = "upload";
       } else {
-        throw new Error("ยังไม่มีข้อมูล: อัปโหลดไฟล์ใน dashboard (เครื่องมือ admin → อัปโหลดไฟล์ TV) หรือตั้งค่า Microsoft Graph");
+        throw new Error("ยังไม่มีข้อมูล: ใส่ลิงก์ไฟล์ใน แหล่งข้อมูล TV, อัปโหลดไฟล์ใน dashboard (เครื่องมือ admin → อัปโหลดไฟล์ TV) หรือตั้งค่า Microsoft Graph");
       }
       episodes.push(...parsed.episodes);
       competitors.push({ source: s, rows: parsed.competitors });
