@@ -9,6 +9,7 @@
  *   node scripts/youtube-analytics-auth.mjs login            # → YT_REFRESH_TOKEN__<channelId> per channel picked on Google's chooser
  * Content owner (CMS) mode (a CMS user: every channel linked to that CMS):
  *   node scripts/youtube-analytics-auth.mjs login --cms=<contentOwnerId>   # → YT_CMS_OWNER_ID + YT_CMS_REFRESH_TOKEN
+ *   (add --port=8766 when port 8765 is in use by another program)
  * Read-only test (no writes anywhere):
  *   node scripts/youtube-analytics-auth.mjs check [--channel=UC…]   # CMS mode reads only the channels named (YT_CMS_CHANNELS, default terodigital)
  * Hand the CMS account to the daily sync (writes Firestore syncSecrets/youtube_cms, clears the token from .env.local):
@@ -22,8 +23,6 @@ import fs from "node:fs";
 import http from "node:http";
 
 const ENV_FILE = ".env.local";
-const PORT = 8765;
-const REDIRECT = `http://127.0.0.1:${PORT}/oauth`;
 const CHANNEL_SCOPES = ["https://www.googleapis.com/auth/yt-analytics.readonly", "https://www.googleapis.com/auth/youtube.readonly"];
 // A CMS user also needs youtubepartner; monetary is read-only revenue for the same channels.
 const CMS_SCOPES = [...CHANNEL_SCOPES, "https://www.googleapis.com/auth/youtubepartner", "https://www.googleapis.com/auth/yt-analytics-monetary.readonly"];
@@ -35,6 +34,9 @@ for (const line of fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, "utf8").s
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
 }
 const args = Object.fromEntries(process.argv.slice(3).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "true"]));
+// Google accepts any 127.0.0.1 port for a Desktop app: --port=8766 when 8765 is taken.
+const PORT = Number(args.port) || 8765;
+const REDIRECT = `http://127.0.0.1:${PORT}/oauth`;
 const clientId = process.env.YT_OAUTH_CLIENT_ID;
 const clientSecret = process.env.YT_OAUTH_CLIENT_SECRET;
 if (!clientId || !clientSecret) throw new Error(`YT_OAUTH_CLIENT_ID / YT_OAUTH_CLIENT_SECRET missing in ${ENV_FILE}`);
