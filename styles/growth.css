@@ -2308,3 +2308,187 @@
   width: 6px;
   height: 30px;
 }
+
+/* Case study (GrowthCaseStudy): the first section of the growth page. */
+.gcs h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gcs h3 svg {
+  color: #7c3aed;
+}
+.gcs-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 14px;
+}
+.gcs-kpis > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.gcs-kpis small {
+  color: #64748b;
+  font-size: 12px;
+}
+.gcs-kpis b {
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.gcs-kpis span {
+  color: #64748b;
+  font-size: 12px;
+}
+.gcs-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.gcs-charts h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.gcs-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+}
+.gcs-findings {
+  margin: 12px 0 6px;
+  padding-left: 18px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 900px) {
+  .gcs-kpis,
+  .gcs-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* คลิปที่คาดว่าจะมาแรง (GrowthTrending): five per platform. */
+.gtr h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gtr h3 svg {
+  color: #16a34a;
+}
+.gtr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.gtr-col {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.gtr-col h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.gtr-col h4 i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.gtr-col ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gtr-col li {
+  display: grid;
+  grid-template-columns: 18px 96px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.gtr-rank {
+  color: #16a34a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.gtr-cover {
+  display: block;
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e2e8f0;
+}
+.gtr-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gtr-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.gtr-title {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.gtr-title .clip-open {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.gtr-main small {
+  color: #64748b;
+  font-size: 11px;
+}
+.gtr-nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  align-items: baseline;
+  font-size: 12px;
+  color: #475569;
+}
+.gtr-exp {
+  color: #15803d;
+  font-size: 14px;
+}
+.gtr-arrow {
+  color: #94a3b8;
+}
+@media (min-width: 1700px) {
+  .gtr-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .gtr-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

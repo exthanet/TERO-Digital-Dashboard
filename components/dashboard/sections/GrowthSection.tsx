@@ -15,6 +15,9 @@ import { Growth } from "@/components/dashboard/shared/Growth";
 import { HelpLink } from "@/components/dashboard/sections/HelpSection";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { DayBars, EarlySignalBox } from "@/components/dashboard/sections/EarlySignalBox";
+import { GrowthCaseStudy } from "@/components/dashboard/sections/GrowthCaseStudy";
+import { GrowthTrending, type TrendingItem } from "@/components/dashboard/sections/GrowthTrending";
+import { caseStudy, forecastClip, type CaseStudy } from "@/lib/dashboard/growthForecast";
 import { EvergreenBox } from "@/components/dashboard/sections/EvergreenBox";
 import { evergreen } from "@/lib/dashboard/evergreen";
 import { track } from "@/lib/loadingBar";
@@ -83,6 +86,24 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
       .then(setFirstDay)
       .catch(() => setFirstDay(""));
   }, []);
+
+  // Case study: every day since the data began (at most GROWTH_MAX_DAYS, up to yesterday),
+  // loaded once and kept for the session by growthData.ts; all programmes, not the filters.
+  const [study, setStudy] = useState<CaseStudy | null>(null);
+  useEffect(() => {
+    if (!firstDay || !allRows.length) return;
+    let alive = true;
+    const yesterday = addDays(new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10), -1);
+    const from = [firstDay, addDays(yesterday, -(GROWTH_MAX_DAYS - 1))].sort()[1];
+    const list: string[] = [];
+    for (let d = from; d <= yesterday; d = addDays(d, 1)) list.push(d);
+    track(loadGrowthDays(list))
+      .then((map) => alive && setStudy(caseStudy(map, allRows)))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [firstDay, allRows]);
 
   // Raw days for the range (and the compare range); summaries follow the filters below.
   const [days, setDays] = useState<{ key: string; map: Map<string, GrowthEntry[] | null> } | null>(null);
@@ -155,6 +176,18 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
     const clips = newClips(early, latest, new Set(rows.map(recordKey)));
     return { clips, gains: dailyGains(clips, days!.map, latest) };
   }, [ready, days, rangeDays, early, rows]);
+  // New clips with a forecast (the case study), for "คลิปที่คาดว่าจะมาแรง".
+  const ageOf = (key: string) => Math.max(0, (fresh.gains.get(key)?.length || 1) - 1);
+  const trending = useMemo(() => {
+    if (!study) return [];
+    const out: TrendingItem[] = [];
+    for (const c of fresh.clips) {
+      const f = forecastClip(study, c.row, c.firstViews, ageOf(c.key));
+      if (f) out.push({ key: c.key, row: c.row, firstViews: c.firstViews, forecast: f });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [study, fresh]);
   // Older content still gaining nearly every day; grouped across platforms from the filtered rows.
   const green = useMemo(() => (ready ? evergreen(days!.map, rangeDays, rows) : { items: [], daysWithData: 0 }), [ready, days, rangeDays, rows]);
 
@@ -189,6 +222,9 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
       {s && s.daysWithData === 0 && (
         <p className="growth-notice warn">ยังไม่มีข้อมูลรายวันในช่วงวันที่ที่เลือก</p>
       )}
+
+      {study && trending.length > 0 && <GrowthTrending items={trending} onOpen={setOpened} />}
+      {study && <GrowthCaseStudy study={study} />}
 
       {s && s.daysWithData > 0 && (
         <>
@@ -289,7 +325,16 @@ export function GrowthSection({ rows, allRows, startDate, endDate, comparePeriod
             </div>
           </article>
 
-          <EarlySignalBox clips={fresh.clips} gains={fresh.gains} onOpen={setOpened} />
+          <EarlySignalBox
+            clips={fresh.clips}
+            gains={fresh.gains}
+            onOpen={setOpened}
+            forecast={
+              study
+                ? (c) => forecastClip(study, c.row, c.firstViews, ageOf(c.key))
+                : undefined
+            }
+          />
 
           <EvergreenBox items={green.items} daysWithData={green.daysWithData} onOpen={setOpened} />
 

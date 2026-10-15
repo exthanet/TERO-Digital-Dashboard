@@ -6,6 +6,7 @@ import { ExternalLink, Flame } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { MIN_PEERS, NEW_DAYS, type DayGain, type EarlyClip } from "@/lib/dashboard/earlySignal";
+import type { ClipForecast } from "@/lib/dashboard/growthForecast";
 
 const thDate = (iso: string) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -52,7 +53,31 @@ export function DayBars({ points }: { points: DayGain[] }) {
   );
 }
 
-export function EarlySignalBox({ clips, gains, onOpen }: { clips: EarlyClip[]; gains: Map<string, DayGain[]>; onOpen: (row: RecordRow) => void }) {
+/** "≈ 128K" with its usual range, growth left and how often the group was right. */
+function ForecastCell({ f }: { f: ClipForecast | null }) {
+  if (!f) return <td className="num muted" title="กลุ่มนี้ยังมีคลิปในอดีตไม่พอ">–</td>;
+  return (
+    <td className="num">
+      <b>≈ {compact(f.expected)}</b>
+      <small className="early-sub">
+        {compact(f.low)}–{compact(f.high)} · {f.daysLeft === null ? "" : f.daysLeft > 0 ? `โตต่ออีก ~${f.daysLeft} วัน · ` : "ใกล้หมดแรง · "}ทายถูก {Math.round(f.hitRate * 100)}%
+      </small>
+    </td>
+  );
+}
+
+export function EarlySignalBox({
+  clips,
+  gains,
+  onOpen,
+  forecast,
+}: {
+  clips: EarlyClip[];
+  gains: Map<string, DayGain[]>;
+  onOpen: (row: RecordRow) => void;
+  /** Day-7 forecast from the case study (GrowthCaseStudy); null for a group it cannot forecast. */
+  forecast?: (c: EarlyClip) => ClipForecast | null;
+}) {
   const [all, setAll] = useState(false);
   const shown = all ? clips : clips.slice(0, SHOWN);
   const hot = clips.filter((c) => c.level === "hot").length;
@@ -74,6 +99,11 @@ export function EarlySignalBox({ clips, gains, onOpen }: { clips: EarlyClip[]; g
                 <th>โพสต์</th>
                 <th className="num">วิวรอบแรก</th>
                 <th className="num">วิว/ชม.</th>
+                {forecast && (
+                  <th className="num" title="วิววันแรก × ตัวคูณของกลุ่มจาก Case study · ช่วงปกติ = ครึ่งกลางของคลิปในอดีต">
+                    คาดการณ์ 7 วัน
+                  </th>
+                )}
                 <th title="วิวที่เพิ่มในแต่ละวันที่มีคนดู นับจากวันแรกที่ sync เจอคลิป (วันแรก = วิวรอบแรก)">วิวที่เพิ่มรายวัน</th>
                 <th>เทียบคลิปรูปแบบเดียวกัน</th>
                 <th className="num" title="Share และ Comment ต่อ 1,000 วิวในรอบแรก">Share · Comment /1K</th>
@@ -109,6 +139,7 @@ export function EarlySignalBox({ clips, gains, onOpen }: { clips: EarlyClip[]; g
                       {c.hours !== null && <small className="early-sub">ใน {c.hours.toFixed(1)} ชม.</small>}
                     </td>
                     <td className="num strong">{c.perHour === null ? "-" : perHourText(c.perHour)}</td>
+                    {forecast && <ForecastCell f={forecast(c)} />}
                     <td>{gains.get(c.key)?.length ? <DayBars points={gains.get(c.key)!} /> : "-"}</td>
                     <td>
                       <span className={`early-level ${lv.tone}`}>
