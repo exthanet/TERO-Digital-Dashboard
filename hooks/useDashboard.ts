@@ -707,7 +707,8 @@ export function useDashboard(enabled = true) {
   const tvEpisodes = useMemo(() => episodesOf(filtered), [filtered]);
 
   const compare = useMemo(() => {
-    type Cluster = Omit<CompareRow, "tvAudience" | "online" | "total"> & {
+    type Cluster = Omit<CompareRow, "tvAudience" | "online" | "total" | "posts"> & {
+      posts: RecordRow[];
       matchTopic: string;
     };
     const byDate = new Map<string, RecordRow[]>();
@@ -727,10 +728,12 @@ export function useDashboard(enabled = true) {
           x.matchTopic = r.topic;
         }
         if (r.channel) x.page = r.channel;
-      } else if (r.platform === "YouTube") x.youtube += r.views;
-      else if (r.platform === "Facebook" || r.platform === "Instagram")
-        x.facebook += r.views;
-      else if (r.platform === "TikTok") x.tiktok += r.views;
+      } else {
+        x.posts.push(r);
+        if (r.platform === "YouTube") x.youtube += r.views;
+        else if (r.platform === "Facebook" || r.platform === "Instagram") x.facebook += r.views;
+        else if (r.platform === "TikTok") x.tiktok += r.views;
+      }
       x.engagement += r.engagement;
     };
     for (const [date, dateRows] of byDate) {
@@ -774,6 +777,7 @@ export function useDashboard(enabled = true) {
             engagement: 0,
             page: r.channel,
             hasTv: false,
+            posts: [],
           };
           clusters.push(target);
         }

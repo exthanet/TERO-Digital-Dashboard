@@ -1269,3 +1269,77 @@ footer {
   color: #172139;
   font-size: 13px;
 }
+
+/* ผลงานรายเทป: an episode row opens to list the online posts counted into it. */
+.ep-row-open {
+  cursor: pointer;
+}
+.ep-row-open:hover td {
+  background: #f8fafc;
+}
+.ep-posts-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  color: #0757e8;
+  font-weight: 700;
+}
+.ep-posts-row > td {
+  padding: 0 0 10px 24px !important;
+  background: #f8fafc;
+}
+.ep-posts {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  border-left: 3px solid #93c5fd;
+  background: #fff;
+}
+.ep-posts > p {
+  margin: 0 0 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+.ep-posts table {
+  width: 100%;
+  min-width: 0 !important;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ep-posts th,
+.ep-posts td {
+  padding: 5px 8px;
+  border-top: 1px solid #eef2f7;
+  background: transparent !important;
+  text-align: left;
+  white-space: nowrap;
+}
+.ep-posts .num {
+  text-align: right;
+}
+.ep-posts td small {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+}
+.ep-post-plat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+.ep-post-plat i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.ep-posts td.ep-post-topic {
+  max-width: 560px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-post-topic a {
+  color: #0f172a;
+  text-decoration: none;
+}

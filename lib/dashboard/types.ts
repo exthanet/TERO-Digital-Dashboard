@@ -67,9 +67,11 @@ export type CompareRow = {
   online: number;
   /** TV audience + online views. */
   total: number;
+  /** The online posts counted into this row (shown when the row is opened). */
+  posts: RecordRow[];
 };
 
-export type CompareSortKey = keyof CompareRow;
+export type CompareSortKey = Exclude<keyof CompareRow, "posts">;
 export type CompareFilter = "all" | "tv" | "online";
 
 export type IntegrationStatus = { configured: boolean; missing: string[] };

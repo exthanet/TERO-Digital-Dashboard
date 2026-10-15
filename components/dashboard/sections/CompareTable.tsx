@@ -1,10 +1,12 @@
 "use client";
+import { Fragment, useState } from "react";
 import { SortHead } from "@/components/dashboard/shared/SortHead";
 import { Button } from "@/components/ui/button";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, dateLabel, num } from "@/lib/dashboard/format";
 import type { CompareFilter, CompareRow, CompareSortKey } from "@/lib/dashboard/types";
-import { Download } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, ExternalLink } from "lucide-react";
+import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 
 const FILTERS: [CompareFilter, string][] = [
   ["all", "ทั้งหมด"],
@@ -19,6 +21,58 @@ function Val({ v, digits }: { v: number; digits?: number }) {
 }
 
 type HeatKey = "youtube" | "facebook" | "tiktok";
+
+const COLORS: Record<string, string> = { ...PLATFORM_COLORS, TikTok: "#0f172a" };
+const rowKey = (r: CompareRow) => `${r.date}|${r.program}|${r.topic}`;
+
+/** The online posts counted into an episode row, most viewed first. */
+function PostList({ r }: { r: CompareRow }) {
+  const posts = [...r.posts].sort((a, b) => b.views - a.views);
+  return (
+    <div className="ep-posts">
+      <p>
+        คลิปออนไลน์ {num(posts.length)} คลิปที่นับรวมในแถวนี้
+        {r.hasTv ? " · คลิปของรายการเดียวกันที่โพสต์วันเดียวกับเทปที่ออกทีวี" : " · ประเด็นเดียวกันในวันเดียวกัน"}
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>แพลตฟอร์ม</th>
+            <th>เวลา</th>
+            <th>คลิป</th>
+            <th className="num">วิว</th>
+            <th className="num">Engagement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {posts.map((p, i) => (
+            <tr key={`${p.platform}-${p.url || p.topic}-${i}`}>
+              <td>
+                <span className="ep-post-plat">
+                  <i style={{ background: COLORS[p.platform] || "#64748b" }} />
+                  {p.platform}
+                </span>
+                <small>{p.vdoType}</small>
+              </td>
+              <td>{p.publishTime || "–"}</td>
+              <td className="ep-post-topic">
+                {p.url ? (
+                  <a href={p.url} target="_blank" rel="noreferrer">
+                    {p.topic || "ไม่ระบุประเด็น"} <ExternalLink size={11} />
+                  </a>
+                ) : (
+                  p.topic || "ไม่ระบุประเด็น"
+                )}
+              </td>
+              <td className="num"><Val v={p.views} /></td>
+              <td className="num"><Val v={p.engagement} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export function CompareTable({
   comparePage,
@@ -53,6 +107,15 @@ export function CompareTable({
   | "sortCompare"
   | "download"
 >) {
+  // Episode rows opened to show their online posts (kept across pages and sorting).
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (r: CompareRow) =>
+    setOpen((o) => {
+      const n = new Set(o);
+      if (n.has(rowKey(r))) n.delete(rowKey(r));
+      else n.add(rowKey(r));
+      return n;
+    });
   const head = (label: string, column: CompareSortKey, className?: string) => (
     <SortHead
       label={label}
@@ -131,8 +194,11 @@ export function CompareTable({
               </tr>
             </thead>
             <tbody>
-              {compareRows.map((r, i) => (
-                <tr key={`${r.date}-${r.topic}-${i}`}>
+              {compareRows.map((r, i) => {
+                const isOpen = open.has(rowKey(r));
+                return (
+                <Fragment key={`${r.date}-${r.topic}-${i}`}>
+                <tr className={r.posts.length ? `ep-row-open${isOpen ? " open" : ""}` : undefined} onClick={r.posts.length ? () => toggle(r) : undefined}>
                   <td className="ep-date">{dateLabel(r.date)}</td>
                   <td className="ep-topic" title={r.page ? `เพจ/ช่อง: ${r.page}` : undefined}>
                     <span className="ep-topic-text">{r.topic || "-"}</span>
@@ -141,6 +207,11 @@ export function CompareTable({
                         {r.hasTv ? "ออกทีวี" : "ออนไลน์อย่างเดียว"}
                       </span>
                       {r.program}
+                      {r.posts.length > 0 && (
+                        <span className="ep-posts-toggle">
+                          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} {num(r.posts.length)} คลิปออนไลน์
+                        </span>
+                      )}
                     </small>
                   </td>
                   <td className="num ep-tv">
@@ -179,7 +250,16 @@ export function CompareTable({
                     <Val v={r.engagement} />
                   </td>
                 </tr>
-              ))}
+                {isOpen && (
+                  <tr className="ep-posts-row">
+                    <td colSpan={10}>
+                      <PostList r={r} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+                );
+              })}
               {!compareRows.length && (
                 <tr>
                   <td colSpan={10} className="ep-none">
