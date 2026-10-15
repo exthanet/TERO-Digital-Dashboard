@@ -154,7 +154,8 @@ export function parseTvSheet(aoa: unknown[][], source: Pick<TvSource, "channel" 
       continue;
     }
     const rating = num(r[col.rating]);
-    if (!Number.isFinite(rating)) {
+    // Only the episode name, no rating yet (blank, text or 0): not imported, counted as waiting.
+    if (!Number.isFinite(rating) || rating <= 0) {
       if (String(r[col.rating] ?? "").includes("งด")) out.cancelled.push(date);
       else out.pending.push(date);
       continue;

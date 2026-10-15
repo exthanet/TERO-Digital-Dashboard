@@ -19,7 +19,7 @@ test("audience: a day is the total, a month the average per episode", () => {
   assert.deepEqual(m.map((x) => [x.date, x.ONE31, x.GMM25, x.oneEpisodes, x.gmmEpisodes]), [["2026-09", 200, 40, 2, 1], ["2026-10", 50, 10, 1, 1]]);
 });
 
-test("episodes: TV rows only, newest first", () => {
-  const rows = [tv("2026-09-24"), tv("2026-09-30", { program: "B" }), tv("2026-09-30", { program: "A" }), { ...tv("2026-10-01"), platform: "YouTube" }];
+test("episodes: TV rows with a rating only, newest first", () => {
+  const rows = [tv("2026-09-24", { ratingTotal: 0.3 }), tv("2026-09-30", { program: "B", gmmRating: 0.2 }), tv("2026-09-30", { program: "A", ratingTotal: 0.1 }), tv("2026-10-02"), { ...tv("2026-10-01"), platform: "YouTube", views: 9 }];
   assert.deepEqual(tvEpisodes(rows).map((r) => r.date + r.program), ["2026-09-30A", "2026-09-30B", "2026-09-24ถกไม่เถียง"]);
 });

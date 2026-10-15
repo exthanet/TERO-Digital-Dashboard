@@ -56,7 +56,7 @@ export function tvAudienceTrend(rows: RecordRow[], grain: TvGrain): AudiencePoin
 
 const isTv = (r: RecordRow) => r.platform === "TV" || r.ratingTotal > 0;
 
-/** Every TV episode in the rows, newest first (then by program). */
+/** Every TV episode with a rating on either channel, newest first (then by program). */
 export function tvEpisodes(rows: RecordRow[]): RecordRow[] {
-  return rows.filter(isTv).sort((a, b) => b.date.localeCompare(a.date) || a.program.localeCompare(b.program));
+  return rows.filter((r) => isTv(r) && (r.ratingTotal > 0 || r.gmmRating > 0)).sort((a, b) => b.date.localeCompare(a.date) || a.program.localeCompare(b.program));
 }

@@ -20,12 +20,14 @@ test("a tab is read by header names: episodes, pending, cancelled, competitors",
     ["เฉลี่ยเดือน ม.ค 69", "", "", "", 0.3],
     ["อังคาร 6 ม.ค. 2026", "ข่าว", "41 นาที", "งดออกอากาศ", "งด", "", "งด", "งด", "งด", "งด", "", 45],
     ["พุธ 7 ม.ค. 2026", "ข่าว", "41 นาที", "ยังไม่มีเรตติ้ง", "", "", "", "", "", "", "", 45],
+    // Only the episode name, rating typed as 0: waiting, not an episode.
+    ["พฤหัส 8 ม.ค. 2026", "ข่าว", "41 นาที", "ชื่อตอนอย่างเดียว", 0, "", 0, 0, 0, 0, "", 45],
   ];
   const p = parseTvSheet(aoa, { channel: "One31", program: "ถกไม่เถียง" });
   assert.deepEqual(p.missingColumns, []);
   assert.equal(p.episodes.length, 1);
   assert.deepEqual(p.cancelled, ["2026-01-06"]);
-  assert.deepEqual(p.pending, ["2026-01-07"]);
+  assert.deepEqual(p.pending, ["2026-01-07", "2026-01-08"]);
   assert.equal(p.skippedRows, 1);
   const e = p.episodes[0];
   assert.equal(e.rating, 0.308); // "เรตติง ONE", not the GMM column
