@@ -3,6 +3,7 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FetchStat } from "@/lib/sync/sourceMatrix";
+import type { RevenueWorkbook } from "@/lib/dashboard/revenueParser";
 
 export type SyncState = "success" | "blocked" | "failed";
 
@@ -128,6 +129,42 @@ export async function loadTvSources(): Promise<TvSourceConfig[]> {
 
 export async function saveTvSources(sources: TvSourceConfig[], updatedBy: string): Promise<void> {
   await setDoc(doc(db, "syncConfig", "tvSources"), { sources, updatedAt: new Date().toISOString(), updatedBy });
+}
+
+// ---------- Revenue Google Sheet (admins set the link, the sync reads it daily) ----------
+
+export interface RevenueSheetConfig {
+  url: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+/** What the last sync did with the sheet, and which account the sheet must be shared with. */
+export interface RevenueSheetStatus {
+  at: string;
+  ok: boolean;
+  detail: string;
+  error: string;
+  shareWith: string;
+  /** Months new to the system / with other numbers than stored, when the sheet was read. */
+  added?: string[];
+  changed?: string[];
+}
+
+/** The sheet as last read (lib/integrations/revenueSheet.ts saveSheetCheck), for the import preview. */
+export type RevenueSheetDraft = RevenueWorkbook & { readAt: string };
+
+export async function loadRevenueSheet(): Promise<{ config: RevenueSheetConfig | null; status: RevenueSheetStatus | null; draft: RevenueSheetDraft | null }> {
+  const [c, s, d] = await Promise.all(["revenueSheet", "revenueSheetStatus", "revenueSheetDraft"].map((id) => getDoc(doc(db, "syncConfig", id))));
+  return {
+    config: c.exists() ? (c.data() as RevenueSheetConfig) : null,
+    status: s.exists() ? (s.data() as RevenueSheetStatus) : null,
+    draft: d.exists() ? (d.data() as RevenueSheetDraft) : null,
+  };
+}
+
+export async function saveRevenueSheet(url: string, updatedBy: string): Promise<void> {
+  await setDoc(doc(db, "syncConfig", "revenueSheet"), { url, updatedAt: new Date().toISOString(), updatedBy });
 }
 
 // ---------- TV workbook uploaded by an admin (read by the next sync) ----------

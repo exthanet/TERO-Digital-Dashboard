@@ -176,6 +176,11 @@ service cloud.firestore {
           && request.resource.data.emails is list
           && request.resource.data.emails.size() <= 10
           && request.resource.data.mode in ["always", "problems", "off"])
+        // Revenue Google Sheet link (Import Revenue); the sync reads it into a draft an admin imports.
+        || (doc == "revenueSheet"
+          && request.resource.data.keys().hasOnly(["url", "updatedAt", "updatedBy"])
+          && request.resource.data.url is string
+          && request.resource.data.url.size() <= 500)
       );
     }
     // TV workbook tabs uploaded by an admin; the next sync merges them.

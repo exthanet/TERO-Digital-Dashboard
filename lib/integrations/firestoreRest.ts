@@ -21,15 +21,16 @@ export function documentsBase(projectId: string): string {
     : `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 }
 
-export async function getAccessToken(sa: ServiceAccount): Promise<string> {
+/** A token for the service account; `scope` defaults to Firestore (Drive read-only for the revenue Google Sheet). */
+export async function getAccessToken(sa: ServiceAccount, scope = "https://www.googleapis.com/auth/datastore"): Promise<string> {
   // The emulator accepts "owner" as an admin token that skips rules.
-  if (emulatorHost()) return "owner";
+  if (emulatorHost() && scope.endsWith("/datastore")) return "owner";
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = b64url(
     JSON.stringify({
       iss: sa.client_email,
-      scope: "https://www.googleapis.com/auth/datastore",
+      scope,
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,

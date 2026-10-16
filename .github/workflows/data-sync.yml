@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "write = update Firestore · test-run = check only · test-email = send a test email · test-alert = send a test Telegram message"
+        description: "write = update Firestore · test-run = check only · test-email = send a test email · test-alert = send a test Telegram message · revenue-sheet = read the revenue Google Sheet for Import Revenue (no sync)"
         type: choice
-        options: [write, test-run, test-email, test-alert]
+        options: [write, test-run, test-email, test-alert, revenue-sheet]
         default: write
       since:
         description: "First day to fetch (YYYY-MM-DD). Blank = last 90 days"
@@ -62,7 +62,9 @@ jobs:
           SINCE: ${{ inputs.since }}
         run: |
           if [ -z "$SINCE" ]; then SINCE=$(date -u -d "90 days ago" +%F); fi
-          if [ "$MODE" = "test-email" ]; then
+          if [ "$MODE" = "revenue-sheet" ]; then
+            node scripts/revenue-sheet.mjs
+          elif [ "$MODE" = "test-email" ]; then
             node scripts/metricool-sync.mjs --notify-test
           elif [ "$MODE" = "write" ]; then
             node scripts/metricool-sync.mjs --since="$SINCE" --write
@@ -83,7 +85,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$MODE" = "test-alert" ]; then node scripts/notify-telegram.mjs --test
-          elif [ "$MODE" != "test-email" ]; then node scripts/notify-telegram.mjs --sync
+          elif [ "$MODE" != "test-email" ] && [ "$MODE" != "revenue-sheet" ]; then node scripts/notify-telegram.mjs --sync
           fi
 
       # Backups to files run apart from the sync: scripts/backup-local.mjs on the

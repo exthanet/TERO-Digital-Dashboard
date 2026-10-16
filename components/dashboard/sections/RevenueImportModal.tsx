@@ -5,9 +5,11 @@ import {
   MonthlyRevenueItem,
   RevenueData,
   parseRevenueWorkbook,
+  type RevenueWorkbook,
 } from "@/lib/dashboard/revenueParser";
 import { COMPANY_LABEL, revenueChecks, type RevenueChecks } from "@/lib/dashboard/revenueCompanies";
 import { saveRevenueDataToFirebase } from "@/lib/firebase";
+import { RevenueSheetSettings } from "./RevenueSheetSettings";
 import {
   AlertCircle,
   BadgeDollarSign,
@@ -68,10 +70,21 @@ export function RevenueImportModal({
     setIsProcessing(true);
     setFeedback(null);
     setParsedPreview(null);
-
     try {
       // Overall + one sheet per company, matched by sheet name; numbers as the file gives them.
-      const wb = await parseRevenueWorkbook(file);
+      showWorkbook(await parseRevenueWorkbook(file), `ไฟล์ "${file.name}"`);
+    } catch (err: unknown) {
+      setFeedback({ type: "error", text: err instanceof Error ? err.message : "ไม่สามารถอ่านไฟล์ได้ โปรดตรวจสอบรูปแบบไฟล์" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /** The preview for a workbook, from a file or from the Google Sheet as the sync last read it. */
+  const showWorkbook = (wb: RevenueWorkbook, source: string) => {
+    setFeedback(null);
+    setParsedPreview(null);
+    try {
       const parsedItems = wb.overall || [];
       if (!wb.overall && !currentData?.monthly.length) {
         throw new Error("ไม่พบ sheet Overall ในไฟล์ และยังไม่มีข้อมูลรวมในระบบ");
@@ -128,15 +141,13 @@ export function RevenueImportModal({
 
       setFeedback({
         type: "success",
-        text: `อ่านไฟล์ "${file.name}" สำเร็จ · ตรวจเดือนและตัวเลขแต่ละ sheet ด้านล่างให้ถูกก่อนบันทึก`,
+        text: `อ่าน${source}สำเร็จ · ตรวจเดือนและตัวเลขแต่ละ sheet ด้านล่างให้ถูกก่อนบันทึก`,
       });
     } catch (err: unknown) {
       setFeedback({
         type: "error",
         text: err instanceof Error ? err.message : "ไม่สามารถอ่านไฟล์ได้ โปรดตรวจสอบรูปแบบไฟล์",
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -190,6 +201,10 @@ export function RevenueImportModal({
           อัปโหลดไฟล์รายงานรายได้รายเดือนของ YouTube (.xlsx / .csv / Tab Delimited)
           เพื่ออัปเดตและบันทึกข้อมูลขึ้นระบบ Cloud (Firebase)
         </p>
+
+        {isAdmin && <RevenueSheetSettings onImport={(wb, source) => showWorkbook(wb, source)} />}
+
+        <p className="rev-sheet-or">หรืออัปโหลดไฟล์เอง</p>
 
         {/* Import Mode Selection */}
         <div style={{ display: "flex", gap: 10, marginTop: 10, background: "#f1f5f9", padding: 4, borderRadius: 8 }}>

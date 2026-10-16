@@ -487,3 +487,29 @@
 .rev-pending-cell { color: #b45309; font-weight: 600; }
 .rev-pending-cell { text-align: right; font-size: 12px; white-space: nowrap; }
 .rev-api-badge { display: block; margin-top: 2px; color: #1d4ed8; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+/* Import Revenue → Google Sheet link (RevenueSheetSettings) */
+.rev-sheet { margin-top: 12px; border: 1px solid #bfdbfe; background: #f8fbff; border-radius: 12px; padding: 12px 14px; text-align: left; }
+.rev-sheet h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 14px; color: #1e3a8a; }
+.rev-sheet ol { margin: 0 0 8px; padding-left: 20px; list-style: decimal; font-size: 12.5px; line-height: 1.6; color: #334155; }
+.rev-sheet li { display: list-item; }
+.rev-sheet-mail { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 4px; }
+.rev-sheet-mail code { font-size: 12px; background: #e0ecff; padding: 1px 6px; border-radius: 4px; word-break: break-all; }
+.rev-sheet-mail button { display: inline-flex; align-items: center; gap: 3px; border: 1px solid #bfdbfe; background: #fff; border-radius: 6px; font-size: 11px; padding: 1px 6px; cursor: pointer; color: #1d4ed8; }
+.rev-sheet-muted { color: #64748b; }
+.rev-sheet-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.rev-sheet-row input { flex: 1 1 260px; min-width: 0; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+.rev-sheet-save, .rev-sheet-clear { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rev-sheet-save { border: 0; background: #2563eb; color: #fff; }
+.rev-sheet-save:disabled { background: #93c5fd; cursor: default; }
+.rev-sheet-clear { border: 1px solid #fecaca; background: #fff; color: #b91c1c; }
+.rev-sheet-ok, .rev-sheet-bad { display: flex; align-items: center; gap: 5px; margin: 6px 0 0; font-size: 12px; }
+.rev-sheet-ok { color: #047857; }
+.rev-sheet-bad { color: #b91c1c; }
+.rev-sheet-or { margin: 12px 0 0; font-size: 12px; font-weight: 600; color: #64748b; }
+.rev-sheet-lead { margin: 0 0 6px; font-size: 12px; color: #475569; }
+.rev-sheet-draft { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #bfdbfe; }
+.rev-sheet-draft > p { margin: 0 0 6px; }
+.rev-sheet-new { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #b45309; }
+.rev-sheet-link { display: inline-flex; align-items: center; gap: 4px; padding: 7px 10px; border: 1px solid #bfdbfe; border-radius: 8px; background: #fff; color: #1d4ed8; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.rev-sheet-save:disabled[title]:not([title=""]) { cursor: not-allowed; }
