@@ -12,6 +12,9 @@ import { EngagementReport } from "@/components/dashboard/sections/EngagementRepo
 import { MonthlyClipPicks } from "@/components/dashboard/sections/MonthlyClipPicks";
 import { AffiliateMonthPage, hasAffiliateMonth } from "@/components/dashboard/sections/AffiliateMonthPage";
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
+import { RevenueMonthPage, hasRevenueMonth } from "@/components/dashboard/sections/RevenueMonthPage";
+import type { RevenueData } from "@/lib/dashboard/revenueParser";
+import type { RevenueItem } from "@/lib/dashboard/revenueApi";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
 /** Width the pages are laid out at before they are scaled into the slide. */
@@ -102,7 +105,12 @@ export function useLiveData(rows: RecordRow[], month: string, prevMonth: string,
 }
 
 /** The live pages, in order (titles as the deck shows them). */
-export function liveSlides(d: LiveData, dataAt: string, affiliate?: AffiliateSheets | null): { title: string; cover?: boolean; body: React.ReactNode }[] {
+export function liveSlides(
+  d: LiveData,
+  dataAt: string,
+  affiliate?: AffiliateSheets | null,
+  revenue?: { data: RevenueData | null; months: RevenueItem[] } | null,
+): { title: string; cover?: boolean; body: React.ReactNode }[] {
   const month = d.start.slice(0, 7);
   const page = (body: React.ReactNode) => (
     <div className="mr-live">
@@ -196,6 +204,22 @@ export function liveSlides(d: LiveData, dataAt: string, affiliate?: AffiliateShe
             </div>
           </FitBox>
           <p className="mr-live-note">จาก Google Sheet ที่นำเข้าใน Affiliate Program Report · ค่าคอมรายเดือน = Earned revenue · รายสินค้า = Estimated revenue</p>
+        </div>
+      ),
+    });
+  }
+  // YouTube Revenue, after Affiliate: the same rule (who may see revenue, a month with numbers).
+  if (revenue && hasRevenueMonth(revenue.months, month)) {
+    pages.push({
+      title: "YouTube Revenue",
+      body: (
+        <div className="mr-live">
+          <FitBox>
+            <div className="mr-live-page">
+              <RevenueMonthPage data={revenue.data} months={revenue.months} month={month} />
+            </div>
+          </FitBox>
+          <p className="mr-live-note">จากไฟล์ Revenue ที่นำเข้าใน YouTube Revenue Report · เดือนที่ยังไม่มีไฟล์ใช้ยอดจาก YouTube CMS API (ประมาณการ) · USD</p>
         </div>
       ),
     });

@@ -27,7 +27,10 @@ import { loadTvCompetitors } from "@/lib/tvCompetitorData";
 import { recordDownload } from "@/lib/auth/activity";
 import { track } from "@/lib/loadingBar";
 import { liveSlides, useLiveData } from "@/components/dashboard/sections/MonthlyLiveSlides";
-import { loadAffiliateSheets } from "@/lib/firebase";
+import { loadAffiliateSheets, loadRevenueApiMonths, loadRevenueDataFromFirebase } from "@/lib/firebase";
+import { revenueMonths } from "@/components/dashboard/sections/RevenueMonthPage";
+import type { RevenueData } from "@/lib/dashboard/revenueParser";
+import type { RevenueItem } from "@/lib/dashboard/revenueApi";
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
 import "@/styles/monthly-report.css";
@@ -882,12 +885,15 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   const live = useLiveData(rows, report?.month || "", report?.prevMonth || "", program);
   // Affiliate from the imported sheets: null for who may not see revenue (the page is then left out).
   const [affiliate, setAffiliate] = useState<AffiliateSheets | null>(null);
+  // YouTube Revenue: the imported file plus the API months (both unreadable without the revenue permission).
+  const [revenue, setRevenue] = useState<{ data: RevenueData | null; months: RevenueItem[] } | null>(null);
   useEffect(() => {
     void loadAffiliateSheets().then(setAffiliate);
+    void Promise.all([loadRevenueDataFromFirebase().catch(() => null), loadRevenueApiMonths()]).then(([data, api]) => setRevenue({ data, months: revenueMonths(data, api) }));
   }, []);
   const slides = useMemo(
-    () => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true), affiliate) : [])] : []),
-    [report, live, affiliate],
+    () => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true), affiliate, revenue) : [])] : []),
+    [report, live, affiliate, revenue],
   );
   // Admin's page order, hidden pages and texts (lib/dashboard/reportLayout.ts): numbers are never edited.
   const [editing, setEditing] = useState(false);

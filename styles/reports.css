@@ -578,3 +578,19 @@
 .aff2-month .aff2-name { -webkit-line-clamp: 1; }
 .aff2-month .aff2-top li { padding: 3px 2px; }
 .aff2-month .aff2-top li small { margin-top: 0; }
+/* รายงานประจำเดือน → YouTube Revenue page (RevenueMonthPage) */
+.rev-month-bottom { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
+.rev-month-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rev-month-sources li { display: grid; grid-template-columns: 10px 170px minmax(0, 1fr) 90px 50px; gap: 8px; align-items: center; font-size: 12.5px; }
+.rev-month-sources li i { width: 10px; height: 10px; border-radius: 3px; }
+.rev-month-sources li strong { text-align: right; font-size: 13px; }
+.rev-month-sources li small { text-align: right; color: #64748b; }
+.rev-month-bar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+.rev-month-bar b { display: block; height: 100%; border-radius: 999px; }
+.rev-month-wait { text-align: left !important; white-space: normal !important; padding: 8px 0; }
+.rev-month .rev-month-sources { gap: 10px; }
+.rev-month .rev-month-sources li { font-size: 14px; grid-template-columns: 12px 190px minmax(0, 1fr) 100px 56px; }
+.rev-month .rev-month-sources li strong { font-size: 15px; }
+.rev-month .rev-month-bar { height: 10px; }
+.rev-month .affiliate-kpis article { padding: 14px 14px; }
+.rev-month .affiliate-kpis strong { font-size: 24px; }
