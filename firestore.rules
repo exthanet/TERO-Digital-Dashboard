@@ -181,6 +181,11 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["url", "updatedAt", "updatedBy"])
           && request.resource.data.url is string
           && request.resource.data.url.size() <= 500)
+        // Affiliate Google Sheet links (Import Affiliate); the sync reads them into a draft an admin imports.
+        || (doc == "affiliateSheets"
+          && request.resource.data.keys().hasOnly(["links", "updatedAt", "updatedBy"])
+          && request.resource.data.links is list
+          && request.resource.data.links.size() <= 40)
       );
     }
     // TV workbook tabs uploaded by an admin; the next sync merges them.
@@ -227,6 +232,16 @@ service cloud.firestore {
     match /affiliateData/{doc} {
       allow read: if can('revenue');
       allow write: if isAdmin();
+    }
+    // Affiliate from the three YouTube Studio exports in Google Sheets (lib/dashboard/affiliateSheets.ts).
+    match /affiliateSheets/{doc} {
+      allow read: if can('revenue');
+      allow write: if isAdmin();
+    }
+    // The affiliate sheets as the sync last read them, waiting for an admin to import (lib/integrations/affiliateSheetsSync.ts).
+    match /affiliateSheetsDraft/{doc} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
     match /revenueData/{doc} {
       allow read: if can('revenue');

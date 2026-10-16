@@ -167,6 +167,32 @@ export async function saveRevenueSheet(url: string, updatedBy: string): Promise<
   await setDoc(doc(db, "syncConfig", "revenueSheet"), { url, updatedAt: new Date().toISOString(), updatedBy });
 }
 
+// ---------- Affiliate Google Sheets (admins set the links, the sync reads them into a draft) ----------
+
+/** One link as the sync last read it (lib/integrations/affiliateSheetsSync.ts). */
+export interface AffiliateLinkStatus {
+  url: string;
+  ok: boolean;
+  kind?: string;
+  month?: string;
+  from?: string;
+  to?: string;
+  rows?: number;
+  error?: string;
+}
+export interface AffiliateSheetsStatus extends Omit<RevenueSheetStatus, "added" | "changed"> {
+  links: AffiliateLinkStatus[];
+}
+
+export async function loadAffiliateSheetSettings(): Promise<{ links: string[]; status: AffiliateSheetsStatus | null }> {
+  const [c, s] = await Promise.all(["affiliateSheets", "affiliateSheetsStatus"].map((id) => getDoc(doc(db, "syncConfig", id))));
+  return { links: c.exists() ? ((c.data().links || []) as string[]) : [], status: s.exists() ? (s.data() as AffiliateSheetsStatus) : null };
+}
+
+export async function saveAffiliateSheetLinks(links: string[], updatedBy: string): Promise<void> {
+  await setDoc(doc(db, "syncConfig", "affiliateSheets"), { links, updatedAt: new Date().toISOString(), updatedBy });
+}
+
 // ---------- TV workbook uploaded by an admin (read by the next sync) ----------
 
 export interface TvUploadDoc {

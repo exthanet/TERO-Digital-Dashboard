@@ -1,6 +1,8 @@
 "use client";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
-import { loadAffiliateDataFromFirebase } from "@/lib/firebase";
+import { loadAffiliateDataFromFirebase, loadAffiliateSheets } from "@/lib/firebase";
+import { AffiliateDashboard } from "@/components/dashboard/sections/AffiliateDashboard";
+import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import { AffiliateImportModal } from "@/components/dashboard/sections/AffiliateImportModal";
 import type { User } from "@/lib/auth/types";
@@ -54,6 +56,11 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
   const [importOpen, setImportOpen] = useState(false);
   const [sourceType, setSourceType] = useState<"firebase" | "file">("firebase");
   const [loading, setLoading] = useState(true);
+  // The three Studio exports in Google Sheets, summed up (shown above the file-based report).
+  const [sheets, setSheets] = useState<(AffiliateSheets & { readAt?: string }) | null>(null);
+  useEffect(() => {
+    if (!isStaticHost) void track(loadAffiliateSheets()).then(setSheets);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -163,6 +170,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
 
   return (
     <section className="affiliate-report" id="affiliate">
+      {sheets && sheets.monthly?.length > 0 && <AffiliateDashboard data={sheets} />}
       <div className="affiliate-head" style={{ alignItems: "flex-start", gap: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -493,6 +501,7 @@ export default function AffiliateReport({ currentUser }: AffiliateReportProps) {
           setSourceType("firebase");
         }}
         isAdmin={isAdmin}
+        onSheetsSaved={() => void track(loadAffiliateSheets()).then(setSheets)}
       />
     </section>
   );

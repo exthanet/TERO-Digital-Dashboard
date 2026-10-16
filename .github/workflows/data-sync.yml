@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "write = update Firestore · test-run = check only · test-email = send a test email · test-alert = send a test Telegram message · revenue-sheet = read the revenue Google Sheet for Import Revenue (no sync)"
+        description: "write = update Firestore · test-run = check only · test-email = send a test email · test-alert = send a test Telegram message · revenue-sheet = read the revenue and affiliate Google Sheets for Import (no sync)"
         type: choice
         options: [write, test-run, test-email, test-alert, revenue-sheet]
         default: write

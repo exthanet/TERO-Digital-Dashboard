@@ -7,6 +7,7 @@ import {
   mergeAffiliateData,
 } from "@/lib/dashboard/affiliateParser";
 import { saveAffiliateDataToFirebase } from "@/lib/firebase";
+import { AffiliateSheetSettings } from "./AffiliateSheetSettings";
 import {
   AlertCircle,
   BadgeDollarSign,
@@ -24,6 +25,8 @@ interface AffiliateImportModalProps {
   currentData: AffiliateData | null;
   onDataUpdated: (newData: AffiliateData) => void;
   isAdmin?: boolean;
+  /** After the Google Sheet draft was imported (the dashboard reloads it). */
+  onSheetsSaved?: () => void;
 }
 
 export function AffiliateImportModal({
@@ -32,6 +35,7 @@ export function AffiliateImportModal({
   currentData,
   onDataUpdated,
   isAdmin = true,
+  onSheetsSaved,
 }: AffiliateImportModalProps) {
   const currentYearNum = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYearNum);
@@ -150,6 +154,10 @@ export function AffiliateImportModal({
           อัปโหลดไฟล์รายงาน Affiliate (.xlsx / .csv) เช่น รายงานจาก YouTube Shopping
           เพื่ออัปเดตและบันทึกข้อมูลขึ้นระบบ Cloud (Firebase)
         </p>
+
+        {isAdmin && <AffiliateSheetSettings onSaved={onSheetsSaved} />}
+
+        <p className="rev-sheet-or">หรืออัปโหลดไฟล์เอง (รายงานแบบเดิมด้านล่างของหน้า)</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginTop: 4 }}>
           <label>
