@@ -3,7 +3,7 @@
 // Google Sheets (lib/dashboard/affiliateSheets.ts), summed up. The month filter
 // works on the monthly and daily numbers; product and content lists cover the
 // period their export covers (shown on each list).
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart } from "recharts";
 import { Award, Coins, PackageCheck, Percent, ShoppingCart, TrendingDown, TrendingUp, Video } from "lucide-react";
 import { listsFor, monthTotals, topProducts, type AffiliateSheets, type AffProduct, type ProductRank } from "@/lib/dashboard/affiliateSheets";
@@ -65,7 +65,7 @@ function ProductTop({ products, rank }: { products: AffProduct[]; rank: (typeof 
   );
 }
 
-export function AffiliateDashboard({ data }: { data: AffiliateSheets & { readAt?: string } }) {
+export function AffiliateDashboard({ data, actions }: { data: AffiliateSheets & { readAt?: string }; actions?: React.ReactNode }) {
   const motion = useMotion();
   // From 2026 only (the team does not report 2025); the stored sheets keep every month as given.
   const monthly = data.monthly.filter((m) => m.month >= FIRST_MONTH);
@@ -144,24 +144,27 @@ export function AffiliateDashboard({ data }: { data: AffiliateSheets & { readAt?
             จาก YouTube Studio 3 รายงาน (รายเดือน · รายคลิป · รายสินค้า) ใน Google Sheet{data.readAt ? ` · อ่านเมื่อ ${thDay(data.readAt.slice(0, 10))}` : ""}
           </p>
         </div>
-        <label className="aff2-filter">
-          เดือน
-          <select value={pick} onChange={(e) => setPick(e.target.value)}>
-            <option value="ALL">
-              ทั้งหมด ({thMonth(months[0])} – {thMonth(months[months.length - 1])})
-            </option>
-            {years.length > 1 && years.map((y) => (
-              <option key={y} value={y}>
-                ปี {y}
+        <div className="aff2-actions">
+          {actions}
+          <label className="aff2-filter">
+            เดือน
+            <select value={pick} onChange={(e) => setPick(e.target.value)}>
+              <option value="ALL">
+                ทั้งหมด ({thMonth(months[0])} – {thMonth(months[months.length - 1])})
               </option>
-            ))}
-            {[...months].reverse().map((m) => (
-              <option key={m} value={m}>
-                {thMonth(m)}
-              </option>
-            ))}
-          </select>
-        </label>
+              {years.length > 1 && years.map((y) => (
+                <option key={y} value={y}>
+                  ปี {y}
+                </option>
+              ))}
+              {[...months].reverse().map((m) => (
+                <option key={m} value={m}>
+                  {thMonth(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="affiliate-kpis aff2-kpis">

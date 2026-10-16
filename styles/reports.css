@@ -556,3 +556,7 @@
 .aff-sheet-stored button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: #b91c1c; cursor: pointer; }
 .aff-sheet-stored button:hover { background: #fee2e2; }
 .aff2-warn { color: #b45309; }
+.aff2-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.aff2-import { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
+.aff2-empty { display: grid; justify-items: center; gap: 10px; padding: 48px 0; background: #f8fafc; border-radius: 12px; text-align: center; }
+.aff2-empty > span { color: #64748b; font-weight: 600; }
