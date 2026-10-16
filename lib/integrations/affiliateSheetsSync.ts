@@ -7,7 +7,7 @@
 //
 // Relative imports only: the sync runs this file directly with Node.
 import * as XLSX from "xlsx";
-import { diffAffiliate, joinFromStore, readAffiliateSheets, splitForStore, type AffiliateSheets, type AffiliateStoreMain, type AffiliateStoreMonth, type SheetTabs } from "../dashboard/affiliateSheets.ts";
+import { diffAffiliate, joinFromStore, mergeAffiliate, readAffiliateSheets, splitForStore, type AffiliateSheets, type AffiliateStoreMain, type AffiliateStoreMonth, type SheetTabs } from "../dashboard/affiliateSheets.ts";
 import { decodeFields, docId, encodeFields, getAccessToken, type Firestore, type ServiceAccount } from "./firestoreRest.ts";
 import { DRIVE_SCOPE, downloadSheet, sheetIdOf } from "./revenueSheet.ts";
 
@@ -82,7 +82,9 @@ export async function checkAffiliateSheets(db: Firestore, sa: ServiceAccount | n
   const bad = status.links.filter((l) => !l.ok);
   if (!books.length) return { status: { ...status, ok: false, detail: "อ่านไม่ได้", error: bad[0]?.error || "" }, draft: null };
   const draft = { ...readAffiliateSheets(books), readAt: at };
-  const d = diffAffiliate(await loadStored(db), draft);
+  // Imported as Merge: months the links no longer carry stay as they are.
+  const stored = await loadStored(db);
+  const d = diffAffiliate(stored, mergeAffiliate(stored, draft));
   const parts = [d.added.length ? `ใหม่ ${thList(d.added)}` : "", d.changed.length ? `อัปเดต ${thList(d.changed)}` : "", d.longChanged ? "ไฟล์รวมเปลี่ยน" : ""].filter(Boolean);
   status.detail = parts.length ? `พร้อมนำเข้า: ${parts.join(" · ")}` : "ไม่มีข้อมูลใหม่";
   if (bad.length) {

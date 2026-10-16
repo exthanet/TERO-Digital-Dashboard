@@ -102,3 +102,24 @@ test("stored as one document per month and put back the same; the diff says what
   assert.equal(diff.longChanged, false);
   assert.deepEqual(diffAffiliate(null, d).added, ["2026-08", "2026-09"]);
 });
+
+test("merge keeps the months the links no longer carry; one month can be taken out", async () => {
+  const { mergeAffiliate, withoutMonth, diffAffiliate } = await import("../lib/dashboard/affiliateSheets.ts");
+  const month = (m, last, rows) => ({ "Table data": rows, Totals: [{ Date: `${m}-01`, "Estimated revenue (THB)": 1 }, { Date: `${m}-${last}`, "Estimated revenue (THB)": 1 }] });
+  const p = (id, c) => ({ Product: id, "Product title": id, "Estimated revenue (THB)": c, "Total sales (THB)": 1, Orders: 1 });
+  const stored = readAffiliateSheets([period, product, month("2026-09", "30", [p("a", 1)])]);
+  // Next time only the October link is left.
+  const draft = readAffiliateSheets([month("2026-10", "31", [p("b", 2)])]);
+  const merged = mergeAffiliate(stored, draft);
+  assert.deepEqual(Object.keys(merged.productsByMonth).sort(), ["2026-09", "2026-10"]);
+  assert.deepEqual(merged.monthly.map((m) => m.month), ["2026-08", "2026-09"]); // revenue by period kept
+  assert.deepEqual(merged.products.map((x) => x.productId), ["p1", "p2"]); // the long export kept
+  const diff = diffAffiliate(stored, merged);
+  assert.deepEqual(diff.added, ["2026-10"]);
+  assert.deepEqual(diff.changed, []);
+  assert.equal(diff.longChanged, false);
+  const out = withoutMonth(merged, "2026-09");
+  assert.deepEqual(Object.keys(out.productsByMonth), ["2026-10"]);
+  assert.deepEqual(out.monthly.map((m) => m.month), ["2026-08", "2026-09"]);
+  assert.equal(mergeAffiliate(null, draft), draft);
+});

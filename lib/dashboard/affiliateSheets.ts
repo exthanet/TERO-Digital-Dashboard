@@ -310,3 +310,38 @@ export function diffAffiliate(current: AffiliateSheets | null, next: AffiliateSh
   const longChanged = sig(current?.products) !== sig(next.products) || sig(current?.contents) !== sig(next.contents);
   return { added, changed, longChanged, any: added.length > 0 || changed.length > 0 || longChanged };
 }
+
+/**
+ * Import as "Merge": what the sheets have replaces those months (and the long
+ * export when the sheets carry one); every other stored month stays, so an old
+ * link can be taken off without losing its month.
+ */
+export function mergeAffiliate(current: AffiliateSheets | null, draft: AffiliateSheets & { readAt?: string }): AffiliateSheets & { readAt?: string } {
+  if (!current) return draft;
+  const byMonth = new Map(current.monthly.map((m) => [m.month, m]));
+  for (const m of draft.monthly) byMonth.set(m.month, m);
+  const byDay = new Map(current.daily.map((d) => [d.date, d]));
+  for (const d of draft.daily) byDay.set(d.date, d);
+  const long = draft.products.length || draft.contents.length;
+  return {
+    ...draft,
+    monthly: [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month)),
+    daily: [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    products: draft.products.length ? draft.products : current.products,
+    contents: draft.contents.length ? draft.contents : current.contents,
+    productRange: draft.products.length ? draft.productRange : current.productRange,
+    contentRange: draft.contents.length ? draft.contentRange : current.contentRange,
+    productsByMonth: { ...(current.productsByMonth || {}), ...draft.productsByMonth },
+    contentsByMonth: { ...(current.contentsByMonth || {}), ...draft.contentsByMonth },
+    sources: long ? draft.sources : [...(current.sources || []).filter((s) => !s.month || !(draft.productsByMonth[s.month] || draft.contentsByMonth[s.month])), ...draft.sources],
+  };
+}
+
+/** Take one month's product and clip exports out (the monthly totals from revenue by period stay). */
+export function withoutMonth(data: AffiliateSheets & { readAt?: string }, month: string): AffiliateSheets & { readAt?: string } {
+  const productsByMonth = { ...data.productsByMonth };
+  const contentsByMonth = { ...data.contentsByMonth };
+  delete productsByMonth[month];
+  delete contentsByMonth[month];
+  return { ...data, productsByMonth, contentsByMonth, sources: data.sources.filter((s) => s.month !== month) };
+}

@@ -549,3 +549,9 @@
 .aff-sheet-preview h4 { margin: 0 0 6px; font-size: 13px; }
 .aff-sheet-preview ul { margin: 0 0 6px; padding-left: 18px; font-size: 12.5px; line-height: 1.6; list-style: disc; }
 .aff-sheet-preview li { display: list-item; }
+.aff-sheet-stored { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; }
+.aff-sheet-stored > small { color: #475569; font-weight: 600; }
+.aff-sheet-stored span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 999px; font-weight: 600; color: #065f46; }
+.aff-sheet-stored span small { color: #64748b; font-weight: 500; font-size: 11px; }
+.aff-sheet-stored button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: #b91c1c; cursor: pointer; }
+.aff-sheet-stored button:hover { background: #fee2e2; }

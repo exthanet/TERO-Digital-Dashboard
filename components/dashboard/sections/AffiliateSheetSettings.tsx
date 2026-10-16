@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Trash2, XCircle } from "lucide-react";
 import { auth, loadAffiliateSheets, saveAffiliateSheets } from "@/lib/firebase";
-import { diffAffiliate, type AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
+import { diffAffiliate, mergeAffiliate, withoutMonth, type AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { SYNC_WORKFLOW_URL, loadAffiliateSheetSettings, saveAffiliateSheetLinks, type AffiliateSheetsStatus } from "@/lib/sync/status";
 
 const isSheetLink = (url: string) => /^https:\/\/(?:docs|drive)\.google\.com\/(?:spreadsheets\/d|file\/d)\/[\w-]{20,}/.test(url.trim());
@@ -27,7 +27,10 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
   const [status, setStatus] = useState<AffiliateSheetsStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [preview, setPreview] = useState<{ draft: Draft; diff: ReturnType<typeof diffAffiliate> } | null>(null);
+  const [preview, setPreview] = useState<{ draft: Draft; diff: ReturnType<typeof diffAffiliate>; kept: string[] } | null>(null);
+  // What is stored now: its monthly product / clip exports can be taken out one by one.
+  const [stored, setStored] = useState<Draft | null>(null);
+  const loadStored = () => loadAffiliateSheets().then(setStored).catch(() => undefined);
   const [copied, setCopied] = useState(false);
 
   const load = () =>
@@ -40,6 +43,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
       .catch(() => setMsg({ ok: false, text: "โหลดการตั้งค่าไม่สำเร็จ" }));
   useEffect(() => {
     load();
+    loadStored();
   }, []);
 
   const clean = links.map((l) => l.trim()).filter(Boolean);
@@ -68,7 +72,15 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
     try {
       const [draft, current] = await Promise.all([loadAffiliateSheets("affiliateSheetsDraft"), loadAffiliateSheets()]);
       if (!draft) return setMsg({ ok: false, text: "ยังไม่มีข้อมูลจาก Sheet · กด \"ดึงจาก Sheet ตอนนี้\" ก่อน" });
-      setPreview({ draft, diff: diffAffiliate(current, draft) });
+      // Merge: the links' months replace those months; every other stored month stays.
+      const merged = mergeAffiliate(current, draft);
+      // Monthly product / clip exports kept although no link carries them any more.
+      const kept = current
+        ? [...new Set([...Object.keys(current.productsByMonth || {}), ...Object.keys(current.contentsByMonth || {})])]
+            .filter((m) => !draft.productsByMonth[m] && !draft.contentsByMonth[m])
+            .sort()
+        : [];
+      setPreview({ draft: merged, diff: diffAffiliate(current, merged), kept });
     } catch {
       setMsg({ ok: false, text: "โหลดข้อมูลจาก Sheet ไม่สำเร็จ" });
     } finally {
@@ -84,6 +96,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
       await saveAffiliateSheets(preview.draft);
       setPreview(null);
       setMsg({ ok: true, text: "นำเข้าแล้ว · Affiliate Dashboard ใช้ข้อมูลชุดนี้" });
+      loadStored();
       onSaved?.();
     } catch {
       setMsg({ ok: false, text: "บันทึกไม่สำเร็จ (ต้องเป็น admin)" });
@@ -91,6 +104,23 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
       setBusy(false);
     }
   };
+
+  const removeMonth = async (m: string) => {
+    if (!stored || !window.confirm(`ลบข้อมูลรายสินค้าและรายคลิปของ ${thMonth(m)} ออกจากระบบ? (ยอดรายเดือนจาก revenue by period ยังอยู่ · นำเข้าใหม่ได้จากลิงก์)`)) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveAffiliateSheets(withoutMonth(stored, m));
+      setMsg({ ok: true, text: `ลบข้อมูลของ ${thMonth(m)} แล้ว` });
+      loadStored();
+      onSaved?.();
+    } catch {
+      setMsg({ ok: false, text: "ลบไม่สำเร็จ (ต้องเป็น admin)" });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const storedMonths = stored ? [...new Set([...Object.keys(stored.productsByMonth || {}), ...Object.keys(stored.contentsByMonth || {})])].sort() : [];
 
   const copy = async () => {
     if (!status?.shareWith) return;
@@ -188,6 +218,25 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
         </div>
       )}
 
+      {storedMonths.length > 0 && (
+        <div className="aff-sheet-stored">
+          <small>ข้อมูลรายเดือน (สินค้า/คลิป) ที่อยู่ในระบบ:</small>
+          {storedMonths.map((m) => (
+            <span key={m}>
+              {thMonth(m)}
+              <small>
+                {stored?.productsByMonth?.[m] ? "สินค้า" : ""}
+                {stored?.productsByMonth?.[m] && stored?.contentsByMonth?.[m] ? " · " : ""}
+                {stored?.contentsByMonth?.[m] ? "คลิป" : ""}
+              </small>
+              <button type="button" aria-label={`ลบข้อมูลของ ${thMonth(m)}`} disabled={busy} onClick={() => removeMonth(m)}>
+                <Trash2 size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {preview && d && (
         <div className="aff-sheet-preview">
           <h4>ตรวจก่อนนำเข้า (ดึงเมื่อ {thTime(d.readAt)} น.)</h4>
@@ -211,7 +260,10 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
                   .join(" · ")
               : "เหมือนข้อมูลในระบบทุกอย่าง"}
           </p>
-          <p className="rev-sheet-muted">บันทึกแล้ว ข้อมูลใน Affiliate Dashboard จะเป็นตามชุดนี้ทั้งหมด (ตัวเลขตาม Sheet ไม่มีการแก้)</p>
+          <p className="rev-sheet-muted">
+            นำเข้าแบบ Merge: เดือนที่อยู่ในลิงก์แทนข้อมูลเดิมของเดือนนั้น เดือนอื่นคงไว้ (ตัวเลขตาม Sheet ไม่มีการแก้)
+            {preview.kept.length > 0 && ` · รายสินค้า/รายคลิปที่ไม่มีลิงก์แล้วแต่คงไว้: ${months(preview.kept)}`}
+          </p>
           <div className="rev-sheet-row">
             <button type="button" className="rev-sheet-save" disabled={busy} onClick={importNow}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : "บันทึกขึ้นระบบ"}
