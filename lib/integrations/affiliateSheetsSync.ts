@@ -24,6 +24,8 @@ export interface AffLinkStatus {
   from?: string;
   to?: string;
   rows?: number;
+  /** Product exports: "revenue" (commission, sales, orders) or "clicks" (clicks, impressions). */
+  metrics?: string;
   error?: string;
 }
 export interface AffSheetStatus {
@@ -74,7 +76,7 @@ export async function checkAffiliateSheets(db: Firestore, sa: ServiceAccount | n
       const tabs = tabsOf(await downloadSheet(id, token, fetcher));
       books.push(tabs);
       const src = readAffiliateSheets([tabs]).sources[0];
-      status.links.push({ url, ok: src.kind !== "unknown", kind: src.kind, rows: src.rows, ...(src.month ? { month: src.month } : {}), ...(src.from ? { from: src.from, to: src.to } : {}), ...(src.kind === "unknown" ? { error: "ไม่รู้จักรูปแบบไฟล์ (ต้องเป็น export จากหน้า Shopping)" } : {}) });
+      status.links.push({ url, ok: src.kind !== "unknown", kind: src.kind, rows: src.rows, ...(src.month ? { month: src.month } : {}), ...(src.from ? { from: src.from, to: src.to } : {}), ...(src.metrics ? { metrics: src.metrics } : {}), ...(src.kind === "unknown" ? { error: "ไม่รู้จักรูปแบบไฟล์ (ต้องเป็น export จากหน้า Shopping)" } : {}) });
     } catch (e) {
       status.links.push({ url, ok: false, error: String(e instanceof Error ? e.message : e).slice(0, 160) });
     }

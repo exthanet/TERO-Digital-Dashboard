@@ -555,3 +555,4 @@
 .aff-sheet-stored span small { color: #64748b; font-weight: 500; font-size: 11px; }
 .aff-sheet-stored button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: #b91c1c; cursor: pointer; }
 .aff-sheet-stored button:hover { background: #fee2e2; }
+.aff2-warn { color: #b45309; }

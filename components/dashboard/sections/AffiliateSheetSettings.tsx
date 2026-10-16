@@ -176,7 +176,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
               {st && (
                 <small className={st.ok ? "rev-sheet-ok" : "rev-sheet-bad"}>
                   {st.ok
-                    ? `${KIND[st.kind || "unknown"]} · ${st.month ? thMonth(st.month) : st.from ? `${thDay(st.from)} – ${thDay(st.to)}` : `${st.rows} แถว`}${st.kind !== "period" ? ` · ${st.rows} แถว` : ""}`
+                    ? `${KIND[st.kind || "unknown"]}${st.metrics === "clicks" ? " (คลิก/impressions · ไม่มีค่าคอม)" : ""} · ${st.month ? thMonth(st.month) : st.from ? `${thDay(st.from)} – ${thDay(st.to)}` : `${st.rows} แถว`}${st.kind !== "period" ? ` · ${st.rows} แถว` : ""}`
                     : st.error}
                 </small>
               )}

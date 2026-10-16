@@ -20,7 +20,7 @@ const product = {
   "Chart data": [{ Date: "2026-09-01", Product: "p1", "Product title": "iPhone 17", "Estimated revenue (THB)": 5 }],
   Totals: [
     { Date: "2026-09-02", "Estimated revenue (THB)": 7 },
-    { Date: "2026-09-01", "Estimated revenue (THB)": 3 },
+    { Date: "2026-08-31", "Estimated revenue (THB)": 3 },
   ],
 };
 const content = {
@@ -28,7 +28,7 @@ const content = {
     { Content: "Total", "Video title": null, "Estimated revenue (THB)": 1, "Earned revenue (THB)": 1, "Total commission (THB)": 2, "Removed commission (THB)": -1 },
     { Content: "abc", "Video title": "ถกไม่เถียง EP1", "Video publish time": "2026-09-01", Duration: 600, "Estimated revenue (THB)": 1, "Earned revenue (THB)": 1, "Total commission (THB)": 2, "Removed commission (THB)": -1 },
   ],
-  Totals: [{ Date: "2026-09-01", "Estimated revenue (THB)": 3 }],
+  Totals: [{ Date: "2026-08-31", "Estimated revenue (THB)": 3 }],
 };
 
 test("each export is told apart by its headers, in any order; summary rows are left out", () => {
@@ -41,10 +41,10 @@ test("each export is told apart by its headers, in any order; summary rows are l
   assert.equal(d.contents.length, 1);
   assert.equal(d.contents[0].removedCommission, -1);
   assert.deepEqual(d.daily, [
-    { date: "2026-09-01", revenue: 3 },
+    { date: "2026-08-31", revenue: 3 },
     { date: "2026-09-02", revenue: 7 },
   ]);
-  assert.deepEqual(d.productRange, { from: "2026-09-01", to: "2026-09-02" });
+  assert.deepEqual(d.productRange, { from: "2026-08-31", to: "2026-09-02" });
 });
 
 test("top products by orders, commission and sales; month totals and rate", () => {
@@ -63,7 +63,8 @@ test("top products by orders, commission and sales; month totals and rate", () =
 test("an export of one whole calendar month is that month's; picked months add up their exports", async () => {
   const { monthOfRange, listsFor } = await import("../lib/dashboard/affiliateSheets.ts");
   assert.equal(monthOfRange({ from: "2026-09-01", to: "2026-09-30" }), "2026-09");
-  assert.equal(monthOfRange({ from: "2026-09-01", to: "2026-09-14" }), "");
+  assert.equal(monthOfRange({ from: "2026-10-01", to: "2026-10-14" }), "2026-10"); // the running month so far
+  assert.equal(monthOfRange({ from: "2026-09-05", to: "2026-09-30" }), "");
   assert.equal(monthOfRange({ from: "2026-01-01", to: "2026-10-14" }), "");
   const month = (m, last, rows) => ({
     "Table data": rows,
@@ -122,4 +123,22 @@ test("merge keeps the months the links no longer carry; one month can be taken o
   assert.deepEqual(Object.keys(out.productsByMonth), ["2026-10"]);
   assert.deepEqual(out.monthly.map((m) => m.month), ["2026-08", "2026-09"]);
   assert.equal(mergeAffiliate(null, draft), draft);
+});
+
+test("a clicks report of products adds clicks and never zeroes the revenue or the daily totals", async () => {
+  const { mergeAffiliate } = await import("../lib/dashboard/affiliateSheets.ts");
+  const days = (m, last, name, v) => [{ Date: `${m}-01`, [name]: v }, { Date: `${m}-${last}`, [name]: v }];
+  const revenue = { "Table data": [{ Product: "a", "Product title": "A", "Estimated revenue (THB)": 10, "Total sales (THB)": 100, Orders: 2 }], Totals: days("2026-09", "30", "Estimated revenue (THB)", 5) };
+  const clicks = { "Table data": [{ Product: "a", "Product title": "A", "Product clicks": 40, "Product impressions": 900 }], Totals: days("2026-09", "30", "Product clicks", 999) };
+  const both = readAffiliateSheets([revenue, clicks]);
+  assert.deepEqual(both.productsByMonth["2026-09"].map((p) => [p.commission, p.orders, p.clicks, p.impressions]), [[10, 2, 40, 900]]);
+  assert.deepEqual(both.daily.map((d) => d.revenue), [5, 5]);
+  assert.deepEqual(both.sources.map((s) => s.metrics), ["revenue", "clicks"]);
+  // Clicks first, revenue later in another import: one row with both.
+  const later = mergeAffiliate(readAffiliateSheets([clicks]), readAffiliateSheets([revenue]));
+  assert.deepEqual(later.productsByMonth["2026-09"].map((p) => [p.commission, p.clicks]), [[10, 40]]);
+  // Revenue stored, then only the clicks report: revenue stays.
+  const kept = mergeAffiliate(readAffiliateSheets([revenue]), readAffiliateSheets([clicks]));
+  assert.deepEqual(kept.productsByMonth["2026-09"].map((p) => [p.commission, p.clicks]), [[10, 40]]);
+  assert.deepEqual(kept.daily.map((d) => d.revenue), [5, 5]);
 });

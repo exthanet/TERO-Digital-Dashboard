@@ -47,6 +47,7 @@ function ProductTop({ products, rank }: { products: AffProduct[]; rank: (typeof 
               </span>
               <small>
                 <span className="tag">{p.category}</span> ค่าคอม {pct(p.totalSales ? p.commission / p.totalSales : 0)}
+                {p.clicks ? ` · คลิก ${n0(p.clicks)}${p.orders ? ` · CVR ${pct(p.orders / p.clicks)}` : ""}` : ""}
               </small>
             </div>
             <div className="aff2-nums">
@@ -90,6 +91,12 @@ export function AffiliateDashboard({ data }: { data: AffiliateSheets & { readAt?
   const contents = lists.contents;
   const clipValue = (c: (typeof contents)[number]) => c.earnedRevenue || c.estimatedRevenue;
   const monthsLabel = (ms: string[]) => (ms.length > 3 ? `${thMonth(ms[0])} – ${thMonth(ms[ms.length - 1])} (${ms.length} เดือน)` : ms.map(thMonth).join(", "));
+  // Months whose product export is a clicks report only: no commission, sales or orders per product yet.
+  const clicksOnly = lists.productMonths.filter((m) => !data.sources.some((s) => s.kind === "product" && s.month === m && (s.metrics || "revenue") === "revenue"));
+  // The running month exported so far (e.g. 1–14 Oct).
+  const partial = lists.productMonths
+    .map((m) => ({ month: m, to: data.sources.filter((x) => x.kind === "product" && x.month === m).map((x) => x.to || "").sort().pop() || "" }))
+    .filter((x) => x.to && x.to < new Date(Date.UTC(Number(x.month.slice(0, 4)), Number(x.month.slice(5, 7)), 0)).toISOString().slice(0, 10));
   const productSpan = lists.productMonths.length ? monthsLabel(lists.productMonths) : `${thDay(data.productRange.from)} – ${thDay(data.productRange.to)}`;
   const contentSpan = lists.contentMonths.length ? monthsLabel(lists.contentMonths) : `${thDay(data.contentRange.from)} – ${thDay(data.contentRange.to)}`;
   const categories = useMemo(() => {
@@ -249,6 +256,10 @@ export function AffiliateDashboard({ data }: { data: AffiliateSheets & { readAt?
       <p className="aff2-note">
         Top สินค้าด้านล่างเป็นยอดของ <b>{productSpan}</b>
         {lists.productMonths.length ? " (จากไฟล์รายเดือน)" : " (ไฟล์รวม)"}
+        {partial.map((x) => ` · ${thMonth(x.month)} ถึง ${thDay(x.to)} (ยังไม่จบเดือน)`).join("")}
+        {clicksOnly.length > 0 && (
+          <b className="aff2-warn"> · ไฟล์รายสินค้าของ {clicksOnly.map(thMonth).join(", ")} เป็นรายงานคลิก (Product clicks) ยังไม่มีค่าคอม/ยอดขาย/ออเดอร์ · export หน้า Product ใหม่โดยเลือกดู Estimated revenue</b>
+        )}
         {pick !== "ALL" && lists.missing.length > 0 && ` · ยังไม่มีไฟล์รายเดือนของ ${lists.missing.map(thMonth).join(", ")} จึงแสดงยอดไฟล์รวมแทน`}
       </p>
       <div className="aff2-tops">

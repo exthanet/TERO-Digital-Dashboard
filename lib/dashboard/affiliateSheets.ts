@@ -28,6 +28,9 @@ export interface AffProduct {
   commission: number;
   totalSales: number;
   orders: number;
+  /** From a product export of clicks and impressions (another report in Studio); absent otherwise. */
+  clicks?: number;
+  impressions?: number;
 }
 export interface AffContent {
   contentId: string;
@@ -58,7 +61,7 @@ export interface AffiliateSheets {
   productsByMonth: Record<string, AffProduct[]>;
   contentsByMonth: Record<string, AffContent[]>;
   /** What each workbook was read as. */
-  sources: { kind: "period" | "content" | "product" | "unknown"; tabs: string[]; rows: number; month?: string; from?: string; to?: string }[];
+  sources: { kind: "period" | "content" | "product" | "unknown"; tabs: string[]; rows: number; month?: string; from?: string; to?: string; metrics?: "revenue" | "clicks" }[];
 }
 
 const num = (v: unknown) => {
@@ -97,16 +100,25 @@ const range = (days: string[]) => {
   return { from: s[0] || "", to: s[s.length - 1] || "" };
 };
 
-/** "2026-09" when the days are one whole calendar month (a monthly export); "" otherwise. */
+/**
+ * "2026-09" when the days are one calendar month from its 1st: the whole month, or
+ * the running month so far (an export of 1–14 Oct is October's). "" otherwise.
+ */
 export function monthOfRange(r: { from: string; to: string }): string {
   if (!r.from || r.from.slice(0, 7) !== r.to.slice(0, 7) || !r.from.endsWith("-01")) return "";
-  const [y, m] = r.from.split("-").map(Number);
-  const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-  return r.to === last ? r.from.slice(0, 7) : "";
+  return r.from.slice(0, 7);
 }
 
-const productsOf = (rows: Row[]): AffProduct[] =>
-  rows
+const REVENUE_COLS = ["Estimated revenue (THB)", "Estimated revenue", "Earned revenue (THB)", "Earned revenue", "Total sales (THB)", "Orders"];
+/** A product export of revenue (commission, sales, orders) or of clicks and impressions: Studio gives them as separate reports. */
+const productMetrics = (rows: Row[]): "revenue" | "clicks" => {
+  const head = rows[0] || {};
+  return REVENUE_COLS.some((c) => c in head) ? "revenue" : "Product clicks" in head || "Product impressions" in head ? "clicks" : "revenue";
+};
+
+const productsOf = (rows: Row[]): AffProduct[] => {
+  const clicksOnly = productMetrics(rows) === "clicks";
+  return rows
     .filter((r) => str(r.Product))
     .map((r) => {
       const title = str(r["Product title"]);
@@ -117,8 +129,27 @@ const productsOf = (rows: Row[]): AffProduct[] =>
         commission: num(col(r, "Estimated revenue (THB)", "Estimated revenue")),
         totalSales: num(col(r, "Total sales (THB)", "Total sales")),
         orders: num(r.Orders),
+        ...("Product clicks" in r || clicksOnly ? { clicks: num(r["Product clicks"]) } : {}),
+        ...("Product impressions" in r || clicksOnly ? { impressions: num(r["Product impressions"]) } : {}),
       };
     });
+};
+
+/**
+ * The same month (or the long export) can come as a revenue and a clicks report:
+ * one row per product, revenue from the revenue report, clicks from the clicks report.
+ */
+function combineProducts(have: AffProduct[] | undefined, next: AffProduct[], nextIsClicks: boolean): AffProduct[] {
+  if (!have?.length) return next;
+  const by = new Map(have.map((p) => [p.productId, { ...p }]));
+  for (const p of next) {
+    const h = by.get(p.productId);
+    if (!h) by.set(p.productId, p);
+    else if (nextIsClicks) Object.assign(h, { clicks: p.clicks, impressions: p.impressions });
+    else Object.assign(h, { commission: p.commission, totalSales: p.totalSales, orders: p.orders, title: p.title || h.title, category: p.category });
+  }
+  return [...by.values()];
+}
 
 const contentsOf = (rows: Row[]): AffContent[] =>
   rows
@@ -176,15 +207,20 @@ export function readAffiliateSheets(workbooks: SheetTabs[]): AffiliateSheets {
     }
     // Daily estimated revenue: every content and product export gives the same "Totals" tab for its days.
     const days = totals.map((r) => ({ date: dayOf(r.Date), revenue: num(col(r, "Estimated revenue (THB)", "Estimated revenue")) })).filter((d) => d.date);
-    for (const d of days) dailyBy.set(d.date, d.revenue);
+    // A clicks report's Totals tab counts clicks, not money: it never goes into the daily revenue.
+    const metrics = kind === "product" ? productMetrics(rows) : undefined;
+    const moneyTotals = totals.length > 0 && ("Estimated revenue (THB)" in totals[0] || "Estimated revenue" in totals[0]);
+    if (moneyTotals) for (const d of days) dailyBy.set(d.date, d.revenue);
     const span = range(days.map((d) => d.date));
     const month = monthOfRange(span);
-    out.sources.push({ kind, tabs: Object.keys(tabs), rows: rows.length, ...span, ...(month ? { month } : {}) });
+    out.sources.push({ kind, tabs: Object.keys(tabs), rows: rows.length, ...span, ...(month ? { month } : {}), ...(metrics ? { metrics } : {}) });
     if (kind === "product") {
-      if (month) out.productsByMonth[month] = productsOf(rows);
+      const list = productsOf(rows);
+      const clicks = metrics === "clicks";
+      if (month) out.productsByMonth[month] = combineProducts(out.productsByMonth[month], list, clicks);
       else {
-        out.products = productsOf(rows);
-        out.productRange = span;
+        out.products = combineProducts(out.products, list, clicks);
+        if (!clicks || !out.productRange.from) out.productRange = span;
       }
     } else if (kind === "content") {
       if (month) out.contentsByMonth[month] = contentsOf(rows);
@@ -236,9 +272,9 @@ export function listsFor(data: AffiliateSheets, picked: string[]) {
 }
 
 export type ProductRank = "orders" | "commission" | "totalSales";
-/** Top products: best seller (orders), high commission, high seller (sales); ties by commission. */
+/** Top products: best seller (orders), high commission, high seller (sales); ties by commission, then clicks. */
 export function topProducts(products: AffProduct[], by: ProductRank, n = 10): AffProduct[] {
-  return [...products].sort((a, b) => b[by] - a[by] || b.commission - a.commission).slice(0, n);
+  return [...products].sort((a, b) => b[by] - a[by] || b.commission - a.commission || (b.clicks || 0) - (a.clicks || 0)).slice(0, n);
 }
 
 /** Months picked ([] = every month): totals and the commission rate (earned ÷ sales). */
@@ -322,7 +358,6 @@ export function mergeAffiliate(current: AffiliateSheets | null, draft: Affiliate
   for (const m of draft.monthly) byMonth.set(m.month, m);
   const byDay = new Map(current.daily.map((d) => [d.date, d]));
   for (const d of draft.daily) byDay.set(d.date, d);
-  const long = draft.products.length || draft.contents.length;
   return {
     ...draft,
     monthly: [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month)),
@@ -331,10 +366,29 @@ export function mergeAffiliate(current: AffiliateSheets | null, draft: Affiliate
     contents: draft.contents.length ? draft.contents : current.contents,
     productRange: draft.products.length ? draft.productRange : current.productRange,
     contentRange: draft.contents.length ? draft.contentRange : current.contentRange,
-    productsByMonth: { ...(current.productsByMonth || {}), ...draft.productsByMonth },
+    productsByMonth: mergeProductMonths(current, draft),
     contentsByMonth: { ...(current.contentsByMonth || {}), ...draft.contentsByMonth },
-    sources: long ? draft.sources : [...(current.sources || []).filter((s) => !s.month || !(draft.productsByMonth[s.month] || draft.contentsByMonth[s.month])), ...draft.sources],
+    sources: dedupeSources([...(current.sources || []), ...draft.sources]),
   };
+}
+
+/** A month's products from the links: a revenue-only or clicks-only report keeps the other half already stored. */
+function mergeProductMonths(current: AffiliateSheets, draft: AffiliateSheets): Record<string, AffProduct[]> {
+  const out = { ...(current.productsByMonth || {}) };
+  for (const [m, list] of Object.entries(draft.productsByMonth)) {
+    const kinds = draft.sources.filter((s) => s.kind === "product" && s.month === m).map((s) => s.metrics || "revenue");
+    const have = out[m];
+    if (!have?.length || (kinds.includes("revenue") && kinds.includes("clicks"))) out[m] = list;
+    else out[m] = combineProducts(have, list, !kinds.includes("revenue"));
+  }
+  return out;
+}
+
+/** One line per file kind and month: the latest read wins. */
+function dedupeSources(list: AffiliateSheets["sources"]): AffiliateSheets["sources"] {
+  const by = new Map<string, AffiliateSheets["sources"][number]>();
+  for (const s of list) by.set(`${s.kind}|${s.month || s.from || ""}|${s.metrics || ""}`, s);
+  return [...by.values()];
 }
 
 /** Take one month's product and clip exports out (the monthly totals from revenue by period stay). */

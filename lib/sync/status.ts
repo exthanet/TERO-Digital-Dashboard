@@ -178,6 +178,7 @@ export interface AffiliateLinkStatus {
   from?: string;
   to?: string;
   rows?: number;
+  metrics?: string;
   error?: string;
 }
 export interface AffiliateSheetsStatus extends Omit<RevenueSheetStatus, "added" | "changed"> {
