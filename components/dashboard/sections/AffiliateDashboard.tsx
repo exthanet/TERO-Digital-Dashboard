@@ -19,20 +19,20 @@ const n0 = (v: number) => new Intl.NumberFormat("en-US").format(Math.round(v || 
 const FIRST_MONTH = "2026-01";
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-const RANKS: { key: ProductRank; title: string; hint: string; Icon: typeof Award }[] = [
+export const RANKS: { key: ProductRank; title: string; hint: string; Icon: typeof Award }[] = [
   { key: "orders", title: "Best seller", hint: "ขายได้กี่ออเดอร์", Icon: Award },
   { key: "commission", title: "High commission", hint: "ค่าคอมที่เราได้", Icon: Coins },
   { key: "totalSales", title: "High seller", hint: "ยอดขายสินค้า", Icon: ShoppingCart },
 ];
 
-function ProductTop({ products, rank }: { products: AffProduct[]; rank: (typeof RANKS)[number] }) {
-  const list = topProducts(products, rank.key, 10);
+export function ProductTop({ products, rank, n = 10 }: { products: AffProduct[]; rank: (typeof RANKS)[number]; n?: number }) {
+  const list = topProducts(products, rank.key, n);
   return (
     <article className="panel aff2-top">
       <div className="panel-head">
         <div>
           <h3>
-            <rank.Icon size={15} /> Top 10 {rank.title}
+            <rank.Icon size={15} /> Top {n} {rank.title}
           </h3>
           <p>เรียงตาม{rank.hint}</p>
         </div>

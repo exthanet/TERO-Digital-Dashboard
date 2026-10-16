@@ -560,3 +560,21 @@
 .aff2-import { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
 .aff2-empty { display: grid; justify-items: center; gap: 10px; padding: 48px 0; background: #f8fafc; border-radius: 12px; text-align: center; }
 .aff2-empty > span { color: #64748b; font-weight: 600; }
+/* รายงานประจำเดือน → Affiliate page (AffiliateMonthPage) */
+.aff2-month { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.aff2-month-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.aff2-month-top .aff2-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.aff2-month .aff2-tops ol li { padding: 4px 2px; }
+/* The page is laid out at 1280px and scaled: keep three lists side by side whatever the screen width. */
+.aff2-month .aff2-tops { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+/* Fit one slide: compact cards, one-line product names. */
+.aff2-month { gap: 8px; }
+.aff2-month .affiliate-kpis article { padding: 10px 12px; gap: 2px; }
+.aff2-month .affiliate-kpis article svg { width: 18px; height: 18px; }
+.aff2-month .affiliate-kpis strong { font-size: 20px; }
+.aff2-month .panel { padding: 10px 12px; }
+.aff2-month .panel-head { margin-bottom: 4px; }
+.aff2-month .panel-head p { margin: 0; font-size: 11px; }
+.aff2-month .aff2-name { -webkit-line-clamp: 1; }
+.aff2-month .aff2-top li { padding: 3px 2px; }
+.aff2-month .aff2-top li small { margin-top: 0; }

@@ -27,6 +27,8 @@ import { loadTvCompetitors } from "@/lib/tvCompetitorData";
 import { recordDownload } from "@/lib/auth/activity";
 import { track } from "@/lib/loadingBar";
 import { liveSlides, useLiveData } from "@/components/dashboard/sections/MonthlyLiveSlides";
+import { loadAffiliateSheets } from "@/lib/firebase";
+import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
 import "@/styles/monthly-report.css";
 
@@ -878,7 +880,15 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   const report = draft && draft.month === month ? draft : current?.report || null;
   // The saved (frozen) pages, then five live pages of รายงานรวมแพลตฟอร์ม for the same month.
   const live = useLiveData(rows, report?.month || "", report?.prevMonth || "", program);
-  const slides = useMemo(() => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true)) : [])] : []), [report, live]);
+  // Affiliate from the imported sheets: null for who may not see revenue (the page is then left out).
+  const [affiliate, setAffiliate] = useState<AffiliateSheets | null>(null);
+  useEffect(() => {
+    void loadAffiliateSheets().then(setAffiliate);
+  }, []);
+  const slides = useMemo(
+    () => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true), affiliate) : [])] : []),
+    [report, live, affiliate],
+  );
   // Admin's page order, hidden pages and texts (lib/dashboard/reportLayout.ts): numbers are never edited.
   const [editing, setEditing] = useState(false);
   const [edit, setEdit] = useState<ReportLayout>(EMPTY_LAYOUT);

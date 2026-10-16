@@ -1,5 +1,5 @@
 "use client";
-// รายงานประจำเดือน → the last five pages: parts of รายงานรวมแพลตฟอร์ม for the report's
+// รายงานประจำเดือน → the live pages: parts of รายงานรวมแพลตฟอร์ม for the report's
 // month, computed live from the current data every time the report opens (not frozen
 // with the saved report, so these numbers can move after a sync; each page says so).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +10,8 @@ import { programLabel, programMatches } from "@/lib/dashboard/programFilter";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
 import { EngagementReport } from "@/components/dashboard/sections/EngagementReport";
 import { MonthlyClipPicks } from "@/components/dashboard/sections/MonthlyClipPicks";
+import { AffiliateMonthPage, hasAffiliateMonth } from "@/components/dashboard/sections/AffiliateMonthPage";
+import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
 /** Width the pages are laid out at before they are scaled into the slide. */
@@ -100,14 +102,15 @@ export function useLiveData(rows: RecordRow[], month: string, prevMonth: string,
 }
 
 /** The live pages, in order (titles as the deck shows them). */
-export function liveSlides(d: LiveData, dataAt: string): { title: string; cover?: boolean; body: React.ReactNode }[] {
+export function liveSlides(d: LiveData, dataAt: string, affiliate?: AffiliateSheets | null): { title: string; cover?: boolean; body: React.ReactNode }[] {
+  const month = d.start.slice(0, 7);
   const page = (body: React.ReactNode) => (
     <div className="mr-live">
       <FitBox>{body}</FitBox>
       <LiveNote dataAt={dataAt} />
     </div>
   );
-  return [
+  const pages: { title: string; cover?: boolean; body: React.ReactNode }[] = [
     {
       title: "รายงานรวมแพลตฟอร์ม · Cross Platform",
       body: page(
@@ -181,4 +184,21 @@ export function liveSlides(d: LiveData, dataAt: string): { title: string; cover?
       ),
     },
   ];
+  // Affiliate: only for who may see revenue (the sheets are not readable otherwise) and when the month was imported.
+  if (affiliate && hasAffiliateMonth(affiliate, month)) {
+    pages.push({
+      title: "Affiliate · YouTube Shopping",
+      body: (
+        <div className="mr-live">
+          <FitBox>
+            <div className="mr-live-page">
+              <AffiliateMonthPage data={affiliate} month={month} />
+            </div>
+          </FitBox>
+          <p className="mr-live-note">จาก Google Sheet ที่นำเข้าใน Affiliate Program Report · ค่าคอมรายเดือน = Earned revenue · รายสินค้า = Estimated revenue</p>
+        </div>
+      ),
+    });
+  }
+  return pages;
 }
