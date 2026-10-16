@@ -398,3 +398,28 @@
 .ssm-pill.fallback,
 .ssm-pill.error { background: #fef3f2; color: #b42318; }
 .ssm-sub { margin: 14px 0 6px; font-size: 13px; }
+.ssm-info {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #0757e8;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.ssm-info:hover { background: #dbe7ff; }
+.ssm-help-backdrop { z-index: 60; }
+.ssm-help { max-width: 640px; max-height: 86vh; overflow: auto; }
+.ssm-help h2 { margin: 0 0 6px; font-size: 18px; }
+.ssm-help-lead { margin: 0 0 12px; color: #475467; font-size: 13px; line-height: 1.6; }
+.ssm-help-block { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+.ssm-help-block h3 { margin: 0 0 6px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.ssm-help-block h3 small { color: #93370d; font-weight: 500; font-size: 12px; }
+.ssm-help-block ol { list-style: decimal; margin: 0; padding-left: 22px; font-size: 13px; line-height: 1.65; }
+.ssm-help-block code { font-size: 12px; background: #f2f4f7; padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+.ssm-help-block li { display: list-item; margin-bottom: 2px; }
+.sync-note svg.ssm-note-icon { display: inline-block; vertical-align: -1px; }
