@@ -8,6 +8,8 @@
 import fs from "node:fs";
 import { decodeFields } from "../lib/integrations/firestoreRest.ts";
 import { sendTelegram, syncMessage } from "../lib/integrations/telegram.ts";
+import { newUsersMessage } from "../lib/integrations/newUsers.ts";
+import { connectDb, markAnnounced, pendingNewUsers } from "./new-user-alert.mjs";
 
 /** Bot token and chat id from the environment or .secrets/telegram.json; null when not set up. */
 export function telegramTarget() {
@@ -33,6 +35,17 @@ async function thisRunReport(runUrl) {
   return report && (!runUrl || report.githubRunUrl === runUrl) ? report : null;
 }
 
+/** New accounts to add to the message, with the connection to mark them afterwards; null when not read. */
+async function withNewUsers() {
+  try {
+    const db = await connectDb();
+    return db ? { db, fresh: await pendingNewUsers(db) } : null;
+  } catch (e) {
+    console.log(`New users: not checked (${e.message})`);
+    return null;
+  }
+}
+
 async function main() {
   const args = new Set(process.argv.slice(2));
   const target = telegramTarget();
@@ -41,6 +54,7 @@ async function main() {
     return;
   }
   let text;
+  let newUsers = null;
   if (args.has("--test")) {
     text = `🧪 ทดสอบแจ้งเตือนจาก TERO Media Insights${process.env.RUN_URL ? `\n${process.env.RUN_URL}` : ""}`;
   } else {
@@ -50,9 +64,13 @@ async function main() {
       return null;
     });
     text = syncMessage(report, { jobStatus: process.env.JOB_STATUS || "success", runUrl, mode: process.env.MODE || "write" });
+    // New dashboard accounts since yesterday's message ride along with it.
+    newUsers = await withNewUsers();
+    if (newUsers?.fresh.length) text += `\n\n${newUsersMessage(newUsers.fresh)}`;
   }
   const problem = await sendTelegram(target, text);
   console.log(problem ? `Telegram: ${problem}` : "Telegram: sent");
+  if (!problem && newUsers?.fresh.length) await markAnnounced(newUsers.db, newUsers.fresh).catch((e) => console.log(`New users: not marked (${e.message})`));
 }
 
 if (process.argv[1]?.endsWith("notify-telegram.mjs")) {
