@@ -2,6 +2,7 @@
 // syncStatus/latest: every signed-in user. syncRuns: admins (firestore.rules).
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { FetchStat } from "@/lib/sync/sourceMatrix";
 
 export type SyncState = "success" | "blocked" | "failed";
 
@@ -53,6 +54,8 @@ export interface SyncRun extends Omit<SyncStatus, "lastSuccessAt"> {
   checks: SyncCheck[];
   /** TV this run: air days of new episodes, episodes updated, latest air day with a rating. */
   tv?: { inserted: string[]; updated: number; latest: string };
+  /** What each brand and network was read from (scripts/metricool-sync.mjs fetchStats). */
+  sources?: FetchStat[];
   backupId?: string;
   githubRunUrl?: string;
 }

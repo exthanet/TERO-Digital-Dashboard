@@ -15,6 +15,7 @@ import {
 } from "@/lib/sync/status";
 import { track } from "@/lib/loadingBar";
 import { recordDownload } from "@/lib/auth/activity";
+import { SyncSourceMatrix } from "./SyncSourceMatrix";
 
 const thTime = (iso?: string) =>
   iso
@@ -143,6 +144,8 @@ export function SyncStatusModal({
                 );
               })}
             </div>
+
+            <SyncSourceMatrix run={latest} />
 
             {(latest.tvSources || []).length > 0 && (
               <>

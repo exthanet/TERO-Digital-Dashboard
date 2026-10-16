@@ -373,3 +373,28 @@
   color: #334155;
   font-size: 13px;
 }
+
+/* Sources per account (SyncSourceMatrix) */
+.ssm-summary {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fffaeb;
+  color: #93370d;
+  font-size: 13px;
+}
+.ssm-summary.ok { background: #ecfdf3; color: #05603a; }
+.ssm-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 12px; }
+.ssm-table th { text-align: left; font-weight: 600; color: #64748b; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.ssm-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ssm-table td small { display: block; margin-top: 2px; color: #7b879a; font-size: 11px; }
+.ssm-table td small.ssm-err { color: #b42318; }
+.ssm-table td:first-child { font-weight: 600; white-space: nowrap; }
+.ssm-other td:first-child { width: 24%; }
+.ssm-none { color: #9aa5b5; }
+.ssm-pill { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; }
+.ssm-pill.api { background: #ecfdf3; color: #05603a; }
+.ssm-pill.metricool { background: #fffaeb; color: #93370d; }
+.ssm-pill.fallback,
+.ssm-pill.error { background: #fef3f2; color: #b42318; }
+.ssm-sub { margin: 14px 0 6px; font-size: 13px; }
