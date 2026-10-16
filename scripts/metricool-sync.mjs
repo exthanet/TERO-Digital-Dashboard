@@ -41,6 +41,7 @@ import {
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
 import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
+import { collectRevenueMonth, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
@@ -152,6 +153,8 @@ const integrations = {};
 let ytDeepDive = null;
 // รายได้ → Monthly ACC: this month and the one before, per CMS channel, written after masterData.
 const accMonths = [];
+// YouTube Revenue from the API for months the revenue file does not have yet (lib/integrations/revenueApiCollect.ts).
+const revenueMonths = [];
 // Seconds per step, in the log and on the run report (syncRuns), to see what makes a run long.
 const timings = [];
 let lastMark = Date.now();
@@ -478,6 +481,16 @@ if (ytCms && !onlyBrands) {
     integrations["Monthly ACC"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem(e.message) };
   }
   mark("ดึง Monthly ACC");
+  try {
+    const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
+    for (const m of [prev, thisMonth]) revenueMonths.push(await collectRevenueMonth(token, ytCms.ownerId, m, today));
+    console.log(`Revenue API: ${revenueMonths.map((m) => `${m.month} (through ${m.endDate})`).join(", ")}`);
+  } catch (e) {
+    revenueMonths.length = 0;
+    console.log(`Revenue API not collected: ${e.message}`);
+    integrations["Revenue API"] = { ok: false, detail: "ไม่ได้ดึง", error: analyticsProblem(e.message) };
+  }
+  mark("ดึงรายได้ YouTube (API)");
 }
 for (const c of tvChecks) {
   console.log(`  ${c.pass ? "✔" : "✖"} ${c.name} — ${c.detail}`);
@@ -589,6 +602,19 @@ try {
     }
   }
   mark("เขียน Monthly ACC");
+  // YouTube Revenue from the API (who may see revenue reads); never fails the run.
+  for (const m of revenueMonths) {
+    try {
+      await writeRevenueApiMonth(fsdb, m);
+      console.log(`revenue api: revenueApi/${m.month} through ${m.endDate}`);
+      integrations["Revenue API"] = { ok: true, detail: `อัปเดต ${revenueMonths.map((x) => x.month).join(", ")}` };
+    } catch (e) {
+      console.error(`revenue api not written: ${e.message}`);
+      integrations["Revenue API"] = { ok: false, detail: "ไม่ได้บันทึก", error: analyticsProblem(`revenue api not written: ${e.message}`) };
+      break;
+    }
+  }
+  mark("เขียนรายได้ YouTube (API)");
   // Comments for วิเคราะห์คลิป (lib/integrations/commentsCollect.ts); never fails the run.
   try {
     const num = (v) => Number(String(v ?? "").replace(/,/g, "")) || 0;

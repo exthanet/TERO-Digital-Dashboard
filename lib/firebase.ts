@@ -12,6 +12,7 @@ import {
 import type { RawRow } from "@/lib/dashboard/types";
 import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
+import type { RevenueApiMonth } from "@/lib/dashboard/revenueApi";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAryjQuJ7dujmHxoXtiCNFANjt5bkE3PAc",
@@ -312,6 +313,16 @@ export async function loadRevenueDataFromFirebase(): Promise<RevenueData | null>
     entertainment: company("entertainment"),
     rates: (snapshot.docs.find((d) => d.id === "rates")?.data()?.rates as Record<string, number> | undefined) || undefined,
   };
+}
+
+/** YouTube Revenue from the API (revenueApi/{YYYY-MM}, the daily sync); [] when none or not readable. */
+export async function loadRevenueApiMonths(): Promise<RevenueApiMonth[]> {
+  try {
+    const snapshot = await getDocs(collection(db, "revenueApi"));
+    return snapshot.docs.map((d) => d.data() as RevenueApiMonth);
+  } catch {
+    return [];
+  }
 }
 
 /**

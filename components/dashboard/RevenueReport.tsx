@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { dashboardAsset, isStaticHost } from "@/lib/dashboard/hosting";
-import { loadRevenueDataFromFirebase } from "@/lib/firebase";
+import { loadRevenueApiMonths, loadRevenueDataFromFirebase } from "@/lib/firebase";
+import { forecastBase, pendingNote, thDay, thMonth, withApiMonths, type RevenueApiMonth, type RevenueItem } from "@/lib/dashboard/revenueApi";
 import type { RevenueData, MonthlyRevenueItem } from "@/lib/dashboard/revenueParser";
 import { RevenueImportModal } from "@/components/dashboard/sections/RevenueImportModal";
 import { RevenueCompanyCompare } from "@/components/dashboard/sections/RevenueCompanyCompare";
@@ -91,12 +92,15 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
   const [importOpen, setImportOpen] = useState(false);
   const [sourceType, setSourceType] = useState<"firebase" | "file">("firebase");
   const [loading, setLoading] = useState(true);
+  // Months the file has not got yet, from the YouTube Analytics API (the daily sync).
+  const [apiMonths, setApiMonths] = useState<RevenueApiMonth[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       if (!isStaticHost) {
-        const cloudData = await track(loadRevenueDataFromFirebase());
+        const [cloudData, api] = await track(Promise.all([loadRevenueDataFromFirebase(), loadRevenueApiMonths()]));
+        setApiMonths(api);
         if (cloudData && cloudData.monthly.length > 0) {
           setData(cloudData);
           setSourceType("firebase");
@@ -134,7 +138,7 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
   const hasRates = !!data?.rates && Object.keys(data.rates).length > 0;
   const currency: Currency = hasRates ? currencyPicked : "USD";
   const money = (v: number) => formatMoney(v, currency);
-  const allMonthlyRaw = useMemo(() => {
+  const allMonthlyRaw = useMemo((): RevenueItem[] => {
     // The comparison lists every month any sheet has (for the year menu); its own view does the rest.
     const list =
       view === "digital"
@@ -143,12 +147,14 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
           ? data?.entertainment
           : view === "compare"
             ? [...new Map([...(data?.monthly || []), ...(data?.digital || []), ...(data?.entertainment || [])].map((m) => [m.month, m])).values()]
-            : data?.monthly;
-    return [...(list || [])].sort((a, b) => a.month.localeCompare(b.month));
-  }, [data, view]);
+            : null;
+    // Overall: the API fills the months the file has not got yet (company sheets have no API split).
+    if (!list) return withApiMonths(data?.monthly || [], apiMonths);
+    return [...list].sort((a, b) => a.month.localeCompare(b.month));
+  }, [data, view, apiMonths]);
   // In THB, months without a rate in the file are left out (listed in the notice), never guessed.
   const converted = useMemo(() => inCurrency(allMonthlyRaw, currency, data?.rates), [allMonthlyRaw, currency, data]);
-  const allMonthly = view === "compare" ? allMonthlyRaw : converted.items;
+  const allMonthly: RevenueItem[] = view === "compare" ? allMonthlyRaw : converted.items;
 
   const years = useMemo(() => {
     if (allMonthly.length === 0) return [];
@@ -167,6 +173,11 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
     if (selectedYear === "ALL") return allMonthly;
     return allMonthly.filter((m) => String(m.year) === selectedYear);
   }, [allMonthly, selectedYear]);
+
+  // API months in view: their columns other than total / ads / Premium are "รอสรุปผล <month>".
+  const apiInView = filteredMonthly.filter((m) => m.api);
+  const pending = pendingNote(filteredMonthly);
+  const apiNote = apiInView.length ? `รวม ${apiInView.map((m) => thMonth(m.month)).join(", ")} จาก API (ประมาณการ)` : "";
 
   // Aggregate totals across all 13 fields
   const totals = useMemo(() => {
@@ -222,26 +233,28 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
 
   // Forecast & Accuracy Calculations
   const forecast = useMemo(() => {
-    if (allMonthly.length === 0) return null;
+    // A running month from the API is only part of a month: never the base of a forecast.
+    const base = forecastBase(allMonthly);
+    if (base.length === 0) return null;
 
     // Latest recorded month data
-    const latestItem = allMonthly[allMonthly.length - 1];
+    const latestItem = base[base.length - 1];
     const latestMonthKey = latestItem.month; // e.g. "2026-09"
     const [currYearStr, currMonthStr] = latestMonthKey.split("-");
     const currYear = parseInt(currYearStr, 10);
     const currMonthNum = parseInt(currMonthStr, 10);
 
     // Filter all recorded months for the latest active year
-    const yearRecords = allMonthly.filter((m) => m.year === currYear);
+    const yearRecords = base.filter((m) => m.year === currYear);
     const recordedMonthsCount = yearRecords.length;
     const yearActualTotal = yearRecords.reduce((acc, m) => acc + m.estRevenue, 0);
 
     // Recent 3-month trailing average for momentum
-    const recent3 = allMonthly.slice(-3);
+    const recent3 = base.slice(-3);
     const recent3Avg = recent3.reduce((acc, m) => acc + m.estRevenue, 0) / recent3.length;
 
     // Recent 6-month trailing average
-    const recent6 = allMonthly.slice(-6);
+    const recent6 = base.slice(-6);
     const recent6Avg = recent6.reduce((acc, m) => acc + m.estRevenue, 0) / recent6.length;
 
     // Year-to-date average per recorded month
@@ -269,6 +282,8 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
 
     return {
       latestMonthLabel: latestItem.monthLabel,
+      latestFromApi: !!latestItem.api,
+      latestMonth: latestItem.month,
       latestMonthRevenue,
       nextMonthLabel,
       nextMonthForecast,
@@ -294,15 +309,21 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
       { name: "Shopping Affiliate Bonus", value: totals.shoppingAffiliateBonus, color: "#0891b2" },
       { name: "Memberships & Super Features", value: fanFundingTotal, color: "#eab308" },
       { name: "Education Player", value: totals.educationPlayerRevenue, color: "#6366f1" },
+      // API months: the rest of their total, not split yet.
+      {
+        name: `อื่น ๆ (${pending})`,
+        value: apiInView.reduce((a, m) => a + Math.max(0, m.estRevenue - m.partnerAdRevenue - m.youtubePremiumRevenue), 0),
+        color: "#94a3b8",
+      },
     ].filter((x) => x.value > 0);
 
     return list;
-  }, [totals, fanFundingTotal]);
+  }, [totals, fanFundingTotal, apiInView, pending]);
 
   // Forecast trend chart data combining actuals + next month forecast
   const trendWithForecast = useMemo(() => {
     const list = filteredMonthly.map((m) => ({
-      monthLabel: m.monthLabel,
+      monthLabel: m.api ? `${m.monthLabel} (${m.api.complete ? "API" : `ถึง ${thDay(m.api.endDate)}`})` : m.monthLabel,
       actualRevenue: m.estRevenue,
       forecastRevenue: undefined as number | undefined,
       partnerAdRevenue: m.partnerAdRevenue,
@@ -593,7 +614,9 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                   <div style={{ fontSize: 24, fontWeight: 800, color: "#38bdf8", marginTop: 4 }}>
                     {money(forecast.latestMonthRevenue)}
                   </div>
-                  <small style={{ color: "#64748b", fontSize: 11 }}>ปิดยอดสมบูรณ์ตามรายงานจริง</small>
+                  <small style={{ color: "#64748b", fontSize: 11 }}>
+                    {forecast.latestFromApi ? `จาก API (ประมาณการ) · รอสรุปผล ${thMonth(forecast.latestMonth)}` : "ปิดยอดสมบูรณ์ตามรายงานจริง"}
+                  </small>
                 </div>
 
                 {/* Metric 2: Next Month Forecast */}
@@ -669,42 +692,49 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
               <span>EST. Total Revenue</span>
               <strong>{money(totals.estRevenue)}</strong>
               <small>{filteredMonthly.length} เดือนที่บันทึก ({currency})</small>
+              {apiNote && <small className="rev-api-note">{apiNote}</small>}
             </article>
             <article>
               <PlaySquare style={{ color: "#0284c7" }} />
               <span>Partner Ad Revenue</span>
               <strong>{money(totals.partnerAdRevenue)}</strong>
               <small>{pct(totals.partnerAdRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
+              {apiNote && <small className="rev-api-note">{apiNote}</small>}
             </article>
             <article>
               <Video style={{ color: "#7c3aed" }} />
               <span>YouTube Premium</span>
               <strong>{money(totals.youtubePremiumRevenue)}</strong>
               <small>{pct(totals.youtubePremiumRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
+              {apiNote && <small className="rev-api-note">{apiNote}</small>}
             </article>
             <article>
               <Star style={{ color: "#db2777" }} />
               <span>Shopping Star & Bonus</span>
               <strong>{money(totalShoppingBonus)}</strong>
               <small>Star: {money(totals.shoppingStarBonus)} · Aff: {money(totals.shoppingAffiliateBonus)}</small>
+              {pending && <small className="rev-pending">{pending}</small>}
             </article>
             <article>
               <ShoppingBag style={{ color: "#059669" }} />
               <span>Affiliate Program</span>
               <strong>{money(totals.affiliateProgramRevenue)}</strong>
               <small>{pct(totals.affiliateProgramRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
+              {pending && <small className="rev-pending">{pending}</small>}
             </article>
             <article>
               <Sparkles style={{ color: "#ea580c" }} />
               <span>Shorts Feed Ads</span>
               <strong>{money(totals.shortsFeedAdsRevenue)}</strong>
               <small>{pct(totals.shortsFeedAdsRevenue / (totals.estRevenue || 1))} ของรายได้รวม</small>
+              {pending && <small className="rev-pending">{pending}</small>}
             </article>
             <article>
               <HeartHandshake style={{ color: "#eab308" }} />
               <span>Memberships & Supers</span>
               <strong>{money(fanFundingTotal)}</strong>
               <small>Chat, Thanks, Stickers, Members</small>
+              {pending && <small className="rev-pending">{pending}</small>}
             </article>
           </div>
 
@@ -803,24 +833,29 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                       <tr key={row.month}>
                         <td>
                           <strong>{row.monthLabel}</strong>
+                          {row.api && <small className="rev-api-badge">จาก API{row.api.complete ? "" : ` · ถึง ${thDay(row.api.endDate)}`}</small>}
                         </td>
                         <td style={{ textAlign: "right", color: "#1e40af", fontWeight: 700 }}>
                           {money(row.estRevenue)}
                         </td>
                         <td style={{ textAlign: "right" }}>{money(row.partnerAdRevenue)}</td>
                         <td style={{ textAlign: "right" }}>{money(row.youtubePremiumRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.affiliateProgramRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.shortsFeedAdsRevenue)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.membershipsRevenue || 0)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.superChatRevenue || 0)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.superThanksRevenue || 0)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.giftedMembershipsRevenue || 0)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.superStickersRevenue || 0)}</td>
-                        <td style={{ textAlign: "right" }}>{money(row.educationPlayerRevenue || 0)}</td>
-                        <td style={{ textAlign: "right", color: (row.shoppingStarBonus || 0) > 0 ? "#db2777" : undefined, fontWeight: (row.shoppingStarBonus || 0) > 0 ? 700 : undefined }}>
-                          {money(row.shoppingStarBonus || 0)}
-                        </td>
-                        <td style={{ textAlign: "right" }}>{money(row.shoppingAffiliateBonus || 0)}</td>
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.affiliateProgramRevenue)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.shortsFeedAdsRevenue)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.membershipsRevenue || 0)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.superChatRevenue || 0)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.superThanksRevenue || 0)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.giftedMembershipsRevenue || 0)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.superStickersRevenue || 0)}</td>}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.educationPlayerRevenue || 0)}</td>}
+                        {row.api ? (
+                          <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td>
+                        ) : (
+                          <td style={{ textAlign: "right", color: (row.shoppingStarBonus || 0) > 0 ? "#db2777" : undefined, fontWeight: (row.shoppingStarBonus || 0) > 0 ? 700 : undefined }}>
+                            {money(row.shoppingStarBonus || 0)}
+                          </td>
+                        )}
+                        {row.api ? <td className="rev-pending-cell">รอสรุปผล {thMonth(row.month)}</td> : <td style={{ textAlign: "right" }}>{money(row.shoppingAffiliateBonus || 0)}</td>}
                       </tr>
                     ))}
 
@@ -858,7 +893,10 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
 
                     {/* Summary Row */}
                     <tr style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #cbd5e1" }}>
-                      <td>รวมทั้งหมด (Actual YTD)</td>
+                      <td>
+                        รวมทั้งหมด (Actual YTD)
+                        {pending && <small className="rev-api-badge">คอลัมน์ย่อยยังไม่รวม: {pending}</small>}
+                      </td>
                       <td style={{ textAlign: "right", color: "#1e40af", fontSize: 14 }}>
                         {money(totals.estRevenue)}
                       </td>

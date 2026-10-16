@@ -135,6 +135,11 @@ service cloud.firestore {
       allow read: if can('revenue');
       allow write: if false;
     }
+    // YouTube Revenue from the API for months the file has not got yet (lib/integrations/revenueApiCollect.ts).
+    match /revenueApi/{doc} {
+      allow read: if can('revenue');
+      allow write: if false;
+    }
     // Daily backups in GitHub (download links), listed by the sync workflow: admins read, nobody writes from a browser.
     match /backups/{doc} {
       allow read: if isAdmin();
