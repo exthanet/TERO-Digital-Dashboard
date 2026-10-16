@@ -1,5 +1,5 @@
 "use client";
-// Import Revenue → "นำเข้าจาก Google Sheet": the link the sync reads into a draft
+// Import Revenue → "นำเข้าจาก Google Sheet": the link the "revenue-sheet" run reads into a draft
 // (lib/integrations/revenueSheet.ts). Revenue comes from the CMS API every day;
 // the sheet is imported here by an admin, in the same preview as a file, only when
 // it has something to update. The sheet stays private: it is shared with the
@@ -49,7 +49,7 @@ export function RevenueSheetSettings({ onImport }: { onImport: (wb: RevenueWorkb
       await saveRevenueSheet(clean, auth.currentUser?.email || "");
       setSaved(clean);
       setUrl(clean);
-      setMsg({ ok: true, text: clean ? "บันทึกลิงก์แล้ว · กด \"ดึงจาก Sheet ตอนนี้\" หรือรอ sync พรุ่งนี้เช้า" : "ลบลิงก์แล้ว" });
+      setMsg({ ok: true, text: clean ? "บันทึกลิงก์แล้ว · กด \"ดึงจาก Sheet ตอนนี้\" เพื่ออ่าน" : "ลบลิงก์แล้ว" });
     } catch {
       setMsg({ ok: false, text: "บันทึกไม่สำเร็จ (ต้องเป็น admin)" });
     } finally {
@@ -87,12 +87,12 @@ export function RevenueSheetSettings({ onImport }: { onImport: (wb: RevenueWorkb
               </button>
             </span>
           ) : (
-            <span className="rev-sheet-muted"> · อีเมลบัญชีระบบจะแสดงที่นี่หลัง sync รอบถัดไป</span>
+            <span className="rev-sheet-muted"> · อีเมลบัญชีระบบจะแสดงที่นี่หลังกด "ดึงจาก Sheet ตอนนี้" ครั้งแรก</span>
           )}
         </li>
         <li>วางลิงก์ Sheet แล้วกดบันทึก (ครั้งเดียว)</li>
         <li>
-          เมื่อ Sheet มีข้อมูลใหม่: กด "ดึงจาก Sheet ตอนนี้" (เลือก mode <b>revenue-sheet</b> แล้ว Run workflow ใช้เวลา ~1 นาที) หรือรอ sync เช้า แล้วกด "ตรวจและนำเข้า" → ตรวจตัวเลขด้านล่าง → บันทึก
+          เมื่อ Sheet มีข้อมูลใหม่: กด "ดึงจาก Sheet ตอนนี้" (เลือก mode <b>revenue-sheet</b> แล้ว Run workflow ใช้เวลา ~1 นาที) → "โหลดผลล่าสุด" → กด "ตรวจและนำเข้า" → ตรวจตัวเลขด้านล่าง → บันทึก
         </li>
       </ol>
       <div className="rev-sheet-row">

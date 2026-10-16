@@ -42,8 +42,6 @@ import {
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
 import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
 import { collectRevenueMonth, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
-import { checkSheet, saveSheetCheck } from "../lib/integrations/revenueSheet.ts";
-import { checkAffiliateSheets, saveAffiliateCheck } from "../lib/integrations/affiliateSheetsSync.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
@@ -494,29 +492,6 @@ if (ytCms && !onlyBrands) {
   }
   mark("ดึงรายได้ YouTube (API)");
 }
-// The revenue Google Sheet, when a link is set: read and compared only; an admin imports it on Import Revenue (lib/integrations/revenueSheet.ts).
-let revenueSheetCheck = null;
-let affiliateSheetCheck = null;
-if (!onlyBrands) {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT || (fs.existsSync(".secrets/firebase-sync.json") && fs.readFileSync(".secrets/firebase-sync.json", "utf8"));
-  try {
-    revenueSheetCheck = await checkSheet(await firestore(), raw ? JSON.parse(raw) : null);
-    const st = revenueSheetCheck.status;
-    console.log(`Revenue Sheet: ${st.ok ? st.detail : `not read (${st.error})`}`);
-    if (st.detail !== "ยังไม่ได้ตั้งลิงก์") integrations["Revenue Sheet"] = { ok: st.ok, detail: st.detail, ...(st.error ? { error: st.error } : {}) };
-  } catch (e) {
-    console.log(`Revenue Sheet not checked: ${e.message}`);
-  }
-  try {
-    affiliateSheetCheck = await checkAffiliateSheets(await firestore(), raw ? JSON.parse(raw) : null);
-    const st = affiliateSheetCheck.status;
-    console.log(`Affiliate Sheets: ${st.detail}${st.error ? ` (${st.error})` : ""}`);
-    if (st.detail !== "ยังไม่ได้ตั้งลิงก์") integrations["Affiliate Sheet"] = { ok: st.ok, detail: st.detail, ...(st.error ? { error: st.error } : {}) };
-  } catch (e) {
-    console.log(`Affiliate Sheets not checked: ${e.message}`);
-  }
-  mark("อ่าน Google Sheet รายได้");
-}
 for (const c of tvChecks) {
   console.log(`  ${c.pass ? "✔" : "✖"} ${c.name} — ${c.detail}`);
   for (const w of c.warnings || []) console.log(`      · ${w}`);
@@ -640,22 +615,6 @@ try {
     }
   }
   mark("เขียนรายได้ YouTube (API)");
-  // The revenue sheet as read, for an admin to import on Import Revenue; never fails the run.
-  if (revenueSheetCheck) {
-    try {
-      await saveSheetCheck(fsdb, revenueSheetCheck, runId);
-    } catch (e) {
-      console.error(`revenue sheet draft not written: ${e.message}`);
-    }
-  }
-  if (affiliateSheetCheck) {
-    try {
-      await saveAffiliateCheck(fsdb, affiliateSheetCheck, runId);
-    } catch (e) {
-      console.error(`affiliate sheet draft not written: ${e.message}`);
-    }
-  }
-  mark("Google Sheet รายได้");
   // Comments for วิเคราะห์คลิป (lib/integrations/commentsCollect.ts); never fails the run.
   try {
     const num = (v) => Number(String(v ?? "").replace(/,/g, "")) || 0;

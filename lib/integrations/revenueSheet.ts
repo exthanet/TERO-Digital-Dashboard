@@ -1,7 +1,7 @@
 // YouTube Revenue from the team's Google Sheet. Revenue comes from the CMS API
 // every day; the sheet is imported only by an admin, on Import Revenue, when it
-// has something to update. The sync (daily, or the "revenue-sheet" run on demand)
-// only reads the sheet into a draft (syncConfig/revenueSheetDraft) and says what
+// has something to update. Only the "revenue-sheet" run, started by an admin (not
+// the daily sync), reads the sheet into a draft (syncConfig/revenueSheetDraft) and says what
 // is new or changed; the admin checks it in the same preview as a file and saves.
 // The link is set in Import Revenue (syncConfig/revenueSheet); the sheet stays
 // private and is shared with the sync's service account as Viewer. It is read

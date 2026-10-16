@@ -1,6 +1,6 @@
 // Affiliate from the YouTube Studio exports in Google Sheets: the links are set in
-// Import Affiliate (syncConfig/affiliateSheets). The sync (daily, or the
-// "revenue-sheet" run on demand) only reads them into a draft
+// Import Affiliate (syncConfig/affiliateSheets). Only the "revenue-sheet" run,
+// started by an admin (not the daily sync), reads them into a draft
 // (affiliateSheetsDraft/*) and says what is new; an admin checks it on Import
 // Affiliate and saves it to affiliateSheets/*. The sheets stay private: they are
 // shared with the sync's service account as Viewer.

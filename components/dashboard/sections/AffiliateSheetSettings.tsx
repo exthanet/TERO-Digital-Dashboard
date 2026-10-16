@@ -2,7 +2,8 @@
 // Import Affiliate → "นำเข้าจาก Google Sheet": the YouTube Studio Shopping exports
 // kept in Google Sheets (any number of links: revenue by period, by product, by
 // content; one month each or a longer period). The sync reads them into a draft
-// (lib/integrations/affiliateSheetsSync.ts); the admin checks it here and saves.
+// only when an admin asks ("ดึงจาก Sheet ตอนนี้", lib/integrations/affiliateSheetsSync.ts),
+// then checks it here and saves. It is not part of the daily sync.
 import { useEffect, useState } from "react";
 import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Trash2, XCircle } from "lucide-react";
 import { auth, loadAffiliateSheets, saveAffiliateSheets } from "@/lib/firebase";
@@ -53,7 +54,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
     try {
       await saveAffiliateSheetLinks(clean, auth.currentUser?.email || "");
       setSaved(clean);
-      setMsg({ ok: true, text: `บันทึก ${clean.length} ลิงก์แล้ว · กด "ดึงจาก Sheet ตอนนี้" หรือรอ sync พรุ่งนี้เช้า` });
+      setMsg({ ok: true, text: `บันทึก ${clean.length} ลิงก์แล้ว · กด "ดึงจาก Sheet ตอนนี้" เพื่ออ่าน` });
     } catch {
       setMsg({ ok: false, text: "บันทึกไม่สำเร็จ (ต้องเป็น admin)" });
     } finally {
