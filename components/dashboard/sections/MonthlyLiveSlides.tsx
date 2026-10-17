@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { inRange } from "@/lib/dashboard/platformReport";
-import { monthPeriod } from "@/lib/dashboard/monthlyReport";
+import { reportPeriods } from "@/lib/dashboard/monthlyReport";
 import { programLabel, programMatches } from "@/lib/dashboard/programFilter";
 import { CrossPlatform, HashtagReport, PlatformInsight } from "@/components/dashboard/sections/PlatformInsight";
 import { EngagementReport } from "@/components/dashboard/sections/EngagementReport";
@@ -104,11 +104,13 @@ interface LiveData {
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
 
 /** The month's rows and the month before, as รายงานรวมแพลตฟอร์ม uses them. */
-export function useLiveData(rows: RecordRow[], month: string, prevMonth: string, program = "ALL"): LiveData | null {
+export function useLiveData(rows: RecordRow[], month: string, prevMonth: string, program = "ALL", through?: string): LiveData | null {
   return useMemo(() => {
     if (!month) return null;
-    const p = monthPeriod(month);
-    const q = prevMonth ? monthPeriod(prevMonth) : null;
+    // A report of the running month: its days so far, against the same days of the month before.
+    const periods = reportPeriods(month, through);
+    const p = periods.cur;
+    const q = prevMonth ? periods.prev : null;
     return {
       all: rows,
       programRows: rows.filter((r) => programMatches(program, r.program)),
@@ -120,7 +122,7 @@ export function useLiveData(rows: RecordRow[], month: string, prevMonth: string,
       end: p.end,
       compareText: q ? `เทียบ ${thDate(q.start)} – ${thDate(q.end)}` : "",
     };
-  }, [rows, month, prevMonth, program]);
+  }, [rows, month, prevMonth, program, through]);
 }
 
 /** The live pages, in order (titles as the deck shows them). */

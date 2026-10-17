@@ -27,3 +27,11 @@ test("clean: trimmed texts, empty ones and unknown pages left out, full order ke
   const l = cleanLayout({ order: ["b", "a"], hidden: ["a", "gone"], texts: { a: { title: "  หัวข้อใหม่ ", note: " " }, b: { note: "" }, gone: { title: "x" } } }, ["a", "b", "c"]);
   assert.deepEqual(l, { order: ["b", "c", "a"], hidden: ["a"], texts: { a: { title: "หัวข้อใหม่" } } });
 });
+
+test("a month without a layout takes the order, hidden pages and titles of the last edited one, not its notes", async () => {
+  const { layoutTemplate } = await import("../lib/dashboard/reportLayout.ts");
+  const sep = { order: ["cover", "b", "a"], hidden: ["c"], texts: { a: { title: "A!", note: "only September" }, b: { note: "x" } }, editedAt: "2026-10-17T02:00:00Z" };
+  const aug = { order: ["cover", "a", "b"], hidden: [], texts: {}, editedAt: "2026-09-01T00:00:00Z" };
+  assert.deepEqual(layoutTemplate([aug, undefined, sep]), { order: ["cover", "b", "a"], hidden: ["c"], texts: { a: { title: "A!" } } });
+  assert.equal(layoutTemplate([undefined, { order: [], hidden: [], texts: {} }]), null);
+});

@@ -78,3 +78,17 @@ export function cleanLayout(l: ReportLayout, ids: string[]): ReportLayout {
   }
   return { order: orderedIds(ids, l), hidden: (l.hidden || []).filter((id) => ids.includes(id)), texts };
 }
+
+/**
+ * The layout a month without its own takes: the page order, hidden pages and page
+ * titles of the layout edited last (notes belong to their month and stay there).
+ */
+export function layoutTemplate(layouts: (ReportLayout | null | undefined)[]): ReportLayout | null {
+  const last = layouts
+    .filter((l): l is ReportLayout => !!l && !!l.order?.length)
+    .sort((a, b) => String(b.editedAt || "").localeCompare(String(a.editedAt || "")))[0];
+  if (!last) return null;
+  const texts: Record<string, PageText> = {};
+  for (const [id, t] of Object.entries(last.texts || {})) if (t?.title) texts[id] = { title: t.title };
+  return { order: [...last.order], hidden: [...(last.hidden || [])], texts };
+}

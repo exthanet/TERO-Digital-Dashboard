@@ -147,3 +147,16 @@ test("short-clip features: groups under 20 clips are left out, index is against 
   assert.ok(length.groups[0].index > 1 && length.groups[1].index < 1);
   assert.equal(r.deep.shorts.posts, 55);
 });
+
+test("a report of the running month: its days so far, against the same days of the month before", async () => {
+  const { reportPeriods } = await import("../lib/dashboard/monthlyReport.ts");
+  assert.deepEqual(reportPeriods("2026-10", "2026-10-17"), {
+    cur: { month: "2026-10", start: "2026-10-01", end: "2026-10-17" },
+    prev: { month: "2026-09", start: "2026-09-01", end: "2026-09-17" },
+  });
+  // 31 Mar against February: the month before stops at its last day.
+  assert.equal(reportPeriods("2026-03", "2026-03-30").prev.end, "2026-02-28");
+  // A whole month (or no day given) is the whole month against the whole month before.
+  assert.equal(reportPeriods("2026-09", "2026-09-30").cur.end, "2026-09-30");
+  assert.equal(reportPeriods("2026-09").prev.end, "2026-08-31");
+});

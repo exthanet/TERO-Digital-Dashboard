@@ -13,6 +13,7 @@ import {
   lastFullMonth,
   monthLabel,
   monthPeriod,
+  reportPeriods,
   type ChannelTv,
   type CompetitorBlock,
   type YoutubeGroup,
@@ -32,7 +33,7 @@ import { revenueMonths } from "@/components/dashboard/sections/RevenueMonthPage"
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueApiMonth, RevenueItem } from "@/lib/dashboard/revenueApi";
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
-import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
+import { EMPTY_LAYOUT, cleanLayout, layoutTemplate, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
 import "@/styles/monthly-report.css";
 
 interface Props {
@@ -90,7 +91,10 @@ function Slide({ report, n, total, title, note, children, watermark }: { report:
   return (
     <section className="mr-slide">
       <header className="mr-slide-head">
-        <span>TERO Digital · รายงานผล {monthLabel(report.month)}</span>
+        <span>
+          TERO Digital · รายงานผล {monthLabel(report.month)}
+          {report.through ? ` (ถึง ${dateLabel(report.through)})` : ""}
+        </span>
         <span>
           เอกสารภายใน · {n}/{total}
         </span>
@@ -181,8 +185,9 @@ function TvSlide({ ch, blocks }: { ch: ChannelTv; blocks: CompetitorBlock[] }) {
 
 /** Every page of one report, in order. */
 function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: React.ReactNode }[] {
-  const period = monthPeriod(r.month);
-  const prevName = monthLabel(r.prevMonth);
+  // A report of the running month covers its days so far, against the same days of the month before.
+  const { cur: period, prev: prevPeriod } = reportPeriods(r.month, r.through);
+  const prevName = r.through ? `${dateLabel(prevPeriod.start)} – ${dateLabel(prevPeriod.end)}` : monthLabel(r.prevMonth);
   const maxPlat = Math.max(1, ...r.platforms.map((p) => p.views));
   const maxProg = Math.max(1, ...r.programs.map((p) => p.views));
   const maxTopic = Math.max(1, ...r.topics.map((t) => t.medianViews));
@@ -201,6 +206,7 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
           รายงานผล
           <br />
           {monthLabel(r.month)}
+          {r.through ? ` (ถึง ${dateLabel(r.through)})` : ""}
         </h1>
         <p>
           โพสต์ที่ลงวันที่ {dateLabel(period.start)} – {dateLabel(period.end, true)} เทียบกับ{prevName}
@@ -898,10 +904,12 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   useEffect(reload, [reload]);
 
   const suggested = latestDate ? lastFullMonth(latestDate) : "";
+  // The month the newest data is in, when it has not ended yet: its report runs up to that day.
+  const runningMonth = latestDate && latestDate.slice(0, 7) !== suggested ? latestDate.slice(0, 7) : "";
   const current = saved?.find((s) => s.month === month);
   const report = draft && draft.month === month ? draft : current?.report || null;
   // The saved (frozen) pages, then five live pages of รายงานรวมแพลตฟอร์ม for the same month.
-  const live = useLiveData(rows, report?.month || "", report?.prevMonth || "", program);
+  const live = useLiveData(rows, report?.month || "", report?.prevMonth || "", program, report?.through);
   // Affiliate from the imported sheets: null for who may not see revenue (the page is then left out).
   const [affiliate, setAffiliate] = useState<AffiliateSheets | null>(null);
   // YouTube Revenue: the imported file plus the API months (both unreadable without the revenue permission).
@@ -918,7 +926,10 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   const [editing, setEditing] = useState(false);
   const [edit, setEdit] = useState<ReportLayout>(EMPTY_LAYOUT);
   const ids = useMemo(() => pageIds(slides), [slides]);
-  const layoutNow = editing ? edit : current?.layout || null;
+  // A month without its own layout (or a draft of a new month) is laid out like the layout edited last.
+  const template = useMemo(() => layoutTemplate((saved || []).map((s) => s.layout)), [saved]);
+  const ownLayout = current?.layout || template;
+  const layoutNow = editing ? edit : ownLayout;
   const pages = useMemo(() => {
     const hidden = new Set(layoutNow?.hidden || []);
     return orderedIds(ids, layoutNow).map((id) => {
@@ -935,7 +946,9 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
     return () => window.clearTimeout(t);
   }, [month]);
 
+  /** A report of month `m`; the running month is made up to the newest data day. */
   const make = async (m: string) => {
+    const through = m === runningMonth ? latestDate : undefined;
     setBusy(true);
     setInfo("");
     setError("");
@@ -946,12 +959,12 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
       let gains = null;
       try {
         const first = await firstGrowthDay();
-        const p = monthPeriod(m);
+        const p = reportPeriods(m, through).cur;
         if (first && first <= p.end) gains = await track(loadGrowthDays(daysBetween(first > p.start ? first : p.start, p.end)));
       } catch {
         gains = null;
       }
-      const r = buildMonthlyReport(rows, m, sources, { createdAt: new Date().toISOString(), createdBy: userName, dataAt: latestDate }, { yt, gains });
+      const r = buildMonthlyReport(rows, m, sources, { createdAt: new Date().toISOString(), createdBy: userName, dataAt: latestDate }, { yt, gains, through });
       setDraft(r);
       setMonth(m);
       setInfo(`ร่างรายงาน ${monthLabel(m)} ยังไม่ได้บันทึก · ตรวจแล้วกด "บันทึกรายงาน" เพื่อให้คนที่มีสิทธิ์เห็น${yt ? "" : " · อ่านข้อมูล YouTube Analytics ไม่ได้ จึงไม่มีหน้าเชิงลึก A, B และ SEO"}`);
@@ -968,7 +981,8 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
     if (replacing && !window.confirm(`มีรายงาน ${monthLabel(draft.month)} อยู่แล้ว บันทึกทับด้วยตัวเลข ณ วันที่ ${dateLabel(draft.dataAt, true)}?`)) return;
     setBusy(true);
     try {
-      await saveMonthlyReport(draft, userName, saved?.find((s) => s.month === draft.month)?.layout);
+      // A new month is saved with the template layout, so it stays laid out the same.
+      await saveMonthlyReport(draft, userName, saved?.find((s) => s.month === draft.month)?.layout || template || undefined);
       setDraft(null);
       setInfo(`บันทึกรายงาน ${monthLabel(draft.month)} แล้ว`);
       reload();
@@ -980,7 +994,7 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   };
 
   const startEdit = () => {
-    const l = current?.layout;
+    const l = ownLayout;
     setEdit({ order: orderedIds(ids, l), hidden: [...(l?.hidden || [])], texts: { ...(l?.texts || {}) } });
     setEditing(true);
   };
@@ -1055,6 +1069,10 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
               {months.map((m) => (
                 <option key={m} value={m}>
                   {monthLabel(m)}
+                  {(() => {
+                    const through = draft && draft.month === m ? draft.through : saved?.find((s) => s.month === m)?.report.through;
+                    return through ? ` (ถึง ${dateLabel(through)})` : "";
+                  })()}
                   {draft && draft.month === m ? " (ร่าง)" : ""}
                 </option>
               ))}
@@ -1084,9 +1102,19 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
           <button type="button" disabled={busy || !suggested || !rows.length} onClick={() => make(suggested)}>
             <RefreshCw size={14} /> {saved?.some((s) => s.month === suggested) ? `ทำรายงาน ${monthLabel(suggested)} ใหม่` : `สร้างรายงาน ${suggested ? monthLabel(suggested) : ""}`}
           </button>
+          {runningMonth && (
+            <button
+              type="button"
+              disabled={busy || !rows.length}
+              onClick={() => make(runningMonth)}
+              title={`เดือนที่ยังไม่จบ: ข้อมูล 1 – ${dateLabel(latestDate)} เทียบกับวันเดียวกันของเดือนก่อน`}
+            >
+              <RefreshCw size={14} /> {saved?.some((s) => s.month === runningMonth) ? "ทำรายงาน" : "สร้างรายงาน"} {monthLabel(runningMonth)} (ถึง {dateLabel(latestDate)})
+            </button>
+          )}
           <label>
             เดือนอื่น
-            <input type="month" max={suggested} onChange={(e) => e.target.value && make(e.target.value)} disabled={busy} />
+            <input type="month" max={runningMonth || suggested} onChange={(e) => e.target.value && make(e.target.value)} disabled={busy} />
           </label>
           {isDraft && (
             <button type="button" className="mr-primary" disabled={busy} onClick={save}>

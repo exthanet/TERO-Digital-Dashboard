@@ -43,6 +43,19 @@ const THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "�
 /** "2026-09" → "กันยายน 2026". */
 export const monthLabel = (month: string) => `${THAI_MONTHS[Number(month.slice(5, 7)) - 1] || month} ${month.slice(0, 4)}`;
 
+/**
+ * The report's period and the one it is compared with. A report of the running
+ * month (`through` before the month's last day) covers the 1st to `through` and is
+ * compared with the same days of the month before (1–17 Oct against 1–17 Sep).
+ */
+export function reportPeriods(month: string, through?: string): { cur: MonthPeriod; prev: MonthPeriod } {
+  const full = monthPeriod(month);
+  const before = monthPeriod(previousMonth(month));
+  if (!through || through >= full.end || through.slice(0, 7) !== month) return { cur: full, prev: before };
+  const sameDay = `${before.month}-${through.slice(8, 10)}`;
+  return { cur: { ...full, end: through }, prev: { ...before, end: sameDay < before.end ? sameDay : before.end } };
+}
+
 /** The last month that has ended by `latestDate` (the newest data day). */
 export function lastFullMonth(latestDate: string): string {
   const month = latestDate.slice(0, 7);
@@ -191,6 +204,8 @@ export interface MonthlyReport {
   recommendations: Recommendation[];
   /** Absent in version 1 reports. */
   deep?: DeepReport;
+  /** A report of the running month: its last day (compared with the same days of the month before); absent for a whole month. */
+  through?: string;
 }
 
 const median = (xs: number[]) => {
@@ -447,10 +462,9 @@ export function buildMonthlyReport(
   month: string,
   competitorSources: { channel: string; program: string; rows: CompetitorRow[] }[],
   meta: { createdAt: string; createdBy: string; dataAt: string },
-  extras: { yt?: YtDeepDiveData | null; gains?: Map<string, GrowthEntry[] | null> | null } = {},
+  extras: { yt?: YtDeepDiveData | null; gains?: Map<string, GrowthEntry[] | null> | null; through?: string } = {},
 ): MonthlyReport {
-  const cur = monthPeriod(month);
-  const prev = monthPeriod(previousMonth(month));
+  const { cur, prev } = reportPeriods(month, extras.through);
   const now = within(rows, cur);
   const before = within(rows, prev);
   const online = now.filter((r) => !isTv(r));
@@ -516,6 +530,7 @@ export function buildMonthlyReport(
     version: REPORT_VERSION,
     month,
     prevMonth: prev.month,
+    ...(cur.end < monthPeriod(month).end ? { through: cur.end } : {}),
     ...meta,
     online: k,
     onlinePrev: kp,
