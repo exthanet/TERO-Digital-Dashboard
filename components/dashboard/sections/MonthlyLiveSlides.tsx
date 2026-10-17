@@ -17,21 +17,40 @@ import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueItem } from "@/lib/dashboard/revenueApi";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
-/** Width the pages are laid out at before they are scaled into the slide. */
-const DESIGN_WIDTH = 1280;
+/** Widths a page may be laid out at before it is scaled into the slide: a tall page is laid out wider, so it gets shorter and is scaled down less. */
+const DESIGN_WIDTHS = [1280, 1440, 1600, 1760];
 
-/** Lays its content out at DESIGN_WIDTH and scales it down to fit the slide body (screen, presenting and PDF). */
+/**
+ * Lays its content out at the width (of DESIGN_WIDTHS) that lets it show largest,
+ * then scales it to fit the slide body (screen, presenting and PDF): the page fills
+ * the slide's width or height, never overflows it.
+ */
 function FitBox({ children }: { children: React.ReactNode }) {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [width, setWidth] = useState(DESIGN_WIDTHS[0]);
+  // A page that fills the slide's height sits in the middle of its width.
+  const [left, setLeft] = useState(0);
   useLayoutEffect(() => {
     const fit = () => {
       const o = outer.current;
       const i = inner.current;
-      if (!o || !i) return;
-      const s = Math.min(o.clientWidth / DESIGN_WIDTH, o.clientHeight / Math.max(1, i.scrollHeight));
-      setScale(Number.isFinite(s) && s > 0 ? Math.min(1, s) : 1);
+      if (!o || !i || !o.clientWidth || !o.clientHeight) return;
+      const was = i.style.width;
+      let best = { w: DESIGN_WIDTHS[0], s: 0 };
+      for (const w of DESIGN_WIDTHS) {
+        i.style.width = `${w}px`;
+        const s = Math.min(o.clientWidth / w, o.clientHeight / Math.max(1, i.scrollHeight));
+        if (s > best.s + 0.005) best = { w, s };
+        // Already as wide as the slide allows: a wider layout only makes it smaller.
+        if (o.clientHeight / Math.max(1, i.scrollHeight) >= o.clientWidth / w) break;
+      }
+      i.style.width = was;
+      setWidth(best.w);
+      const s = Number.isFinite(best.s) && best.s > 0 ? Math.min(1, best.s) : 1;
+      setScale(s);
+      setLeft(Math.max(0, Math.round((o.clientWidth - best.w * s) / 2)));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -47,7 +66,7 @@ function FitBox({ children }: { children: React.ReactNode }) {
   }, []);
   return (
     <div className="mr-fit" ref={outer}>
-      <div className="mr-fit-inner" ref={inner} style={{ width: DESIGN_WIDTH, transform: `scale(${scale})` }}>
+      <div className="mr-fit-inner" ref={inner} style={{ width, left, transform: `scale(${scale})` }}>
         {children}
       </div>
     </div>

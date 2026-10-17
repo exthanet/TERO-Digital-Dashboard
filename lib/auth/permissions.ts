@@ -22,7 +22,7 @@ export const PERMS: { id: Perm; label: string; note: string }[] = [
   { id: "deepDive", label: "YouTube Deep Dive", note: "Retention, Hook, SEO (แท็บ Revenue ต้องมีสิทธิ์รายได้ด้วย)" },
   { id: "revenue", label: "รายได้", note: "YouTube Revenue, Affiliate, Monthly ACC และตัวเลขรายได้ทุกที่" },
   { id: "download", label: "ดาวน์โหลด / Export", note: "CSV / Excel จากทุกหน้า" },
-  { id: "monthlyReport", label: "รายงานประจำเดือน", note: "ดูรายงานสรุปรายเดือนสำหรับประชุม (PDF ดาวน์โหลดได้เฉพาะ admin)" },
+  { id: "monthlyReport", label: "รายงานผล", note: "ดูรายงานสรุปรายเดือนสำหรับประชุม (PDF ดาวน์โหลดได้เฉพาะ admin)" },
 ];
 
 /** Keep in step with preset() in firestore.rules. */

@@ -454,7 +454,7 @@
   grid-column: 1 / -1;
 }
 
-/* Live pages of รายงานรวมแพลตฟอร์ม (MonthlyLiveSlides.tsx): laid out at 1280px, scaled to the slide. */
+/* Live pages of รายงานรวมแพลตฟอร์ม (MonthlyLiveSlides.tsx): laid out 1280–1760px wide, scaled to the slide. */
 .mr-live {
   position: absolute;
   inset: 0;

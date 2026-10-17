@@ -90,7 +90,7 @@ function Slide({ report, n, total, title, note, children, watermark }: { report:
   return (
     <section className="mr-slide">
       <header className="mr-slide-head">
-        <span>TERO Digital · รายงานประจำเดือน {monthLabel(report.month)}</span>
+        <span>TERO Digital · รายงานผล {monthLabel(report.month)}</span>
         <span>
           เอกสารภายใน · {n}/{total}
         </span>
@@ -198,7 +198,7 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
       <div className="mr-cover">
         <p>TERO Digital</p>
         <h1>
-          รายงานประจำเดือน
+          รายงานผล
           <br />
           {monthLabel(r.month)}
         </h1>
@@ -986,7 +986,7 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
     if (!report) return;
     const stamp = new Date().toLocaleString("th-TH-u-ca-gregory", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
     setWatermark(`เอกสารภายใน TERO · ${userName} · ${stamp}`);
-    recordDownload("monthly-report-pdf", `รายงานประจำเดือน ${report.month}${draft && draft.month === month ? " (ร่าง)" : ""}`);
+    recordDownload("monthly-report-pdf", `รายงานผล ${report.month}${draft && draft.month === month ? " (ร่าง)" : ""}`);
     document.body.classList.add("mr-printing");
     window.setTimeout(() => {
       window.print();
@@ -1027,7 +1027,7 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
     <section className="panel growth-panel monthly-report" id="monthly-report">
       <div className="panel-head mr-toolbar">
         <div>
-          <h2>รายงานประจำเดือน</h2>
+          <h2>รายงานผล</h2>
           <p className="growth-sub">สรุปรายเดือนสำหรับประชุม · ตัวเลขถูกเก็บไว้ ณ วันที่ทำรายงาน ไม่ขยับตามข้อมูลใหม่ · เอกสารภายใน</p>
         </div>
         <div className="mr-actions">
@@ -1095,9 +1095,9 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
         </div>
       )}
       {info && <p className="growth-notice">{info}</p>}
-      {error && <p className="growth-notice warn">{error.includes("permission") ? "ไม่มีสิทธิ์ดูรายงานประจำเดือน ติดต่อ admin" : error}</p>}
+      {error && <p className="growth-notice warn">{error.includes("permission") ? "ไม่มีสิทธิ์ดูรายงานผล ติดต่อ admin" : error}</p>}
       {saved && !report && !error && (
-        <p className="growth-notice">{isAdmin ? `ยังไม่มีรายงานที่บันทึกไว้ · กด "สร้างรายงาน" เพื่อเริ่ม` : "ยังไม่มีรายงานประจำเดือน"}</p>
+        <p className="growth-notice">{isAdmin ? `ยังไม่มีรายงานที่บันทึกไว้ · กด "สร้างรายงาน" เพื่อเริ่ม` : "ยังไม่มีรายงานผล"}</p>
       )}
       {report && (
         <p className="mr-meta">
