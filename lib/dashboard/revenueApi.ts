@@ -16,6 +16,8 @@ export interface RevenueApiMonth {
   partnerAdRevenue: number;
   youtubePremiumRevenue: number;
   updatedAt: string;
+  /** Each CMS channel that earned that month, largest first (absent on documents written before it was collected). */
+  channels?: { id: string; title: string; revenue: number }[];
 }
 
 /** Columns the API does not give: "รอสรุปผล" for an API month. */

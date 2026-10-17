@@ -41,7 +41,7 @@ import {
 } from "../lib/integrations/metricoolSync.ts";
 import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrations/youtubeData.ts";
 import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
-import { collectRevenueMonth, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
+import { collectRevenueMonth, listCmsChannels, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
@@ -483,7 +483,12 @@ if (ytCms && !onlyBrands) {
   mark("ดึง Monthly ACC");
   try {
     const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
-    for (const m of [prev, thisMonth]) revenueMonths.push(await collectRevenueMonth(token, ytCms.ownerId, m, today));
+    // Each CMS channel's revenue too (รายงานผล → CMS Channel); without the channel list the totals still go.
+    const cmsChannels = await listCmsChannels(token, ytCms.ownerId).catch((e) => {
+      console.log(`CMS channels not listed: ${e.message}`);
+      return undefined;
+    });
+    for (const m of [prev, thisMonth]) revenueMonths.push(await collectRevenueMonth(token, ytCms.ownerId, m, today, undefined, undefined, cmsChannels));
     console.log(`Revenue API: ${revenueMonths.map((m) => `${m.month} (through ${m.endDate})`).join(", ")}`);
   } catch (e) {
     revenueMonths.length = 0;

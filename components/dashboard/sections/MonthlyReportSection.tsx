@@ -5,7 +5,7 @@
 // Admins make / replace a month's report and take the PDF; every page of the
 // PDF carries the downloader's name, and each download is logged (downloads).
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, Maximize, Pencil, RefreshCw, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, Maximize, Moon, Pencil, RefreshCw, Sun, X } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import {
   buildMonthlyReport,
@@ -30,7 +30,7 @@ import { liveSlides, useLiveData } from "@/components/dashboard/sections/Monthly
 import { loadAffiliateSheets, loadRevenueApiMonths, loadRevenueDataFromFirebase } from "@/lib/firebase";
 import { revenueMonths } from "@/components/dashboard/sections/RevenueMonthPage";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
-import type { RevenueItem } from "@/lib/dashboard/revenueApi";
+import type { RevenueApiMonth, RevenueItem } from "@/lib/dashboard/revenueApi";
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { EMPTY_LAYOUT, cleanLayout, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
 import "@/styles/monthly-report.css";
@@ -867,6 +867,25 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   const [present, setPresent] = useState<number | null>(null);
   const [watermark, setWatermark] = useState("");
   const presentRef = useRef<HTMLDivElement>(null);
+  // Black pages (screen, full screen and PDF); each viewer's choice, kept in this browser.
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    try {
+      setDark(localStorage.getItem("mr-background") === "dark");
+    } catch {
+      /* no storage: light pages */
+    }
+  }, []);
+  const toggleDark = () => {
+    setDark((d) => {
+      try {
+        localStorage.setItem("mr-background", d ? "light" : "dark");
+      } catch {
+        /* the choice lasts this visit only */
+      }
+      return !d;
+    });
+  };
 
   const reload = useCallback(() => {
     track(listMonthlyReports())
@@ -886,10 +905,10 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   // Affiliate from the imported sheets: null for who may not see revenue (the page is then left out).
   const [affiliate, setAffiliate] = useState<AffiliateSheets | null>(null);
   // YouTube Revenue: the imported file plus the API months (both unreadable without the revenue permission).
-  const [revenue, setRevenue] = useState<{ data: RevenueData | null; months: RevenueItem[] } | null>(null);
+  const [revenue, setRevenue] = useState<{ data: RevenueData | null; months: RevenueItem[]; api: RevenueApiMonth[] } | null>(null);
   useEffect(() => {
     void loadAffiliateSheets().then(setAffiliate);
-    void Promise.all([loadRevenueDataFromFirebase().catch(() => null), loadRevenueApiMonths()]).then(([data, api]) => setRevenue({ data, months: revenueMonths(data, api) }));
+    void Promise.all([loadRevenueDataFromFirebase().catch(() => null), loadRevenueApiMonths()]).then(([data, api]) => setRevenue({ data, months: revenueMonths(data, api), api }));
   }, []);
   const slides = useMemo(
     () => (report ? [...slidesOf(report), ...(live ? liveSlides(live, dateLabel(report.dataAt, true), affiliate, revenue) : [])] : []),
@@ -1024,7 +1043,7 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
   const isDraft = !!draft && draft.month === month;
 
   return (
-    <section className="panel growth-panel monthly-report" id="monthly-report">
+    <section className={`panel growth-panel monthly-report${dark ? " mr-dark" : ""}`} id="monthly-report">
       <div className="panel-head mr-toolbar">
         <div>
           <h2>รายงานผล</h2>
@@ -1040,6 +1059,11 @@ export function MonthlyReportSection({ rows, program, latestDate, isAdmin, userN
                 </option>
               ))}
             </select>
+          )}
+          {report && (
+            <button type="button" onClick={toggleDark} aria-pressed={dark} title="พื้นหลังของหน้ารายงาน (จอ, นำเสนอเต็มจอ และ PDF)">
+              {dark ? <Sun size={15} /> : <Moon size={15} />} {dark ? "พื้นหลังสว่าง" : "พื้นหลังดำ"}
+            </button>
           )}
           {report && !editing && (
             <button type="button" onClick={() => setPresent(0)}>

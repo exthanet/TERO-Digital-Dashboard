@@ -29,3 +29,26 @@ test("a running month is never the base of a forecast; a finished API month is",
 test("an empty API month is left out", () => {
   assert.equal(withApiMonths([], [api("2026-11", false, 0)]).length, 0);
 });
+
+test("revenue by CMS channel: one query per channel, only those that earned, largest first", async () => {
+  const { collectRevenueMonth, listCmsChannels } = await import("../lib/integrations/revenueApiCollect.ts");
+  const money = { "": 100, "channel==A": 70, "channel==B": 0, "channel==C": 30 };
+  const fetcher = async (u) => {
+    const url = new URL(String(u));
+    if (url.pathname.endsWith("/channels")) {
+      return new Response(JSON.stringify({ items: [{ id: "A", snippet: { title: "Alpha" } }, { id: "B", snippet: { title: "Beta" } }, { id: "C", snippet: { title: "Gamma" } }] }));
+    }
+    const f = url.searchParams.get("filters") || "";
+    const m = url.searchParams.get("metrics");
+    const rows = m === "estimatedRevenue" ? [[money[f]]] : [[60, 20]];
+    return new Response(JSON.stringify({ rows, columnHeaders: [] }));
+  };
+  const chans = await listCmsChannels("t", "owner", fetcher);
+  assert.deepEqual(chans.map((c) => c.title), ["Alpha", "Beta", "Gamma"]);
+  const m = await collectRevenueMonth("t", "owner", "2026-09", "2026-10-17", async () => {}, fetcher, chans);
+  assert.equal(m.estRevenue, 100);
+  assert.deepEqual(m.channels.map((c) => [c.title, c.revenue]), [["Alpha", 70], ["Gamma", 30]]);
+  assert.equal(m.complete, true);
+  const noChannels = await collectRevenueMonth("t", "owner", "2026-09", "2026-10-17", async () => {}, fetcher);
+  assert.equal("channels" in noChannels, false);
+});

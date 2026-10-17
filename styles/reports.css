@@ -594,3 +594,10 @@
 .rev-month .rev-month-bar { height: 10px; }
 .rev-month .affiliate-kpis article { padding: 14px 14px; }
 .rev-month .affiliate-kpis strong { font-size: 24px; }
+/* รายงานผล → YouTube Revenue: CMS channels (left, two columns) and revenue by type (right) */
+.rev-month .rev-month-bottom { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+.rev-month .rev-month-channel-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 6px; }
+.rev-month .rev-month-channel-list li { grid-template-columns: 10px minmax(0, 1fr) 80px 84px; font-size: 13px; }
+.rev-month .rev-month-channel-list li > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rev-month .rev-month-channel-list li strong { font-size: 13px; }
+.rev-month .rev-month-types .rev-month-sources li { grid-template-columns: 12px minmax(0, 1fr) 70px 90px 50px; }

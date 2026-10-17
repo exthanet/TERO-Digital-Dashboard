@@ -1,11 +1,11 @@
 "use client";
-// รายงานประจำเดือน → one page of YouTube Revenue for the report's month: the imported
+// รายงานผล → one page of YouTube Revenue for the report's month: the imported
 // revenue file (revenueData) and, for a month it has not got yet, the CMS API
-// (revenueApi; its other columns are "รอสรุปผล"). Read by who may see revenue only.
+// (revenueApi; its other columns are "รอสรุปผล"); CMS Channel: each channel's revenue
+// from the CMS API (revenueApi.channels). Read by who may see revenue only.
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, PlaySquare, TrendingDown, TrendingUp, Video, Wallet } from "lucide-react";
 import type { MonthlyRevenueItem, RevenueData } from "@/lib/dashboard/revenueParser";
-import { COMPANY_LABEL } from "@/lib/dashboard/revenueCompanies";
 import { thDay, thMonth as thMonthShort, withApiMonths, type RevenueApiMonth, type RevenueItem } from "@/lib/dashboard/revenueApi";
 
 const TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -34,7 +34,7 @@ const SOURCES: { label: string; color: string; of: (m: MonthlyRevenueItem) => nu
 export const revenueMonths = (data: RevenueData | null, api: RevenueApiMonth[]): RevenueItem[] => withApiMonths(data?.monthly || [], api);
 export const hasRevenueMonth = (months: RevenueItem[], month: string) => months.some((m) => m.month === month && m.estRevenue > 0);
 
-export function RevenueMonthPage({ data, months, month }: { data: RevenueData | null; months: RevenueItem[]; month: string }) {
+export function RevenueMonthPage({ data, months, api, month }: { data: RevenueData | null; months: RevenueItem[]; api: RevenueApiMonth[]; month: string }) {
   const year = month.slice(0, 4);
   const cur = months.find((m) => m.month === month)!;
   const inYear = months.filter((m) => m.month.startsWith(year) && m.month <= month);
@@ -52,9 +52,11 @@ export function RevenueMonthPage({ data, months, month }: { data: RevenueData | 
     );
   const chart = inYear.map((m) => ({ label: thMonth(m.month), month: m.month, v: m.estRevenue, api: !!m.api }));
   const sources = SOURCES.map((s) => ({ ...s, v: s.of(cur) })).filter((s) => s.v > 0);
-  const companies = (["digital", "entertainment"] as const)
-    .map((c) => ({ c, m: data?.[c]?.find((x) => x.month === month) }))
-    .filter((x) => x.m);
+  // Every CMS channel that earned that month (from the API, collected by the sync).
+  const apiMonth = api.find((a) => a.month === month);
+  const channels = (apiMonth?.channels || []).filter((c) => c.revenue > 0);
+  const channelTotal = channels.reduce((a, c) => a + c.revenue, 0);
+  const top = channels[0]?.revenue || 1;
   return (
     <div className="aff2 aff2-month rev-month">
       <div className="aff2-month-top">
@@ -115,7 +117,36 @@ export function RevenueMonthPage({ data, months, month }: { data: RevenueData | 
       </div>
 
       <div className="rev-month-bottom">
-        <article className="panel">
+        {/* Left: every CMS channel that earned · right: the month by revenue type. */}
+        <article className="panel rev-month-channels">
+          <div className="panel-head">
+            <div>
+              <h3>
+                CMS Channel {thMonth(month)} · {channels.length} ช่องที่มีรายได้
+              </h3>
+              <p>
+                จาก YouTube CMS API (ประมาณการ){apiMonth && !apiMonth.complete ? ` ถึง ${thDay(apiMonth.endDate)}` : ""} · รวมทุกช่อง {usd(channelTotal)}
+              </p>
+            </div>
+          </div>
+          {channels.length ? (
+            <ul className="rev-month-sources rev-month-channel-list">
+              {channels.map((c) => (
+                <li key={c.id}>
+                  <i style={{ background: "#2563eb" }} />
+                  <span title={c.title}>{c.title}</span>
+                  <span className="rev-month-bar">
+                    <b style={{ width: `${Math.max(2, (c.revenue / top) * 100)}%`, background: "#2563eb" }} />
+                  </span>
+                  <strong>{usd(c.revenue)}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rev-pending-cell rev-month-wait">รอข้อมูลรายช่องจาก sync ({thMonthShort(month)})</p>
+          )}
+        </article>
+        <article className="panel rev-month-types">
           <div className="panel-head">
             <div>
               <h3>รายได้ {thMonth(month)} ตามประเภท</h3>
@@ -140,31 +171,6 @@ export function RevenueMonthPage({ data, months, month }: { data: RevenueData | 
                 </li>
               ))}
             </ul>
-          )}
-        </article>
-        <article className="panel">
-          <div className="panel-head">
-            <div>
-              <h3>แยกบริษัท {thMonth(month)}</h3>
-              <p>จาก sheet ของแต่ละบริษัทในไฟล์ Revenue</p>
-            </div>
-          </div>
-          {companies.length ? (
-            <ul className="rev-month-sources">
-              {companies.map(({ c, m }) => (
-                <li key={c}>
-                  <i style={{ background: c === "digital" ? "#2563eb" : "#db2777" }} />
-                  <span>{COMPANY_LABEL[c]}</span>
-                  <span className="rev-month-bar">
-                    <b style={{ width: `${Math.max(2, (m!.estRevenue / (cur.estRevenue || 1)) * 100)}%`, background: c === "digital" ? "#2563eb" : "#db2777" }} />
-                  </span>
-                  <strong>{usd(m!.estRevenue)}</strong>
-                  <small>{pct(cur.estRevenue ? m!.estRevenue / cur.estRevenue : 0)}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="rev-pending-cell rev-month-wait">รอสรุปผล {thMonthShort(month)}</p>
           )}
         </article>
       </div>

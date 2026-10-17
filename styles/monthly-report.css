@@ -897,3 +897,23 @@
   height: 100%;
   object-fit: cover;
 }
+
+/* Black pages (the report's "พื้นหลังดำ" button): every page, saved or live, is turned
+   dark the same way, colours kept by turning the hue back; pictures turned back as they are. */
+.mr-dark .mr-slide {
+  filter: invert(1) hue-rotate(180deg);
+  box-shadow: none;
+}
+.mr-dark .mr-slide img,
+.mr-dark .mr-slide video,
+.mr-dark .mr-slide [style*="background-image"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+.mr-dark .mr-deck {
+  background: #05080d;
+  border-radius: 16px;
+  padding: 12px;
+}
+.mr-dark .mr-present {
+  background: #000;
+}

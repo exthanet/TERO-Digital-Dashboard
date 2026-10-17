@@ -14,7 +14,7 @@ import { AffiliateMonthPage, hasAffiliateMonth } from "@/components/dashboard/se
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { RevenueMonthPage, hasRevenueMonth } from "@/components/dashboard/sections/RevenueMonthPage";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
-import type { RevenueItem } from "@/lib/dashboard/revenueApi";
+import type { RevenueApiMonth, RevenueItem } from "@/lib/dashboard/revenueApi";
 import { CompetitorLines, DigitalVsTv, PlatformBars, PlatformShare, TopKpis, TopTopics } from "@/components/dashboard/sections/PlatformTop";
 
 /** Widths a page may be laid out at before it is scaled into the slide: a tall page is laid out wider, so it gets shorter and is scaled down less. */
@@ -128,7 +128,7 @@ export function liveSlides(
   d: LiveData,
   dataAt: string,
   affiliate?: AffiliateSheets | null,
-  revenue?: { data: RevenueData | null; months: RevenueItem[] } | null,
+  revenue?: { data: RevenueData | null; months: RevenueItem[]; api: RevenueApiMonth[] } | null,
 ): { title: string; cover?: boolean; body: React.ReactNode }[] {
   const month = d.start.slice(0, 7);
   const page = (body: React.ReactNode) => (
@@ -235,7 +235,7 @@ export function liveSlides(
         <div className="mr-live">
           <FitBox>
             <div className="mr-live-page">
-              <RevenueMonthPage data={revenue.data} months={revenue.months} month={month} />
+              <RevenueMonthPage data={revenue.data} months={revenue.months} api={revenue.api} month={month} />
             </div>
           </FitBox>
           <p className="mr-live-note">จากไฟล์ Revenue ที่นำเข้าใน YouTube Revenue Report · เดือนที่ยังไม่มีไฟล์ใช้ยอดจาก YouTube CMS API (ประมาณการ) · USD</p>
