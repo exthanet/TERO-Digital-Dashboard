@@ -13,6 +13,7 @@ import { growthSyncTimes, loadGrowthDays } from "@/lib/growthData";
 import { earlySignals } from "@/lib/dashboard/earlySignal";
 import { levelText, perHourText } from "@/components/dashboard/sections/EarlySignalBox";
 import { compact, dateLabel, num } from "@/lib/dashboard/format";
+import { vsNormal, vsNormalTone } from "@/lib/dashboard/vsNormal";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { watchShare } from "@/lib/dashboard/quality";
 import { clipDetail, daysAfterPost, gainedByPlatform, siblingsOf, type ClipPost } from "@/lib/dashboard/clipDetail";
@@ -28,7 +29,6 @@ const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric"
 const thClock = (ms: number) =>
   new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
 const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
-const times = (x: number) => (x >= 1 ? `${x.toFixed(1)}×` : `${Math.round(x * 100)}%`);
 const colorOf = (p: string) => PLATFORM_COLORS[p] || "#64748b";
 const duration = (r: RecordRow) => {
   const sec = r.videoLengthSec || Math.round(r.durationMin * 60);
@@ -152,10 +152,10 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
     const head = c.level === "hot" ? "🔥 เริ่มต้นแรง" : c.level === "good" ? "เริ่มต้นดีกว่าปกติ" : c.level === "normal" ? "เริ่มต้นปกติ" : "ความเร็วช่วงแรก";
     facts.push(`${head}: ${c.row.platform} ${c.row.vdoType} ได้ ${num(c.firstViews)} วิวใน ${c.hours.toFixed(1)} ชม.แรก (${perHourText(c.perHour)}/ชม.)${lv.detail ? ` · ${lv.detail}` : ""}`);
   }
-  for (const p of d.posts) if (p.index !== null) facts.push(`${p.row.platform} ${p.row.vdoType}: ${times(p.index)} ของค่าปกติ (ค่ากลาง ${compact(p.baseline!)})${young(p.row)}`);
+  for (const p of d.posts) if (p.index !== null) facts.push(`${p.row.platform} ${p.row.vdoType}: ${vsNormal(p.index)} (ค่ากลาง ${compact(p.baseline!)})${young(p.row)}`);
   for (const p of d.posts)
     if (p.hour !== null && p.bestHour && p.bestHour.hour !== p.hour && p.hourMedian !== null && p.bestHour.median > p.hourMedian * 1.5)
-      facts.push(`${p.row.platform} โพสต์ ${hh(p.hour)} แต่ ${p.row.vdoType} ช่วง ${hh(p.bestHour.hour)} ได้ค่ากลางสูงกว่า ${times(p.bestHour.median / p.hourMedian)}`);
+      facts.push(`${p.row.platform} โพสต์ ${hh(p.hour)} แต่ ${p.row.vdoType} ช่วง ${hh(p.bestHour.hour)} ได้ค่ากลางสูงกว่า ${(p.bestHour.median / p.hourMedian).toFixed(1)} เท่า`);
 
   const firstDay = range[0] || "";
   const hasWatch = d.posts.some((p) => watchShare(p.row) !== null);
@@ -247,7 +247,7 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
                     <td className="num">{num(p.gained)}</td>
                     <td className="num">{p.row.views > 0 ? `${((p.row.engagement / p.row.views) * 100).toFixed(1)}%` : "-"}</td>
                     {hasWatch && <td className="num">{watchShare(p.row) === null ? "-" : `${Math.round(watchShare(p.row)! * 100)}%`}</td>}
-                    <td className={`num ${p.index === null ? "" : p.index >= 1 ? "up" : "down"}`}>{p.index === null ? "-" : times(p.index)}</td>
+                    <td className={`num ${p.index === null ? "" : vsNormalTone(p.index)}`}>{p.index === null ? "-" : vsNormal(p.index)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -3,6 +3,7 @@
 // says what the numbers show; no guesses about why.
 //
 // Relative imports only: tests run this file directly with Node.
+import { vsNormal } from "./vsNormal.ts";
 
 export interface PickFacts {
   kind: "best" | "worst";
@@ -29,11 +30,7 @@ const kfmt = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? 
 export function pickReasons(f: PickFacts): string[] {
   const out: string[] = [];
   if (f.index !== null && f.baseline) {
-    out.push(
-      f.index >= 1
-        ? `วิวสูงกว่าปกติ ${f.index.toFixed(1)} เท่า (ปกติ ≈ ${kfmt(f.baseline)})`
-        : `ได้ ${Math.round(f.index * 100)}% ของปกติ (ปกติ ≈ ${kfmt(f.baseline)})`,
-    );
+    out.push(`วิว${vsNormal(f.index)} (ปกติ ≈ ${kfmt(f.baseline)})`);
   }
   const total = f.platforms.reduce((a, p) => a + p.views, 0);
   if (f.platforms.length > 1 && total > 0) out.push(`ลง ${f.platforms.length} แพลตฟอร์ม · ${f.platforms[0].platform} ทำวิวมากสุด ${pct(f.platforms[0].views / total, 0)}`);

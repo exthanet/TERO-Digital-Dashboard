@@ -14,6 +14,7 @@ import { addDays, daysBetween, recordKey, type GrowthEntry } from "@/lib/dashboa
 import type { ContentGroup } from "@/lib/dashboard/contentGroups";
 import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { clipDetail } from "@/lib/dashboard/clipDetail";
+import { vsNormal } from "@/lib/dashboard/vsNormal";
 import { commonTopic, pickReasons } from "@/lib/dashboard/clipPicks";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { track } from "@/lib/loadingBar";
@@ -122,10 +123,10 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
         {best ? <ThumbsUp size={16} /> : <ThumbsDown size={16} />}
         รายการ: {program} (ตามตัวกรองรายการของ Dashboard) · จาก {num(picks.total)} คลิปที่โพสต์ในเดือนนี้ ·{" "}
         {aged
-          ? `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"}ใน ${AGE_DAYS} วันแรกหลังโพสต์ (ทุกคลิปเทียบที่อายุเท่ากัน) · ${picks.note} · “ของปกติ” = ค่ากลางวิว ${AGE_DAYS} วันแรกของคลิปประเภทเดียวกันในเดือนนี้`
+          ? `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"}ใน ${AGE_DAYS} วันแรกหลังโพสต์ (ทุกคลิปเทียบที่อายุเท่ากัน) · ${picks.note} · “ปกติ” = ค่ากลางวิว ${AGE_DAYS} วันแรกของคลิปประเภทเดียวกันในเดือนนี้`
           : aging.state === "loading"
             ? "กำลังโหลดข้อมูลรายวัน…"
-            : `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"} (วิวสะสม: ข้อมูลรายวันเริ่ม 1 ต.ค. 2026 จึงเทียบที่อายุเท่ากันไม่ได้) · “ของปกติ” = วิวปกติของแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อน`}
+            : `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"} (วิวสะสม: ข้อมูลรายวันเริ่ม 1 ต.ค. 2026 จึงเทียบที่อายุเท่ากันไม่ได้) · “ปกติ” = วิวปกติของแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อน`}
         {best ? " · ลงหลายแพลตฟอร์มนับรวมเป็นคลิปเดียว" : " · ไม่นับคลิปที่วิวต่ำกว่า 50 (มักถูกลบหรือยังไม่นับ)"}
       </p>
       {picks.list.length ? (
@@ -157,7 +158,7 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
                 <div className="cp-num">
                   <b>{compact(x.views)}</b>
                   <small>{aged ? `วิว ${AGE_DAYS} วันแรก` : "วิวรวม"}</small>
-                  {x.index !== null && <span className={`cp-index ${best ? "up" : "down"}`}>{x.index >= 1 ? `×${x.index.toFixed(1)} ของปกติ` : `${Math.round(x.index * 100)}% ของปกติ`}</span>}
+                  {x.index !== null && <span className={`cp-index ${best ? "up" : "down"}`}>{vsNormal(x.index)}</span>}
                   <small className="cp-eng">
                     ER {(d.er * 100).toFixed(1)}% · Like {compact(d.likes)} · คอมเมนต์ {compact(d.comments)} · แชร์ {compact(d.shares)}
                   </small>

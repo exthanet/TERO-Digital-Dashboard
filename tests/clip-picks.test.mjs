@@ -19,7 +19,7 @@ test("best clip: against normal, platforms, ER, posting hour", () => {
     bestHour: 19,
   });
   assert.deepEqual(r, [
-    "วิวสูงกว่าปกติ 3.1 เท่า (ปกติ ≈ 12.0K)",
+    "วิวดีกว่าปกติ 3.1 เท่า (ปกติ ≈ 12.0K)",
     "ลง 2 แพลตฟอร์ม · TikTok ทำวิวมากสุด 60%",
     "ER 6.1% สูงกว่าค่ากลางของเดือน (3.0%)",
     "โพสต์ 19:00 ตรงช่วงที่ดีที่สุดของ TikTok",
@@ -29,7 +29,7 @@ test("best clip: against normal, platforms, ER, posting hour", () => {
 test("worst clip: share of normal, one platform, lower ER, another best hour", () => {
   const r = pickReasons({ ...base, kind: "worst", index: 0.18, baseline: 2500, platforms: [{ platform: "TikTok", views: 450 }], er: 0.01, hour: 3, bestHour: 20 });
   assert.deepEqual(r, [
-    "ได้ 18% ของปกติ (ปกติ ≈ 2.5K)",
+    "วิวต่ำกว่าปกติ 82% (ปกติ ≈ 2.5K)",
     "ลงแพลตฟอร์มเดียว (TikTok)",
     "ER 1.0% ต่ำกว่าค่ากลางของเดือน (3.0%)",
     "โพสต์ 03:00 · ช่วงที่ดีที่สุดของ TikTok คือ 20:00",

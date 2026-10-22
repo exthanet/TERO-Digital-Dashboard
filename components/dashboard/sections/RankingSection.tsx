@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, ThumbsDown, Trophy, Tv } from "lucide-react";
 import type { DashboardModel } from "@/hooks/useDashboard";
 import { compact, num } from "@/lib/dashboard/format";
+import { vsNormal } from "@/lib/dashboard/vsNormal";
 import {
   periodFor,
   rankClips,
@@ -35,9 +36,7 @@ function periodLabel(start: string, end: string, grain: Mode) {
 
 function indexText(x: { index: number | null }) {
   if (x.index === null) return "ยังไม่มีค่าปกติให้เทียบ";
-  return x.index >= 1
-    ? `${x.index.toFixed(1)}× ของค่าปกติ`
-    : `${Math.round(x.index * 100)}% ของค่าปกติ`;
+  return vsNormal(x.index);
 }
 
 /** One line of the best / worst lists: a post, or a piece of content on several platforms. */

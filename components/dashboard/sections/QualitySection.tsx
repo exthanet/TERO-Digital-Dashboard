@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
+import { vsNormal } from "@/lib/dashboard/vsNormal";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import {
   QUALITY_MIN_VIEWS,
@@ -37,7 +38,7 @@ interface Props {
 
 function indexText(x: RankedQualityClip) {
   if (x.index === null) return "ข้อมูลไม่พอเทียบค่ากลาง";
-  return x.index >= 1 ? `${x.index.toFixed(1)}× ค่ากลาง` : `${Math.round(x.index * 100)}% ของค่ากลาง`;
+  return vsNormal(x.index);
 }
 
 /**

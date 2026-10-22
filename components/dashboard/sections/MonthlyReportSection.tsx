@@ -34,6 +34,7 @@ import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueApiMonth, RevenueItem } from "@/lib/dashboard/revenueApi";
 import type { AffiliateSheets } from "@/lib/dashboard/affiliateSheets";
 import { EMPTY_LAYOUT, cleanLayout, layoutTemplate, movePage, orderedIds, pageIds, type ReportLayout } from "@/lib/dashboard/reportLayout";
+import { vsNormal, vsNormalTone } from "@/lib/dashboard/vsNormal";
 import "@/styles/monthly-report.css";
 
 interface Props {
@@ -441,14 +442,14 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
                     <Bar value={t.medianViews} max={maxTopic} color={t.index >= 1 ? "#459d71" : "#e0a03a"} />
                   </td>
                   <td className="n">
-                    {compactNumber(t.medianViews)} <small className="mr-muted">({t.index.toFixed(1)}×)</small>
+                    {compactNumber(t.medianViews)} <small className="mr-muted">({vsNormal(t.index)})</small>
                   </td>
                   <td className="n">{t.posts}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mr-note">× = เทียบกับค่ากลางทั้งเดือน {compactNumber(r.overallMedian)} วิวต่อโพสต์ · นับประเด็นที่มีอย่างน้อย 10 โพสต์</p>
+          <p className="mr-note">ปกติ = ค่ากลางทั้งเดือน {compactNumber(r.overallMedian)} วิวต่อโพสต์ · นับประเด็นที่มีอย่างน้อย 10 โพสต์</p>
         </div>
       </div>
     ),
@@ -689,13 +690,13 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
                         <b>{top.value}</b> <small className="mr-muted">({top.posts})</small>
                       </td>
                       <td className="n">
-                        <b className={top.index >= 1 ? "mr-up" : ""}>{top.index.toFixed(2)}×</b>
+                        <b className={vsNormalTone(top.index) === "up" ? "mr-up" : ""}>{vsNormal(top.index)}</b>
                       </td>
                       <td>
                         {low.value} <small className="mr-muted">({low.posts})</small>
                       </td>
                       <td className="n">
-                        <b className={low.index < 1 ? "mr-down" : ""}>{low.index.toFixed(2)}×</b>
+                        <b className={vsNormalTone(low.index) === "down" ? "mr-down" : ""}>{vsNormal(low.index)}</b>
                       </td>
                     </tr>
                   );
@@ -703,7 +704,7 @@ function slidesOf(r: MonthlyReport): { title?: string; cover?: boolean; body: Re
               </tbody>
             </table>
             <p className="mr-note">
-              คลิปสั้น {deep.shorts.posts.toLocaleString("en-US")} คลิป (TikTok, Shorts, Reels) · ดัชนี = ค่ากลางวิวของกลุ่ม ÷ ค่ากลางคลิปสั้นแพลตฟอร์มเดียวกัน (1× = ปกติ) · ตัวเลขในวงเล็บ = จำนวนคลิป นับกลุ่มที่มีอย่างน้อย 20 คลิป · เป็นความสัมพันธ์ ไม่ใช่เหตุผลที่แน่ชัด
+              คลิปสั้น {deep.shorts.posts.toLocaleString("en-US")} คลิป (TikTok, Shorts, Reels) · ดัชนี = ค่ากลางวิวของกลุ่ม ÷ ค่ากลางคลิปสั้นแพลตฟอร์มเดียวกัน (ดีกว่าปกติ 1.5 เท่า = วิวกลางเป็น 1.5 เท่า · ต่ำกว่าปกติ 30% = ได้ 70%) · ตัวเลขในวงเล็บ = จำนวนคลิป นับกลุ่มที่มีอย่างน้อย 20 คลิป · เป็นความสัมพันธ์ ไม่ใช่เหตุผลที่แน่ชัด
             </p>
           </>
         ),

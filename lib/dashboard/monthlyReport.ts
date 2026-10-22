@@ -13,6 +13,7 @@ import { competitorRanking, type CompetitorMode, type CompetitorRanking, type Co
 import { formatOf, joinVideos, searchGaps, type YtDeepDiveData, type YtVideo } from "./ytDeepDive.ts";
 import { parseHashtags } from "./hashtags.ts";
 import type { GrowthEntry } from "./growth.ts";
+import { vsNormal } from "./vsNormal.ts";
 
 /** 2 = adds `deep` (เชิงลึก pages); version 1 reports still open, without those pages. */
 export const REPORT_VERSION = 2;
@@ -436,7 +437,7 @@ function recommend(r: Omit<MonthlyReport, "recommendations">): Recommendation[] 
       const g = d.shorts.features.find((f) => f.name === name)?.groups[0];
       if (g && g.index >= 1.15 && g.value !== "ไม่มี") best.push({ name, g });
     }
-    if (best.length >= 2) out.push({ title: "สูตรคลิปสั้นที่ได้ผลกว่าปกติ", because: best.map((x) => `${x.g.value} (${x.g.index.toFixed(2)}×)`).join(" · "), action: "ใช้เป็นแนวทดลองกับคลิปสั้นเดือนหน้า · เป็นความสัมพันธ์จากข้อมูล ไม่ใช่เหตุผลที่แน่ชัด" });
+    if (best.length >= 2) out.push({ title: "สูตรคลิปสั้นที่ได้ผลกว่าปกติ", because: best.map((x) => `${x.g.value} (${vsNormal(x.g.index)})`).join(" · "), action: "ใช้เป็นแนวทดลองกับคลิปสั้นเดือนหน้า · เป็นความสัมพันธ์จากข้อมูล ไม่ใช่เหตุผลที่แน่ชัด" });
     const yt = d.youtube;
     if (yt && yt.long.videos >= 5 && yt.long.avgViewPct < 35) out.push({ title: "คลิปยาวเปิดเรื่องให้เร็ว", because: `คนดูคลิปยาวเฉลี่ยเพียง ${yt.long.avgViewPct}% ของความยาว (${yt.long.videos} คลิป)`, action: "ย้ายประเด็นหลักมาไว้ช่วงต้นคลิป และตัดช่วงเกริ่นที่ยาว" });
     const ig = d.engagement.find((e) => e.platform === "Instagram");
