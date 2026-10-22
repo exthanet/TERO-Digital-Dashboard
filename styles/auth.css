@@ -961,7 +961,25 @@
   line-height: 1.5;
 }
 
-/* Usage tab: people who joined in the last 30 days (e.g. first Microsoft sign-in). */
+.auth-users-summary {
+  margin: 8px 0 6px;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+.auth-users-summary b {
+  color: #047857;
+}
+.auth-users-closed {
+  margin-left: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.auth-users-closed input {
+  margin: 0 4px 0 0;
+  vertical-align: -2px;
+}
+
+/* Users and usage tabs: people who joined in the last 30 days (e.g. first Microsoft sign-in). */
 .auth-new-pill {
   margin-left: 6px;
   padding: 1px 7px;

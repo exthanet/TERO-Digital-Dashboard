@@ -81,6 +81,7 @@ export function UserManagementModal({
   const [success, setSuccess] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("month");
   // Per-person permissions being edited: user id → wanted switches.
+  const [showClosed, setShowClosed] = useState(false);
   const [editing, setEditing] = useState<{ id: string; wanted: Record<Perm, boolean> } | null>(null);
   const [visits, setVisits] = useState<Visit[] | null>(null);
   const [downloads, setDownloads] = useState<Download[] | null>(null);
@@ -119,6 +120,20 @@ export function UserManagementModal({
       })
       .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last));
   }, [visits, auth.allUsers]);
+
+  // Users tab: newest account first; older accounts without a creation date last, by name.
+  const recentSince = new Date(Date.now() - 30 * 86400000).toISOString();
+  const users = useMemo(
+    () =>
+      [...auth.allUsers].sort(
+        (a, b) => (b.createdAt || "").localeCompare(a.createdAt || "") || (a.name || a.email).localeCompare(b.name || b.email, "th"),
+      ),
+    [auth.allUsers],
+  );
+  // Closed accounts are hidden unless asked for (they can still be reopened).
+  const closedCount = users.filter((u) => !u.active).length;
+  const shown = showClosed ? users : users.filter((u) => u.active);
+  const newCount = users.filter((u) => u.active && u.createdAt && u.createdAt >= recentSince).length;
 
   if (!isOpen) return null;
 
@@ -372,6 +387,15 @@ export function UserManagementModal({
                 </table>
                 <small>ทุกบทบาทเห็นรายงานพื้นฐาน · คนที่เข้าครั้งแรกผ่าน Microsoft เป็น Viewer · กด “ปรับสิทธิ์” เพื่อเปิด / ปิดสิทธิ์รายคน · ทุกการเปลี่ยนถูกบันทึก</small>
               </details>
+              <p className="auth-users-summary">
+                ใช้งาน {users.length - closedCount} คน · คนเข้าใหม่ 30 วันล่าสุด: <b>{newCount} คน</b> · เรียงจากคนที่เข้าล่าสุด
+                {closedCount > 0 && (
+                  <label className="auth-users-closed">
+                    <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
+                    แสดงบัญชีที่ปิดแล้ว ({closedCount})
+                  </label>
+                )}
+              </p>
               <div className="auth-users-table-wrap" style={{ maxHeight: 360 }}>
                 <table className="auth-users-table">
                   <thead>
@@ -383,13 +407,16 @@ export function UserManagementModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {auth.allUsers.map((u) => {
+                    {shown.map((u) => {
                       const isSelf = u.id === auth.user?.id;
+                      const isNew = !!u.createdAt && u.createdAt >= recentSince;
                       return (
                         <tr key={u.id}>
                           <td className="auth-user-cell">
                             <strong>{u.name}</strong>
+                            {isNew && <span className="auth-new-pill">ใหม่ · {dateTime(u.createdAt)}</span>}
                             <small>{u.email}</small>
+                            {!isNew && u.createdAt && <small>เข้าเมื่อ {dateTime(u.createdAt)}</small>}
                           </td>
                           <td>
                             <select
