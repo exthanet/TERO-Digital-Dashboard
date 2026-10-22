@@ -1,6 +1,7 @@
 "use client";
 // รายงานรายเดือน → "5 คลิปดีที่สุด" / "5 คลิปแย่ที่สุด": the month's content by views,
-// as the Ranking ดี/แย่ card shows it by default (ranking.ts), with how it did against normal,
+// by views in the first AGE_DAYS days after posting, every clip at the same age (clipAge.ts;
+// a month before the daily data began keeps lifetime views, as Ranking ดี/แย่ shows them), with how it did against normal,
 // each with the clip analysis numbers (clipDetail.ts) in plain words (clipPicks.ts).
 import { useEffect, useMemo, useState } from "react";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
@@ -8,9 +9,12 @@ import type { RecordRow } from "@/lib/dashboard/types";
 import { compact, num } from "@/lib/dashboard/format";
 import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { rankContents } from "@/lib/dashboard/ranking";
+import { AGE_DAYS, rankContentsAtAge } from "@/lib/dashboard/clipAge";
+import { addDays, daysBetween, recordKey, type GrowthEntry } from "@/lib/dashboard/growth";
+import type { ContentGroup } from "@/lib/dashboard/contentGroups";
+import { firstGrowthDay, loadGrowthDays } from "@/lib/growthData";
 import { clipDetail } from "@/lib/dashboard/clipDetail";
 import { commonTopic, pickReasons } from "@/lib/dashboard/clipPicks";
-import { recordKey } from "@/lib/dashboard/growth";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { track } from "@/lib/loadingBar";
 
@@ -49,13 +53,44 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
       alive = false;
     };
   }, []);
+  // Views at the same age (first AGE_DAYS days) from the daily data, for a month the daily
+  // data covers; an earlier month keeps the lifetime views (and says so).
+  const [aging, setAging] = useState<{ state: "loading" | "aged" | "lifetime"; days?: Map<string, GrowthEntry[] | null> }>({ state: "loading" });
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const first = await firstGrowthDay().catch(() => "");
+      if (!first || first > start) return alive && setAging({ state: "lifetime" });
+      const yesterday = new Date(Date.now() + 7 * 3600e3 - 864e5).toISOString().slice(0, 10);
+      const last = addDays(end, AGE_DAYS - 1) < yesterday ? addDays(end, AGE_DAYS - 1) : yesterday;
+      const days = await track(loadGrowthDays(daysBetween(start, last))).catch(() => null);
+      if (alive) setAging(days ? { state: "aged", days } : { state: "lifetime" });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [start, end]);
   const picks = useMemo(() => {
-    const ranked = rankContents(all, { start, end }, end, 5, "views");
     const month = all.filter((r) => r.platform !== "TV" && r.date >= start && r.date <= end && r.views > 0);
     const erMedian = median(month.map((r) => r.engagement / r.views));
+    const programRows = all;
+    let total: number;
+    let note = "";
+    let chosen: { group: ContentGroup; views: number; platforms: { platform: string; views: number }[]; index: number | null; baseline: number | null }[];
+    if (aging.state === "aged" && aging.days) {
+      const r = rankContentsAtAge(programRows, { start, end }, aging.days);
+      total = r.total;
+      note = `จัดอันดับ ${num(r.ranked)} คลิป${r.young ? ` · ยังไม่ครบ ${AGE_DAYS} วัน ${num(r.young)} คลิป (ไม่นับ)` : ""}${r.noData ? ` · ไม่มีข้อมูลรายวัน ${num(r.noData)} คลิป` : ""}`;
+      chosen = (kind === "best" ? r.best : r.worst).map((x) => ({ group: x.group, views: x.ageViews, platforms: x.agePlatforms, index: x.index, baseline: x.baseline }));
+    } else {
+      const r = rankContents(programRows, { start, end }, end, 5, "views");
+      total = r.total;
+      chosen = (kind === "best" ? r.best : r.worst).map((x) => ({ group: x.group, views: x.group.views, platforms: x.group.platforms, index: x.index, baseline: x.baseline }));
+    }
     return {
-      total: ranked.total,
-      list: (kind === "best" ? ranked.best : ranked.worst).map((x) => {
+      total,
+      note,
+      list: chosen.map((x) => {
         const d = clipDetail(x.group.lead, all, new Map(), []);
         const lead = d.posts.find((p) => p.row === x.group.lead) || d.posts[0];
         return {
@@ -65,7 +100,7 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
             kind,
             index: x.index,
             baseline: x.baseline,
-            platforms: x.group.platforms,
+            platforms: x.platforms,
             er: d.er,
             erMedian,
             hour: lead?.hour ?? null,
@@ -76,15 +111,21 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
         };
       }),
     };
-  }, [all, start, end, kind]);
+  }, [all, start, end, kind, aging]);
 
+  const aged = aging.state === "aged";
   const best = kind === "best";
   const topic = commonTopic(picks.list.map((p) => p.x.group.lead.topicType));
   return (
     <div className={`cp-page ${kind}`}>
       <p className="cp-intro">
         {best ? <ThumbsUp size={16} /> : <ThumbsDown size={16} />}
-        รายการ: {program} (ตามตัวกรองรายการของ Dashboard) · จาก {num(picks.total)} คลิปที่โพสต์ในเดือนนี้ · {best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"} (เรียงแบบเดียวกับ Ranking ดี/แย่) · “ของปกติ” = เทียบวิวปกติของแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อน
+        รายการ: {program} (ตามตัวกรองรายการของ Dashboard) · จาก {num(picks.total)} คลิปที่โพสต์ในเดือนนี้ ·{" "}
+        {aged
+          ? `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"}ใน ${AGE_DAYS} วันแรกหลังโพสต์ (ทุกคลิปเทียบที่อายุเท่ากัน) · ${picks.note} · “ของปกติ” = ค่ากลางวิว ${AGE_DAYS} วันแรกของคลิปประเภทเดียวกันในเดือนนี้`
+          : aging.state === "loading"
+            ? "กำลังโหลดข้อมูลรายวัน…"
+            : `${best ? "วิวมากที่สุด" : "วิวน้อยที่สุด"} (วิวสะสม: ข้อมูลรายวันเริ่ม 1 ต.ค. 2026 จึงเทียบที่อายุเท่ากันไม่ได้) · “ของปกติ” = วิวปกติของแพลตฟอร์มและรูปแบบเดียวกันใน 30 วันก่อน`}
         {best ? " · ลงหลายแพลตฟอร์มนับรวมเป็นคลิปเดียว" : " · ไม่นับคลิปที่วิวต่ำกว่า 50 (มักถูกลบหรือยังไม่นับ)"}
       </p>
       {picks.list.length ? (
@@ -105,7 +146,7 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
                     {r.topicType ? ` · ${r.topicType}` : ""}
                   </small>
                   <span className="cp-plats">
-                    {x.group.platforms.map((p) => (
+                    {x.platforms.map((p) => (
                       <span key={p.platform}>
                         <i style={{ background: COLORS[p.platform] || "#64748b" }} />
                         {p.platform} {compact(p.views)}
@@ -114,8 +155,8 @@ export function MonthlyClipPicks({ all, program, start, end, kind }: { all: Reco
                   </span>
                 </div>
                 <div className="cp-num">
-                  <b>{compact(x.group.views)}</b>
-                  <small>วิวรวม</small>
+                  <b>{compact(x.views)}</b>
+                  <small>{aged ? `วิว ${AGE_DAYS} วันแรก` : "วิวรวม"}</small>
                   {x.index !== null && <span className={`cp-index ${best ? "up" : "down"}`}>{x.index >= 1 ? `×${x.index.toFixed(1)} ของปกติ` : `${Math.round(x.index * 100)}% ของปกติ`}</span>}
                   <small className="cp-eng">
                     ER {(d.er * 100).toFixed(1)}% · Like {compact(d.likes)} · คอมเมนต์ {compact(d.comments)} · แชร์ {compact(d.shares)}
