@@ -43,6 +43,7 @@ export async function getAccessToken(sa: ServiceAccount, scope = "https://www.go
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const body = (await res.json()) as { access_token?: string; error_description?: string };
   if (!res.ok || !body.access_token) throw new Error(`Service account token failed: ${body.error_description || res.status}`);
@@ -79,7 +80,7 @@ export async function listDocuments(
     const url = new URL(`${documentsBase(projectId)}/${collection}`);
     url.searchParams.set("pageSize", "10"); // masterData documents are ~0.5 MB each
     if (pageToken) url.searchParams.set("pageToken", pageToken);
-    const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetchRetry(url, { headers: { authorization: `Bearer ${token}` } });
     const body = (await res.json()) as { documents?: { name: string; fields?: Record<string, FsValue> }[]; nextPageToken?: string; error?: { message: string } };
     if (!res.ok) throw new Error(`Firestore list ${collection} failed: ${body.error?.message || res.status}`);
     for (const d of body.documents || []) out.push({ id: d.name.split("/").pop() || "", data: decodeFields(d.fields || {}) });
@@ -124,11 +125,17 @@ export function encodeFields(obj: Record<string, unknown>): Record<string, FsVal
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined).map(([k, v]) => [k, encodeValue(v)]));
 }
 
-/** Temporary server errors (5xx, dropped connection) are retried with a short backoff. */
+/**
+ * A request that gets no answer is given up after this long (then retried): one
+ * silent request held the 2026-10-28 sync until GitHub's time limit.
+ */
+export const REQUEST_TIMEOUT_MS = 120_000;
+
+/** Temporary server errors (5xx, dropped connection, no answer) are retried with a short backoff. */
 async function fetchRetry(url: string | URL, init?: RequestInit, tries = 4): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
       if (res.status < 500 || i >= tries) return res;
     } catch (e) {
       if (i >= tries) throw e;

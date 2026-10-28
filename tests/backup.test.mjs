@@ -46,3 +46,50 @@ test("backup CSV: Excel-friendly BOM, quoting, every column; no secrets collecti
   assert.ok(!BACKUP_COLLECTIONS.includes("syncSecrets"));
   assert.ok(!BACKUP_COLLECTIONS.includes("users"));
 });
+
+test("a backup cut off before its manifest is dropped and does not count as one of the 3 kept", async () => {
+  const db = fakeDb({
+    syncRuns: [],
+    snapshots: [],
+    masterDataBackups: [
+      "2026-10-25T00-21-23Z", "2026-10-25T00-21-23Z__chunk_000",
+      "2026-10-26T00-24-30Z", "2026-10-27T01-29-43Z",
+      "2026-10-28T01-25-12Z__chunk_000", "2026-10-28T01-25-12Z__chunk_001",
+      "2026-10-29T00-30-00Z",
+    ],
+  });
+  const removed = await cleanupOld(db, new Date("2026-10-29T01:00:00Z"));
+  assert.equal(removed.backups, 4);
+  assert.ok(db.deleted.includes("masterDataBackups/2026-10-28T01-25-12Z__chunk_001"));
+  assert.ok(db.deleted.includes("masterDataBackups/2026-10-25T00-21-23Z"));
+  assert.ok(!db.deleted.some((p) => /10-2[679]T/.test(p)));
+});
+
+test("writes run a few at a time; after a failure nothing new starts and the error comes back once all have stopped", async () => {
+  const { eachLimited } = await import("../lib/integrations/syncWriter.ts");
+  let running = 0;
+  let most = 0;
+  const done = [];
+  await eachLimited([1, 2, 3, 4, 5, 6, 7, 8, 9], async (x) => {
+    running++;
+    most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, 5));
+    running--;
+    done.push(x);
+  }, 4);
+  assert.equal(most, 4);
+  assert.equal(done.length, 9);
+  const started = [];
+  await assert.rejects(
+    eachLimited([1, 2, 3, 4, 5, 6, 7, 8], async (x) => {
+      started.push(x);
+      await new Promise((r) => setTimeout(r, x === 2 ? 1 : 20));
+      if (x === 2) throw new Error("write chunk_002: precondition");
+      running++;
+      running--;
+    }, 3),
+    /chunk_002/,
+  );
+  assert.deepEqual(started, [1, 2, 3]);
+  assert.equal(running, 0);
+});

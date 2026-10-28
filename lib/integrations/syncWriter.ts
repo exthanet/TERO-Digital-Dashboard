@@ -22,15 +22,41 @@ export const KEEP_SNAPSHOT_DAYS = 60;
 
 export const runIdFor = (d = new Date()) => d.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
 
+/** Documents written at once: backup and masterData took ~10 min each one by one. */
+export const PARALLEL_WRITES = 4;
+
+/**
+ * `fn` over every item, `limit` at a time. Stops taking new items after a
+ * failure and waits for the ones in flight, so nothing is still writing when
+ * the caller restores the backup; then throws the first error.
+ */
+export async function eachLimited<T>(items: T[], fn: (item: T) => Promise<unknown>, limit = PARALLEL_WRITES): Promise<void> {
+  let next = 0;
+  let failed: unknown = null;
+  const worker = async () => {
+    while (failed === null && next < items.length) {
+      const item = items[next++];
+      try {
+        await fn(item);
+      } catch (e) {
+        if (failed === null) failed = e;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  if (failed !== null) throw failed;
+}
+
 export async function backupMasterData(db: Firestore, docs: RawDoc[], runId: string): Promise<number> {
   const takenAt = new Date().toISOString();
-  for (const d of docs) {
-    await db.set(`masterDataBackups/${runId}__${docId(d.name)}`, {
+  await eachLimited(docs, (d) =>
+    db.set(`masterDataBackups/${runId}__${docId(d.name)}`, {
       runId: encodeValue(runId),
       source: encodeValue(docId(d.name)),
       data: { mapValue: { fields: d.fields || {} } },
-    });
-  }
+    }),
+  );
+  // The manifest last: a backup without one was cut off and is never used (cleanupOld drops it).
   await db.set(`masterDataBackups/${runId}`, encodeFields({
     runId,
     takenAt,
@@ -78,19 +104,19 @@ export async function writeMasterData(db: Firestore, rows: Row[], readDocs: RawD
   const total = Math.ceil(rows.length / CHUNK_ROWS);
   // Only data chunks; other documents (masterData/meta) are not rows.
   const byId = new Map(current.filter((d) => docId(d.name).startsWith("chunk_")).map((d) => [docId(d.name), d]));
+  const writes: { id: string; fields: Record<string, unknown>; pre: { updateTime?: string; mustNotExist?: boolean } }[] = [];
   for (let i = 0; i < total; i++) {
     const id = `chunk_${String(i).padStart(3, "0")}`;
     const chunk = rows.slice(i * CHUNK_ROWS, (i + 1) * CHUNK_ROWS);
-    await db.set(
-      `masterData/${id}`,
-      encodeFields({ chunkIndex: i, rowCount: chunk.length, updatedAt: now, rows: chunk }),
-      byId.has(id) ? { updateTime: byId.get(id)?.updateTime } : { mustNotExist: true },
-    );
+    writes.push({
+      id,
+      fields: { chunkIndex: i, rowCount: chunk.length, updatedAt: now, rows: chunk },
+      pre: byId.has(id) ? { updateTime: byId.get(id)?.updateTime } : { mustNotExist: true },
+    });
     byId.delete(id);
   }
-  for (const [id, d] of byId) {
-    await db.set(`masterData/${id}`, encodeFields({ chunkIndex: -1, rowCount: 0, updatedAt: now, rows: [] }), { updateTime: d.updateTime });
-  }
+  for (const [id, d] of byId) writes.push({ id, fields: { chunkIndex: -1, rowCount: 0, updatedAt: now, rows: [] }, pre: { updateTime: d.updateTime } });
+  await eachLimited(writes, (w) => db.set(`masterData/${w.id}`, encodeFields(w.fields), w.pre));
   return total;
 }
 
@@ -209,8 +235,11 @@ export async function cleanupOld(
   }
   const backups = await db.listNames("masterDataBackups");
   // Sync backups are named by their run time ("2026-10-06T…"); others are kept.
+  // One without its manifest was cut off midway: it is dropped and does not count
+  // as one of the backups kept.
   const runs = [...new Set(backups.map((id) => id.split("__")[0]))].filter((r) => /^\d{4}-\d{2}-\d{2}T/.test(r)).sort();
-  const drop = new Set(runs.slice(0, Math.max(0, runs.length - keep.backups)));
+  const complete = runs.filter((r) => backups.includes(r));
+  const drop = new Set([...runs.filter((r) => !backups.includes(r)), ...complete.slice(0, Math.max(0, complete.length - keep.backups))]);
   for (const id of backups) {
     if (drop.has(id.split("__")[0])) { await db.delete(`masterDataBackups/${id}`); removed.backups++; }
   }
