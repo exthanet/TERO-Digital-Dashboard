@@ -19,7 +19,7 @@ test("collector: one month per channel, capped at today; playback places and liv
     // A show's clips: a tenth of the channel per clip id in the filter.
     const k = p.get("filters").startsWith("video==") ? p.get("filters").slice(7).split(",").length / 10 : 1;
     if (m === "views,redViews") return reply(["views", "redViews"], [[1000 * k, 40 * k]]);
-    if (m.startsWith("estimatedAdRevenue")) return reply(["estimatedAdRevenue", "estimatedRedPartnerRevenue"], [[2.5 * k, 0.5 * k]]);
+    if (m.startsWith("estimatedAdRevenue")) return reply(["estimatedAdRevenue", "estimatedRedPartnerRevenue", "estimatedRevenue"], [[2.5 * k, 0.5 * k, 4 * k]]);
     if (d === "insightPlaybackLocationType") return reply([d, "views"], [["WATCH", 600 * k], ["SHORTS_FEED", 300 * k], ["EMBEDDED", 60 * k], ["CHANNEL", 40 * k]]);
     if (d === "liveOrOnDemand") return reply([d, "views"], [["ON_DEMAND", 900 * k], ["LIVE", 100 * k]]);
     throw new Error("unexpected " + url);
@@ -30,13 +30,14 @@ test("collector: one month per channel, capped at today; playback places and liv
   assert.equal(m.rows.length, ACC_CHANNELS.length);
   const { name, channelId, ...nums } = m.rows[0];
   assert.equal(name, ACC_CHANNELS[0].name);
-  assert.deepEqual(nums, { views: 1000, premiumViews: 40, watchPage: 600, embedded: 60, channelPage: 40, live: 100, onDemand: 900, adRevenue: 2.5, premiumRevenue: 0.5 });
+  assert.deepEqual(nums, { views: 1000, premiumViews: 40, watchPage: 600, embedded: 60, channelPage: 40, live: 100, onDemand: 900, adRevenue: 2.5, premiumRevenue: 0.5, totalRevenue: 4 });
   const row = (n) => m.rows.find((r) => r.name === n);
   // Shows from their clips; the channel line keeps the rest, and the three add up to the channel.
   assert.equal(row("ถกไม่เถียง").views, 300);
   assert.equal(row("เงินทองของจริง").adRevenue, 0.25);
   assert.equal(row("TERO Digital").views, 600);
   assert.equal(row("TERO Digital").adRevenue, 1.5);
+  assert.equal(row("TERO Digital").totalRevenue, 2.4);
   assert.equal(row("TERO Digital").channelId, TERO_DIGITAL);
   assert.equal(row("brainchild tv3").missing, true);
   assert.equal(row("brainchild tv3").views, 0);
@@ -60,6 +61,13 @@ test("totals and export rows: CMS column names, total line, THB by rate", () => 
   assert.equal(rows[2]["Ads Partner Revenue (THB)"], 60);
   assert.equal(rows[0]["Owned Views : Ad-Enabled"], "");
   assert.equal(rows[1]["YouTube Premium partner revenue (THB)"], 3);
+  // Months collected before the total existed: the total columns stay empty.
+  assert.equal(rows[0]["Ads + Premium (THB)"], 40.5);
+  assert.equal(rows[0]["Estimated partner revenue (THB)"], "");
+  const withTotal = accSheetRows({ ...month, rows: month.rows.map((x) => ({ ...x, totalRevenue: x.adRevenue + 1 })) });
+  assert.equal(withTotal[0]["Estimated partner revenue (USD)"], 2.25);
+  assert.equal(withTotal[0]["รายได้อื่น (USD)"], 0.9);
+  assert.equal(withTotal[2]["Estimated partner revenue (USD)"], 4);
   const gap = accSheetRows({ ...month, rows: [{ ...r("X", 0, 0), channelId: "", missing: true }] });
   assert.equal(gap[0]["Owned Views"], "");
   assert.equal(gap[0]["หมายเหตุ"], "ไม่พบช่องนี้ใน CMS ที่เชื่อมต่อ");

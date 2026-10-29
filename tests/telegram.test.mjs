@@ -80,3 +80,12 @@ test("TV line: new air days, latest rated day, waiting, source; an unread tab is
   assert.match(bad, /ควรดู: TV ถกไม่เถียง ONE31/);
   assert.doesNotMatch(syncMessage(report, { jobStatus: "success", runUrl }), /📺/);
 });
+
+test("a lost YouTube sign-in is said plainly, not only listed under ควรดู", () => {
+  const text = syncMessage(
+    { ...report, integrations: { "Monthly ACC": { ok: false, detail: "ไม่ได้ดึง", error: "ต้องล็อกอินใหม่: สิทธิ์ถูกยกเลิกหรือหมดอายุ (scripts/youtube-analytics-auth.mjs login --cms=…)" } } },
+    { jobStatus: "success", runUrl },
+  );
+  assert.match(text, /ควรดู: Monthly ACC/);
+  assert.match(text, /⚠️ Monthly ACC: ต้องล็อกอินใหม่/);
+});

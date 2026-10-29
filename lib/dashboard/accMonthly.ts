@@ -1,7 +1,10 @@
 // รายได้ → Monthly ACC: monthly numbers per YouTube channel from the CMS
 // (YouTube Analytics, collected by the daily sync into accMonthly/{YYYY-MM}).
 // Columns follow the CMS "Channel summary" report; Ad-Enabled views are not in
-// the API, so that column stays empty. Revenue is YouTube's estimate in USD.
+// the API, so that column stays empty. Revenue is YouTube's estimate in USD:
+// Ads + Premium as in the Channel summary, and the total ("Estimated partner
+// revenue" in YouTube Analytics), which also holds the other sources (Shopping,
+// memberships, Super Thanks…) that the API does not split out.
 //
 // Relative imports only: the sync and the tests run this file directly with Node.
 
@@ -57,6 +60,8 @@ export interface AccRow {
   onDemand: number;
   adRevenue: number;
   premiumRevenue: number;
+  /** Estimated partner revenue, every source (absent on months collected before 2026-10-29). */
+  totalRevenue?: number;
 }
 
 export interface AccMonth {
@@ -68,18 +73,24 @@ export interface AccMonth {
   rows: AccRow[];
 }
 
-export const NUM_KEYS = ["premiumViews", "views", "watchPage", "embedded", "channelPage", "live", "onDemand", "adRevenue", "premiumRevenue"] as const;
+export const NUM_KEYS = ["premiumViews", "views", "watchPage", "embedded", "channelPage", "live", "onDemand", "adRevenue", "premiumRevenue", "totalRevenue"] as const;
 
-export type AccNums = Pick<AccRow, (typeof NUM_KEYS)[number]>;
+export type AccNums = Required<Pick<AccRow, (typeof NUM_KEYS)[number]>>;
 
-export function accTotals(rows: AccNums[]): AccNums {
+/** The month has the total revenue (collected since 2026-10-29). */
+export const hasTotalRevenue = (m: AccMonth) => m.rows.some((r) => r.totalRevenue !== undefined);
+
+/** Revenue that is neither ads nor Premium: total − ads − Premium, never below 0. */
+export const otherRevenue = (r: AccNums) => Math.max(0, Math.round((r.totalRevenue - r.adRevenue - r.premiumRevenue) * 1e6) / 1e6);
+
+export function accTotals(rows: Partial<AccNums>[]): AccNums {
   const t = Object.fromEntries(NUM_KEYS.map((k) => [k, 0])) as AccNums;
   for (const r of rows) for (const k of NUM_KEYS) t[k] += r[k] || 0;
   return t;
 }
 
 /** a − b per number, never below 0 (rounding on YouTube's side). */
-export function accMinus(a: AccNums, b: AccNums): AccNums {
+export function accMinus(a: Partial<AccNums>, b: Partial<AccNums>): AccNums {
   return Object.fromEntries(NUM_KEYS.map((k) => [k, Math.max(0, Math.round(((a[k] || 0) - (b[k] || 0)) * 1e6) / 1e6)])) as AccNums;
 }
 
@@ -105,8 +116,10 @@ export const rowNote = (r: Pick<AccRow, "program" | "channelId" | "name">) =>
 /** Rows for the Excel export: the CMS column names, money in the chosen currency (rate = THB per USD, 1 for USD). */
 export function accSheetRows(m: AccMonth, rate = 1, currency = "USD"): Record<string, string | number>[] {
   const money = (v: number) => Math.round(v * rate * 100) / 100;
+  const total = hasTotalRevenue(m);
   const line = (name: string, channelId: string, r: AccNums, missing = false) => {
     const v = (n: number) => (missing ? "" : n);
+    const t = (n: number) => (missing || !total ? "" : money(n));
     return {
       "Channel Display Name": name,
       "Asset Channel ID": channelId,
@@ -120,10 +133,13 @@ export function accSheetRows(m: AccMonth, rate = 1, currency = "USD"): Record<st
       "Owned Views : Ad-Enabled": "",
       [`Ads Partner Revenue (${currency})`]: v(money(r.adRevenue)),
       [`YouTube Premium partner revenue (${currency})`]: v(money(r.premiumRevenue)),
+      [`Ads + Premium (${currency})`]: v(money(r.adRevenue + r.premiumRevenue)),
+      [`Estimated partner revenue (${currency})`]: t(r.totalRevenue),
+      [`รายได้อื่น (${currency})`]: t(otherRevenue(r)),
       "หมายเหตุ": missing ? "ไม่พบช่องนี้ใน CMS ที่เชื่อมต่อ" : rowNote(r as AccRow),
     };
   };
-  return [...m.rows.map((r) => line(r.name, r.channelId, r, r.missing)), line("รวม", "", accTotals(m.rows))];
+  return [...m.rows.map((r) => line(r.name, r.channelId, r as AccNums, r.missing)), line("รวม", "", accTotals(m.rows))];
 }
 
 /** Calendar months from `from` to `to` ("YYYY-MM"), inclusive. */

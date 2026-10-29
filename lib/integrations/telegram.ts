@@ -100,7 +100,10 @@ ${tvText}` : "";
       ...(report.tvSources || []).filter((s) => !s.ok || s.error).map((s) => `TV ${s.name}`),
     ];
     const warn = [...problems, ...integrations].length ? `\nควรดู: ${[...problems, ...integrations].join(", ")}` : "";
-    return `✅ Data sync ${when}${test}\nอัปเดต ${n(t.updated)} · ใหม่ ${n(t.inserted)} · รวม ${n(t.rowsAfter)} แถว${time}${tv}${warn}${link}`;
+    // A lost sign-in never fixes itself: say so plainly, once, instead of a name in "ควรดู".
+    const relogin = Object.entries(report.integrations || {}).find(([, s]) => s && !s.ok && /ล็อกอินใหม่/.test(s.error || ""));
+    const signIn = relogin ? `\n⚠️ ${relogin[0]}: ${relogin[1].error}` : "";
+    return `✅ Data sync ${when}${test}\nอัปเดต ${n(t.updated)} · ใหม่ ${n(t.inserted)} · รวม ${n(t.rowsAfter)} แถว${time}${tv}${warn}${signIn}${link}`;
   }
   const why = report.message || (report.status === "blocked" ? "ไม่ผ่านการตรวจ จึงไม่ได้เขียนข้อมูล" : "ไม่สำเร็จ");
   return `⚠️ Data sync ${report.status === "blocked" ? "ไม่ผ่านการตรวจ" : "ไม่สำเร็จ"}${test}${when ? ` · ${when}` : ""}\n${why}${time}${link}`;

@@ -8,7 +8,7 @@ import { track } from "@/lib/loadingBar";
 import { loadAccMonths } from "@/lib/accMonthlyData";
 import { recordDownload } from "@/lib/auth/activity";
 import { loadRevenueDataFromFirebase } from "@/lib/firebase";
-import { accSheetRows, accTotals, monthEnd, rowNote, type AccMonth, type AccNums } from "@/lib/dashboard/accMonthly";
+import { accSheetRows, accTotals, hasTotalRevenue, monthEnd, otherRevenue, rowNote, type AccMonth, type AccNums } from "@/lib/dashboard/accMonthly";
 
 type Currency = "USD" | "THB";
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("th-TH", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -74,6 +74,7 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
         { หัวข้อ: "รายได้", รายละเอียด: currency === "THB" ? "รายได้ประมาณการจาก YouTube แปลงเป็น THB ด้วยอัตราของแต่ละเดือนจากไฟล์รายได้" : "รายได้ประมาณการจาก YouTube (USD) อาจต่างจาก Channel Summary ของ CMS เล็กน้อย" },
         { หัวข้อ: "ถกไม่เถียง / เงินทองของจริง", รายละเอียด: "นับจากคลิปของรายการในช่อง TERO DIGITAL (Program ใน masterData หรือชื่อคลิป) · แถว TERO Digital = ส่วนที่เหลือของช่อง" },
         { หัวข้อ: "Ad-Enabled", รายละเอียด: "API ไม่มีตัวเลขนี้ ดูได้จากไฟล์ Channel Summary ใน CMS" },
+        { หัวข้อ: "Ads + Premium / Estimated partner revenue", รายละเอียด: "Ads + Premium = ยอดเดิมของรายงาน · Estimated partner revenue = รายได้รวมทุกแหล่ง ตรงกับ YouTube Analytics · รายได้อื่น = รวม − Ads − Premium (Shopping, Membership, Super Thanks ฯลฯ) · เดือนที่เก็บก่อน 30 ต.ค. 2026 ไม่มียอดรวม (ช่องว่าง)" },
       ]),
       "หมายเหตุ",
     );
@@ -83,9 +84,10 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
     setExportOpen(false);
   }
 
+  const withTotal = !!month && hasTotalRevenue(month);
   const blank = (
     <>
-      {Array.from({ length: 10 }, (_, i) => (
+      {Array.from({ length: 13 }, (_, i) => (
         <td key={i} className="num muted">-</td>
       ))}
     </>
@@ -102,6 +104,9 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
       <td className="num muted">-</td>
       <td className="num strong">{money(r.adRevenue)}</td>
       <td className="num">{money(r.premiumRevenue)}</td>
+      <td className="num strong">{money(r.adRevenue + r.premiumRevenue)}</td>
+      <td className="num strong">{withTotal ? money(r.totalRevenue) : "-"}</td>
+      <td className="num">{withTotal ? money(otherRevenue(r)) : "-"}</td>
     </>
   );
 
@@ -191,6 +196,16 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
               <span>YouTube Premium partner revenue</span>
               <strong>{money(total.premiumRevenue)}</strong>
             </article>
+            <article>
+              <span>Ads + Premium</span>
+              <strong>{money(total.adRevenue + total.premiumRevenue)}</strong>
+              <small>ยอดเดิมของรายงาน</small>
+            </article>
+            <article>
+              <span>Estimated partner revenue</span>
+              <strong>{withTotal ? money(total.totalRevenue) : "-"}</strong>
+              <small>{withTotal ? `ตรงกับ YouTube Analytics · รายได้อื่น ${money(otherRevenue(total))}` : "เดือนนี้ยังไม่มี: เก็บตั้งแต่ sync 30 ต.ค. 2026"}</small>
+            </article>
           </div>
 
           <article className="growth-table">
@@ -209,6 +224,9 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
                     <th className="num" title="API ไม่มีตัวเลขนี้">Ad-Enabled</th>
                     <th className="num">Ads Partner Revenue ({currency})</th>
                     <th className="num">YouTube Premium partner revenue ({currency})</th>
+                    <th className="num" title="ยอดเดิมของรายงาน = Ads + Premium">Ads + Premium ({currency})</th>
+                    <th className="num" title="ตรงกับ Estimated partner revenue ใน YouTube Analytics">Estimated partner revenue ({currency})</th>
+                    <th className="num" title="รวม − Ads − Premium: Shopping, Membership, Super Thanks และอื่นๆ">รายได้อื่น ({currency})</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,7 +237,7 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
                         <small className="acc-id">{r.missing ? "ไม่พบช่องนี้ใน CMS ที่เชื่อมต่อ" : r.channelId}</small>
                         {!r.missing && rowNote(r) && <small className="acc-id">{rowNote(r)}</small>}
                       </td>
-                      {r.missing ? blank : cells(r)}
+                      {r.missing ? blank : cells(r as AccNums)}
                     </tr>
                   ))}
                   <tr className="acc-total">
@@ -231,7 +249,7 @@ export function AccMonthlyReport({ canDownload = true }: { canDownload?: boolean
             </div>
           </article>
           <p className="acc-note">
-            Watch Page / Embedded Player / Channel Page = แหล่งที่เล่นตาม YouTube (หน้าดูวิดีโอ / ฝังบนเว็บอื่น / หน้าช่อง) ส่วนที่เหลือมาจากหน้า Shorts, หน้าแรก และอื่นๆ จึงรวมกันไม่เท่า Owned Views · ถกไม่เถียง / เงินทองของจริง นับจากคลิปของรายการในช่อง TERO DIGITAL (Program ใน masterData หรือชื่อคลิป) และแถว TERO Digital คือส่วนที่เหลือของช่อง · Ad-Enabled ไม่มีใน API
+            Watch Page / Embedded Player / Channel Page = แหล่งที่เล่นตาม YouTube (หน้าดูวิดีโอ / ฝังบนเว็บอื่น / หน้าช่อง) ส่วนที่เหลือมาจากหน้า Shorts, หน้าแรก และอื่นๆ จึงรวมกันไม่เท่า Owned Views · ถกไม่เถียง / เงินทองของจริง นับจากคลิปของรายการในช่อง TERO DIGITAL (Program ใน masterData หรือชื่อคลิป) และแถว TERO Digital คือส่วนที่เหลือของช่อง · Ad-Enabled ไม่มีใน API · Ads + Premium = ยอดเดิมของรายงาน (คอลัมน์ของ Channel Summary) · Estimated partner revenue = รายได้รวมทุกแหล่ง ตรงกับ YouTube Analytics · รายได้อื่น = รวม − Ads − Premium (Shopping, Membership, Super Thanks ฯลฯ ซึ่ง API ไม่แยกให้)
           </p>
         </>
       )}

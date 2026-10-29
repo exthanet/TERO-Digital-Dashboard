@@ -63,7 +63,7 @@ export async function collectAccMonth(
   const numbers = async (filters: string): Promise<AccNums> => {
     // Views and revenue in separate requests: asked together the CMS answers "internal error".
     const views = await q(filters, { metrics: "views,redViews" });
-    const money = await q(filters, { metrics: "estimatedAdRevenue,estimatedRedPartnerRevenue" });
+    const money = await q(filters, { metrics: "estimatedAdRevenue,estimatedRedPartnerRevenue,estimatedRevenue" });
     const place = await q(filters, { dimensions: "insightPlaybackLocationType", metrics: "views" });
     const live = await q(filters, { dimensions: "liveOrOnDemand", metrics: "views" });
     return {
@@ -76,6 +76,7 @@ export async function collectAccMonth(
       onDemand: by(live, "ON_DEMAND"),
       adRevenue: Number(money.rows[0]?.[0]) || 0,
       premiumRevenue: Number(money.rows[0]?.[1]) || 0,
+      totalRevenue: Number(money.rows[0]?.[2]) || 0,
     };
   };
   const ofVideos = async (ids: string[]) => {
