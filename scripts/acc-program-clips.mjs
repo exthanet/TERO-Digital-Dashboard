@@ -21,6 +21,7 @@ import { loadCmsAccount, accessTokenFor, analyticsQuery, batchedQuery } from "..
 import { channelUploads } from "../lib/integrations/accMonthlyCollect.ts";
 import { ACC_CHANNELS, TERO_DIGITAL, clipProgram, monthEnd } from "../lib/dashboard/accMonthly.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
+import { readSplits, splitParents } from "../lib/dashboard/programSplits.ts";
 
 const dir = process.argv[2];
 if (!dir || !fs.existsSync(dir)) {
@@ -52,14 +53,20 @@ const endDate = monthEnd(month) < today ? monthEnd(month) : today;
 const programs = [...new Set(ACC_CHANNELS.filter((c) => c.program && c.id === TERO_DIGITAL).map((c) => c.program))];
 const REST = "TERO Digital";
 
-// masterData's Program per YouTube clip, as the sync reads it.
+// masterData's Program per YouTube clip, as the sync reads it: a sub-show (แยกรายการย่อย)
+// counts in its parent's line. The sheet still shows the Program as written.
+const rulesDoc = await db.get("syncConfig/programSplits");
+const parents = splitParents(readSplits(rulesDoc ? decodeFields(rulesDoc.fields || {}) : null));
 const programOf = new Map();
+const writtenProgram = new Map();
 for (const d of await db.listRaw("masterData")) {
   const x = decodeFields(d.fields || {});
   for (const r of Array.isArray(x.rows) ? x.rows : []) {
     if (r.Platform !== "YouTube") continue;
     const id = postId("YouTube", r.URL) || postId("YouTube", r.Content_ID);
-    if (id) programOf.set(id, r.Program || "");
+    if (!id) continue;
+    programOf.set(id, parents.get(r.Program) || r.Program || "");
+    writtenProgram.set(id, r.Program || "");
   }
 }
 const uploads = await channelUploads(token, TERO_DIGITAL);
@@ -107,12 +114,12 @@ for (const u of uploads) {
   const c = clipProgram(u, programOf, programs);
   // In the rest of the channel "title" means: not in masterData, and no show's name in the title.
   const by = c.program || c.by === "masterData" ? BY[c.by] : "ไม่อยู่ใน masterData · ชื่อไม่มีชื่อรายการ";
-  clip(u.id, u.title, u.publishedAt, c.program || REST, by, programOf.get(u.id) ?? "");
+  clip(u.id, u.title, u.publishedAt, c.program || REST, by, writtenProgram.get(u.id) ?? "");
 }
 for (const r of outside) {
   const id = String(r[0]);
   const info = outsideInfo.get(id) || { title: "", publishedAt: "" };
-  clip(id, info.title, info.publishedAt, REST, BY.outside, programOf.get(id) ?? "");
+  clip(id, info.title, info.publishedAt, REST, BY.outside, writtenProgram.get(id) ?? "");
 }
 
 const wb = new ExcelJS.Workbook();

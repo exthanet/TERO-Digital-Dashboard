@@ -43,6 +43,7 @@ import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrat
 import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
 import { collectRevenueMonth, listCmsChannels, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
+import { applySplitChanges, planProgramSplits, readSplitMoved, readSplits, splitParents } from "../lib/dashboard/programSplits.ts";
 import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
@@ -451,6 +452,9 @@ const tvRun = await tvStep(result.merged);
 mark("TV");
 const finalRows = tvRun.result ? tvRun.result.rows : result.merged;
 const tvChecks = tvRun.result ? validateTv(result.merged, tvRun.result, tvRun.episodes) : [];
+// แยกรายการย่อย: new posts and old ones the rules now match move to the sub-show; rows the
+// system moved go back when their rule is off. Only Program changes; the rest is checked above.
+const splits = await programSplitStep(finalRows);
 
 // ---------- Monthly ACC (รายได้) ----------
 // Through the same CMS account; shows inside a channel are found by masterData's
@@ -464,10 +468,11 @@ if (ytCms && !onlyBrands) {
     const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
     const programs = [...new Set(ACC_CHANNELS.filter((c) => c.program).map((c) => c.program))];
     const programOf = new Map();
+    // A sub-show stays in its parent's accounting line (ถกใจคนค้นหมาป่า in ถกไม่เถียง).
     for (const r of finalRows) {
       if (r.Platform !== "YouTube") continue;
       const id = postId("YouTube", r.URL) || postId("YouTube", r.Content_ID);
-      if (id) programOf.set(id, r.Program || "");
+      if (id) programOf.set(id, splits.parents.get(r.Program) || r.Program || "");
     }
     const programVideos = {};
     for (const channel of [...new Set(ACC_CHANNELS.filter((c) => c.program).map((c) => c.id))]) {
@@ -544,6 +549,12 @@ try {
   const problem = await verifyMasterData(fsdb, finalRows);
   if (problem) throw new Error(problem);
   mark("เขียนและตรวจ masterData");
+  // Which rows the system moved, now that they are written (next runs and the admin page read it).
+  if (splits.loaded) {
+    await fsdb
+      .set("syncConfig/programSplitsMoved", encodeFields({ moved: splits.moved, updatedAt: new Date().toISOString() }))
+      .catch((e) => console.error(`programSplitsMoved not saved: ${e.message}`));
+  }
   report.snapshotDocs = await writeSnapshot(fsdb, today, runId, snapshot);
   // Compact copy for opening the dashboard fast; if it fails the dashboard
   // reads masterData as before, so it never fails the run.
@@ -708,6 +719,28 @@ async function tiktokStep(brand, account, metricoolRows) {
   console.log(`  ${brand.label.padEnd(12)} tiktok-api fetched=${String(stat.fetched).padStart(5)} source=${stat.source}${c ? ` matched=${c.matched}/${c.metricoolPosts} medianDiff=${c.medianViewDiff === null ? "-" : (c.medianViewDiff * 100).toFixed(1) + "%"} onlyApi=${c.onlyApi} onlyMetricool=${c.onlyMetricool}` : ""}${stat.error ? ` ⚠ ${stat.error}` : ""}`);
   fetchStats.push(stat);
   return rows;
+}
+
+// แยกรายการย่อย from syncConfig/programSplits (admins edit it in the dashboard). A problem
+// reading the rules is logged and leaves Program as merged; it never fails the run.
+async function programSplitStep(rows) {
+  const none = { loaded: false, moved: {}, parents: new Map(), changes: [] };
+  if (baselineFile !== "firestore") return none;
+  try {
+    const db = await firestore();
+    const [rulesDoc, movedDoc] = await Promise.all([db.get("syncConfig/programSplits"), db.get("syncConfig/programSplitsMoved")]);
+    const rules = readSplits(rulesDoc ? decodeFields(rulesDoc.fields || {}) : null);
+    const before = readSplitMoved(movedDoc ? decodeFields(movedDoc.fields || {}) : null);
+    if (!rules.length && !Object.keys(before).length) return none;
+    const plan = planProgramSplits(rows, rules, before, rowKey);
+    applySplitChanges(rows, plan.changes);
+    const count = (kind) => plan.changes.filter((c) => c.kind === kind).length;
+    console.log(`แยกรายการย่อย: ${rules.length} กฎ · ย้าย ${count("move")} แถว · คืนรายการแม่ ${count("back")} แถว`);
+    return { loaded: true, moved: plan.moved, parents: splitParents(rules), changes: plan.changes };
+  } catch (e) {
+    console.error(`แยกรายการย่อย ไม่ได้ทำรอบนี้: ${e.message}`);
+    return none;
+  }
 }
 
 // TV: read each enabled workbook tab, parse episodes and competitors, merge.

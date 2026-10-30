@@ -36,6 +36,7 @@ import { AccMonthlyReport } from "@/components/dashboard/AccMonthlyReport";
 import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
 import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
+import { ProgramSplitsModal } from "@/components/dashboard/sections/ProgramSplitsModal";
 import { TvUploadModal } from "@/components/dashboard/sections/TvUploadModal";
 import { NotificationsModal } from "@/components/dashboard/sections/NotificationsModal";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
@@ -69,6 +70,7 @@ export default function Dashboard() {
   );
   const [passwordSetFor, setPasswordSetFor] = useState<string | null>(null);
   const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
+  const [programSplitsOpen, setProgramSplitsOpen] = useState(false);
   const [tvUploadOpen, setTvUploadOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   // undefined = not loaded; null = no sync has run yet.
@@ -181,6 +183,7 @@ export default function Dashboard() {
         onTabChange={setActiveTab}
         syncStatus={syncStatus}
         openTvSources={() => setTvSourcesOpen(true)}
+        openProgramSplits={() => setProgramSplitsOpen(true)}
         openTvUpload={() => setTvUploadOpen(true)}
         openNotifications={() => setNotificationsOpen(true)}
         onOpenUserManagement={() => setUserManagementOpen(true)}
@@ -497,6 +500,12 @@ export default function Dashboard() {
         open={tvSourcesOpen && isAdmin}
         onClose={() => setTvSourcesOpen(false)}
         status={syncStatus ?? null}
+        userEmail={auth.user?.email || ""}
+      />
+      <ProgramSplitsModal
+        open={programSplitsOpen && isAdmin}
+        onClose={() => setProgramSplitsOpen(false)}
+        rawRows={model.rawRows}
         userEmail={auth.user?.email || ""}
       />
       <TvUploadModal

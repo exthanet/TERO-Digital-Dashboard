@@ -186,6 +186,15 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["links", "updatedAt", "updatedBy"])
           && request.resource.data.links is list
           && request.resource.data.links.size() <= 40)
+        // แยกรายการย่อย: the rules, and which rows the system moved (so turning a rule
+        // off returns only those). The admin page and the daily sync both write them.
+        || (doc == "programSplits"
+          && request.resource.data.keys().hasOnly(["rules", "updatedAt", "updatedBy"])
+          && request.resource.data.rules is list
+          && request.resource.data.rules.size() <= 50)
+        || (doc == "programSplitsMoved"
+          && request.resource.data.keys().hasOnly(["moved", "updatedAt"])
+          && request.resource.data.moved is map)
       );
     }
     // TV workbook tabs uploaded by an admin; the next sync merges them.

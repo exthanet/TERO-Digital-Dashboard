@@ -4,6 +4,7 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc } from 
 import { db } from "@/lib/firebase";
 import type { FetchStat } from "@/lib/sync/sourceMatrix";
 import type { RevenueWorkbook } from "@/lib/dashboard/revenueParser";
+import { readSplitMoved, readSplits, type ProgramSplit, type SplitMoved } from "@/lib/dashboard/programSplits";
 
 export type SyncState = "success" | "blocked" | "failed";
 
@@ -129,6 +130,13 @@ export async function loadTvSources(): Promise<TvSourceConfig[]> {
 
 export async function saveTvSources(sources: TvSourceConfig[], updatedBy: string): Promise<void> {
   await setDoc(doc(db, "syncConfig", "tvSources"), { sources, updatedAt: new Date().toISOString(), updatedBy });
+}
+
+// ---------- แยกรายการย่อย (admins set the rules; the page and the daily sync apply them) ----------
+
+export async function loadProgramSplits(): Promise<{ rules: ProgramSplit[]; moved: SplitMoved }> {
+  const [rules, moved] = await Promise.all([getDoc(doc(db, "syncConfig", "programSplits")), getDoc(doc(db, "syncConfig", "programSplitsMoved"))]);
+  return { rules: readSplits(rules.data()), moved: readSplitMoved(moved.data()) };
 }
 
 // ---------- Revenue Google Sheet (admins set the link, the sync reads it daily) ----------

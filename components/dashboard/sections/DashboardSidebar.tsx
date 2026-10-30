@@ -34,7 +34,7 @@ import {
   Upload,
   User as UserIcon,
   Users,
-  X, MonitorPlay } from "lucide-react";
+  X, MonitorPlay, GitFork } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import { can, type Perm } from "@/lib/auth/permissions";
 
@@ -48,6 +48,7 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
   syncStatus?: SyncStatus | null;
   openSyncStatus?: () => void;
   openTvSources?: () => void;
+  openProgramSplits?: () => void;
   openTvUpload?: () => void;
   openNotifications?: () => void;
   onOpenUserManagement?: () => void;
@@ -150,6 +151,7 @@ export function DashboardSidebar({
   syncStatus,
   openSyncStatus,
   openTvSources,
+  openProgramSplits,
   openTvUpload,
   openNotifications,
   onOpenUserManagement,
@@ -317,6 +319,11 @@ export function DashboardSidebar({
                   {openTvSources && (
                     <button type="button" onClick={run(openTvSources)}>
                       <Tv /> แหล่งข้อมูล TV
+                    </button>
+                  )}
+                  {openProgramSplits && (
+                    <button type="button" onClick={run(openProgramSplits)}>
+                      <GitFork /> แยกรายการย่อย
                     </button>
                   )}
                   {openNotifications && (

@@ -15,6 +15,8 @@ import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueApiMonth } from "@/lib/dashboard/revenueApi";
 import { joinFromStore, splitForStore, type AffiliateSheets, type AffiliateStoreMain, type AffiliateStoreMonth } from "@/lib/dashboard/affiliateSheets";
+import { applySplitChanges, planProgramSplits, readSplitMoved, type ProgramSplit } from "@/lib/dashboard/programSplits";
+import { rowKey } from "@/lib/dashboard/postKey";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAryjQuJ7dujmHxoXtiCNFANjt5bkE3PAc",
@@ -157,6 +159,47 @@ export async function saveMasterDataToFirebase(
     message: `บันทึกข้อมูล ${rows.length.toLocaleString()} แถวขึ้น Firebase Firestore เรียบร้อยแล้ว`,
     totalChunks,
   };
+}
+
+/**
+ * แยกรายการย่อย now: save the rules, read masterData fresh (not the page's copy, which may
+ * be older than the last sync), change Program only in the chunks that need it, remember
+ * the moved rows, and rebuild the fast-open copy. Admins only (firestore.rules).
+ */
+export async function applyProgramSplitsToFirebase(
+  rules: ProgramSplit[],
+  updatedBy: string,
+): Promise<{ moved: number; back: number; chunks: number }> {
+  const now = new Date().toISOString();
+  await setDoc(doc(db, "syncConfig", "programSplits"), { rules, updatedAt: now, updatedBy });
+  const movedSnap = await getDoc(doc(db, "syncConfig", "programSplitsMoved"));
+  const snapshot = await getDocs(collection(db, "masterData"));
+  const chunks = snapshot.docs.filter((d) => d.id.startsWith("chunk_") && Array.isArray(d.data().rows));
+  const rows: RawRow[] = [];
+  const chunkOf: number[] = [];
+  chunks.forEach((d, c) => {
+    for (const r of d.data().rows as RawRow[]) {
+      rows.push(r);
+      chunkOf.push(c);
+    }
+  });
+  const plan = planProgramSplits(rows, rules, readSplitMoved(movedSnap.data()), rowKey);
+  await setDoc(doc(db, "syncConfig", "programSplitsMoved"), { moved: plan.moved, updatedAt: now });
+  if (!plan.changes.length) return { moved: 0, back: 0, chunks: 0 };
+
+  applySplitChanges(rows, plan.changes);
+  const touched = [...new Set(plan.changes.map((c) => chunkOf[c.index]))];
+  await deleteDoc(doc(db, "dashboardCache", "meta"));
+  for (const c of touched) {
+    await setDoc(doc(db, "masterData", chunks[c].id), { rows: rows.filter((_, i) => chunkOf[i] === c).map((r) => cleanRowForFirestore(r as Record<string, unknown>)), updatedAt: now }, { merge: true });
+  }
+  try {
+    const { writeDashboardCache } = await import("@/lib/dashboardCache");
+    await writeDashboardCache(rows, now, now);
+  } catch (e) {
+    console.warn("dashboard copy not written; the dashboard will read masterData:", e);
+  }
+  return { moved: plan.changes.filter((c) => c.kind === "move").length, back: plan.changes.filter((c) => c.kind === "back").length, chunks: touched.length };
 }
 
 /**
