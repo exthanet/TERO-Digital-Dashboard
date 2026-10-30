@@ -6,10 +6,13 @@
 //   Report Earning - Youtube - YYYY MM.xlsx      the workbook (never overwritten), or, when the
 //                                                month has none yet: the latest other month's
 //                                                workbook as a template + the dashboard export below
-//   Monthly-ACC-YYYY-MM-USD.xlsx                 รายได้ → Monthly ACC → Export (USD), template only
+//   Monthly-ACC-YYYY-MM-USD.xlsx                 รายได้ → Monthly ACC → Export (USD): C–L for a template,
+//                                                Total Earnings (M) for every month
 //   Revenue source <start>_<end> <channel>.zip   one per channel (Table data.csv)
 //   Channel ... CMS.zip (optional)               channel titles → IDs, to match rows by ID
 // Writes "Report Earning - Youtube - YYYY MM (generated).xlsx" next to them:
+//   M7:M30   Total Earnings = the export's "Estimated partner revenue (USD)" (every source,
+//            as in YouTube Analytics) where it has one; otherwise K+L as before
 //   rows 7–30 (template only)  C–L from the dashboard export; what is typed by hand each month
 //            (M5 rate, N5 W/T, AdSense, bank charges, B53:B63) is emptied and marked yellow
 //   F53:P76  each channel's revenue by source (as in the file; "-" without a file);
@@ -102,24 +105,29 @@ const mark = (cell) => {
   cell.style = { ...cell.style, fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF2A8" } } };
 };
 
-if (template) {
-  // The dashboard's Monthly ACC export for this month (USD).
-  const exportFile = files.find((f) => /^Monthly-ACC-.*USD\.xlsx$/i.test(f));
-  if (!exportFile) {
-    console.error(`ไม่พบไฟล์ Monthly-ACC-${year}-${month}-USD.xlsx (รายได้ → Monthly ACC → Export แบบ USD)`);
-    process.exit(1);
-  }
+// The dashboard's Monthly ACC export for this month (USD): needed for a template, used for
+// Total Earnings whenever it is there.
+const exportFile = files.find((f) => /^Monthly-ACC-.*USD\.xlsx$/i.test(f));
+if (template && !exportFile) {
+  console.error(`ไม่พบไฟล์ Monthly-ACC-${year}-${month}-USD.xlsx (รายได้ → Monthly ACC → Export แบบ USD)`);
+  process.exit(1);
+}
+let col = () => -1;
+const byName = new Map();
+if (exportFile) {
   const ex = new ExcelJS.Workbook();
   await ex.xlsx.readFile(path.join(dir, exportFile));
   const exSheet = ex.getWorksheet(`${year}-${month}`);
   if (!exSheet) throw new Error(`ไฟล์ ${exportFile} ไม่มีแท็บ ${year}-${month}`);
   const head = exSheet.getRow(1).values.map((v) => text(v));
-  const col = (h) => head.indexOf(h);
+  col = (h) => head.indexOf(h);
   for (const h of ["Channel Display Name", ...EXPORT_COLUMNS]) if (col(h) < 0) throw new Error(`ไฟล์ ${exportFile} ไม่มีคอลัมน์ "${h}"`);
-  const byName = new Map();
   exSheet.eachRow((row, r) => {
     if (r > 1) byName.set(text(row.getCell(col("Channel Display Name")).value), row);
   });
+}
+
+if (template) {
 
   const labels = monthLabels(year, month);
   sheet.name = labels.sheet;
@@ -151,6 +159,24 @@ if (template) {
   for (const a of ["M5", "N5", "B35", "B36", "B42", "B44", "B48"]) mark(sheet.getCell(a));
   report.push("ต้องกรอกเองเดือนนี้ (สีเหลือง): M5 อัตราแลกเปลี่ยน, N5 W/T รวม, B35–B36 AdSense, B42 Withholding, B44 Bank charge, B48 Processing fee");
 }
+
+// Total Earnings (M7:M30) = Estimated partner revenue, every source as in YouTube Analytics
+// (Ads + Premium leave out Shopping, memberships, Super Thanks…). W/T, bank fee, share and
+// THB follow from M as before. A line without it in the export keeps K+L. Every M cell gets
+// its own formula or value (the column was one shared formula).
+const TOTAL = "Estimated partner revenue (USD)";
+if (exportFile && col(TOTAL) < 0) report.push(`${exportFile} ไม่มีคอลัมน์ "${TOTAL}" (export ก่อน 30 ต.ค. 2026): Total Earnings = K+L เหมือนเดิม`);
+if (!exportFile) report.push(`ไม่มีไฟล์ Monthly-ACC-${year}-${month}-USD.xlsx: Total Earnings = K+L (Ads + Premium) ไม่ตรงกับ YouTube Analytics`);
+let withTotal = 0;
+for (let r = 7; r <= 30; r++) {
+  const row = byName.get(text(sheet.getCell(r, 1).value));
+  const v = row && col(TOTAL) > 0 ? row.getCell(col(TOTAL)).value : null;
+  if (typeof v === "number") {
+    sheet.getCell(r, 13).value = v;
+    withTotal++;
+  } else sheet.getCell(r, 13).value = { formula: `K${r}+L${r}` };
+}
+if (exportFile && col(TOTAL) > 0) report.push(`M7:M30 Total Earnings = ${TOTAL} จาก ${exportFile} ${withTotal} แถว · แถวที่เหลือ = K+L`);
 
 // Check the block is where it was built: row 52 holds the source names in F–P. A column
 // added later (P) may still be missing: it gets its heading and the look of column O.
