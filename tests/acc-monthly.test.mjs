@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ACC_CHANNELS, TERO_DIGITAL, accSheetRows, accTotals, monthEnd, monthsBetween, programVideoIds } from "../lib/dashboard/accMonthly.ts";
+import { ACC_CHANNELS, TERO_DIGITAL, accSheetRows, accTotals, clipProgram, monthEnd, monthsBetween, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { collectAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
 
 test("month helpers", () => {
@@ -49,6 +49,14 @@ test("show clips: masterData Program first, then the title", () => {
   const uploads = [{ id: "a", title: "ถกไม่เถียง EP1" }, { id: "b", title: "ถก ไม่เถียง สัมภาษณ์" }, { id: "c", title: "เงินทองของจริง | หุ้น" }, { id: "d", title: "ถกไม่เถียง แต่ masterData บอกว่า PROMO" }, { id: "e", title: "อื่นๆ" }];
   const programOf = new Map([["d", "PROMO"], ["e", "เงินทองของจริง"]]);
   assert.deepEqual(programVideoIds(uploads, programOf, ["ถกไม่เถียง", "เงินทองของจริง"]), { "ถกไม่เถียง": ["a", "b"], "เงินทองของจริง": ["c", "e"] });
+  const shows = ["ถกไม่เถียง", "เงินทองของจริง"];
+  assert.deepEqual(uploads.map((u) => clipProgram(u, programOf, shows)), [
+    { program: "ถกไม่เถียง", by: "title" },
+    { program: "ถกไม่เถียง", by: "title" },
+    { program: "เงินทองของจริง", by: "title" },
+    { program: "", by: "masterData" },
+    { program: "เงินทองของจริง", by: "masterData" },
+  ]);
 });
 
 test("totals and export rows: CMS column names, total line, THB by rate", () => {

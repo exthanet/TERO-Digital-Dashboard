@@ -100,13 +100,19 @@ export function accMinus(a: Partial<AccNums>, b: Partial<AccNums>): AccNums {
  */
 export function programVideoIds(uploads: { id: string; title: string }[], programOf: Map<string, string>, programs: string[]): Record<string, string[]> {
   const out: Record<string, string[]> = Object.fromEntries(programs.map((p) => [p, []]));
-  const squash = (t: string) => t.replace(/\s+/g, "");
   for (const u of uploads) {
-    const known = programOf.get(u.id);
-    const p = known !== undefined ? programs.find((x) => x === known) : programs.find((x) => squash(u.title).includes(squash(x)));
+    const p = clipProgram(u, programOf, programs).program;
     if (p) out[p].push(u.id);
   }
   return out;
+}
+
+/** One upload's show ("" = none) and what decided it: masterData's Program, or the title. */
+export function clipProgram(u: { id: string; title: string }, programOf: Map<string, string>, programs: string[]): { program: string; by: "masterData" | "title" } {
+  const squash = (t: string) => t.replace(/\s+/g, "");
+  const known = programOf.get(u.id);
+  if (known !== undefined) return { program: programs.find((x) => x === known) || "", by: "masterData" };
+  return { program: programs.find((x) => squash(u.title).includes(squash(x))) || "", by: "title" };
 }
 
 /** Why a line is counted the way it is (shown on the page and in the export). */

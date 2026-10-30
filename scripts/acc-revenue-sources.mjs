@@ -11,6 +11,7 @@
 //   Revenue source <start>_<end> <channel>.zip   one per channel (Table data.csv)
 //   Channel ... CMS.zip (optional)               channel titles → IDs, to match rows by ID
 // Writes "Report Earning - Youtube - YYYY MM (generated).xlsx" next to them:
+//   K7:L30   Ads, Premium = the export's numbers for every month (where it has them)
 //   M7:M30   Total Earnings = the export's "Estimated partner revenue (USD)" (every source,
 //            as in YouTube Analytics) where it has one; otherwise K+L as before
 //   rows 7–30 (template only)  C–L from the dashboard export; what is typed by hand each month
@@ -160,6 +161,23 @@ if (template) {
   report.push("ต้องกรอกเองเดือนนี้ (สีเหลือง): M5 อัตราแลกเปลี่ยน, N5 W/T รวม, B35–B36 AdSense, B42 Withholding, B44 Bank charge, B48 Processing fee");
 }
 
+// K and L (Ads, Premium) from the export for every month, not only a template: numbers
+// typed by hand earlier in the month go stale as YouTube revises them. A line without
+// numbers in the export keeps what the workbook has.
+const ADS = "Ads Partner Revenue (USD)";
+const PREMIUM = "YouTube Premium partner revenue (USD)";
+let withAdsPremium = 0;
+for (let r = 7; r <= 30; r++) {
+  const row = byName.get(text(sheet.getCell(r, 1).value));
+  const ads = row && col(ADS) > 0 ? row.getCell(col(ADS)).value : null;
+  const premium = row && col(PREMIUM) > 0 ? row.getCell(col(PREMIUM)).value : null;
+  if (typeof ads !== "number" || typeof premium !== "number") continue;
+  sheet.getCell(r, 11).value = ads;
+  sheet.getCell(r, 12).value = premium;
+  withAdsPremium++;
+}
+if (exportFile) report.push(`K7:L30 Ads, Premium = ${exportFile} ${withAdsPremium} แถว · แถวที่เหลือคงค่าเดิมในไฟล์`);
+
 // Total Earnings (M7:M30) = Estimated partner revenue, every source as in YouTube Analytics
 // (Ads + Premium leave out Shopping, memberships, Super Thanks…). W/T, bank fee, share and
 // THB follow from M as before. A line without it in the export keeps K+L. Every M cell gets
@@ -288,16 +306,43 @@ if (accountSources || template) {
   }
 }
 
-// P: the export's Total as is (YouTube Studio's sources overlap: their sum is not the total).
-// Q: Ad + Premium against the table above. TERO Digital's channel is split above into
-// TERO Digital + ถกไม่เถียง + เงินทองของจริง, so it is compared with all three.
+// The TERO DIGITAL channel is split above into TERO Digital + ถกไม่เถียง + เงินทองของจริง by
+// their own clips. The same lines here take Ads, Premium and Total from the export as they
+// are (the API's own numbers per line, nothing worked out here). The other sources exist
+// only for the whole channel (the API does not split them by clip): ถกไม่เถียง and
+// เงินทองของจริง keep "-", TERO Digital keeps the channel's file numbers.
 const SPLIT = ["TERO Digital", "ถกไม่เถียง", "เงินทองของจริง"];
+const fromApi = new Map();
+for (const r of rows) {
+  const row = SPLIT.includes(r.name) ? byName.get(r.name) : null;
+  const v = row ? [ADS, PREMIUM, TOTAL].map((h) => (col(h) > 0 ? row.getCell(col(h)).value : null)) : [];
+  if (!v.length || !v.every((x) => typeof x === "number")) continue;
+  sheet.getCell(r.row, 6).value = v[0];
+  sheet.getCell(r.row, 7).value = v[1];
+  fromApi.set(r.row, v[2]);
+  filled.add(r.row);
+}
+if (fromApi.size) {
+  sheet.getCell(52, LAST + 3).value = "หมายเหตุ";
+  for (const r of rows) {
+    if (!fromApi.has(r.row)) continue;
+    sheet.getCell(r.row, LAST + 3).value =
+      r.name === "TERO Digital"
+        ? "F, G, Total ส่วนที่เหลือของช่อง จาก YouTube Analytics API · H–P ทั้งช่อง TERO DIGITAL ตามไฟล์ Studio"
+        : "F, G, Total คลิปของรายการ จาก YouTube Analytics API · แหล่งอื่น API ไม่แยกตามคลิป";
+  }
+  report.push(`แถว ${[...fromApi.keys()].join(", ")} (${SPLIT.join(" / ")}): Ads, Premium, Total ← ${exportFile}`);
+}
+
+// Q: the export's Total as is (YouTube Studio's sources overlap: their sum is not the total),
+// or the API's for the split lines. R: Ad + Premium against the table above.
 sheet.getCell(52, LAST + 1).value = "Total ตามไฟล์ Studio (USD)";
 sheet.getCell(52, LAST + 2).value = "Ad + Premium − ตารางบน (USD)";
 for (const r of rows) {
   if (!filled.has(r.row)) continue;
-  sheet.getCell(r.row, LAST + 1).value = totals.get(r.row) ?? null;
-  const names = r.name === "TERO Digital" ? SPLIT : [r.name];
+  sheet.getCell(r.row, LAST + 1).value = fromApi.get(r.row) ?? totals.get(r.row) ?? null;
+  // Without the API numbers TERO Digital's row is still the whole channel: against all three lines.
+  const names = r.name === "TERO Digital" && !fromApi.has(r.row) ? SPLIT : [r.name];
   const ups = names.map((n) => upper.get(n)).filter(Boolean);
   if (ups.length === names.length) sheet.getCell(r.row, LAST + 2).value = { formula: `F${r.row}+G${r.row}-(${ups.map((u) => `K${u.row}+L${u.row}`).join("+")})` };
 }

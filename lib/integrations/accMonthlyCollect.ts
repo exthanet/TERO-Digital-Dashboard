@@ -15,24 +15,24 @@ import { analyticsQuery, type Wait } from "./youtubeAnalytics.ts";
 /** Video ids per request when a show is counted from its clips. */
 const VIDEO_BATCH = 500;
 
-/** Every upload of a channel (id and title), from its uploads playlist. */
-export async function channelUploads(token: string, channelId: string, fetcher: typeof fetch = fetch): Promise<{ id: string; title: string }[]> {
+/** Every upload of a channel (id, title, when it was added), from its uploads playlist. */
+export async function channelUploads(token: string, channelId: string, fetcher: typeof fetch = fetch): Promise<{ id: string; title: string; publishedAt: string }[]> {
   const get = async (u: string) => {
     const res = await fetcher(u, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(60_000) });
-    const body = (await res.json()) as { error?: { message?: string }; nextPageToken?: string; items?: { contentDetails?: { relatedPlaylists?: { uploads?: string } }; snippet?: { title?: string; resourceId?: { videoId?: string } } }[] };
+    const body = (await res.json()) as { error?: { message?: string }; nextPageToken?: string; items?: { contentDetails?: { relatedPlaylists?: { uploads?: string } }; snippet?: { title?: string; publishedAt?: string; resourceId?: { videoId?: string } } }[] };
     if (!res.ok) throw new Error(`YouTube Data API: ${body.error?.message || res.status}`);
     return body;
   };
   const ch = await get(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}`);
   const playlist = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
   if (!playlist) throw new Error(`YouTube Data API: no uploads list for ${channelId}`);
-  const out: { id: string; title: string }[] = [];
+  const out: { id: string; title: string; publishedAt: string }[] = [];
   let page = "";
   do {
     const r = await get(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlist}${page ? `&pageToken=${page}` : ""}`);
     for (const it of r.items || []) {
       const id = it.snippet?.resourceId?.videoId;
-      if (id) out.push({ id, title: it.snippet?.title || "" });
+      if (id) out.push({ id, title: it.snippet?.title || "", publishedAt: it.snippet?.publishedAt || "" });
     }
     page = r.nextPageToken || "";
   } while (page);
