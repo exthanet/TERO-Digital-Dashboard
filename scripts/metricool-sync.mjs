@@ -65,6 +65,7 @@ import { buildGrowth, growthDayFor, writeGrowth } from "../lib/integrations/grow
 import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts";
 import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
+import { nameEpisodes } from "../lib/integrations/tvEpisodeNames.ts";
 import { downloadAnonymousLink, downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, integrationProblems, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
 import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
@@ -525,6 +526,15 @@ if (tvStatus.length) {
     inserted: (tvRun.result?.inserted || []).map((r) => String(r.Date)),
     updated: tvRun.result?.updated.length || 0,
     latest: rated[rated.length - 1] || "",
+    // Episodes named from the day's clips (เงินทองของจริง): the newest air day per program.
+    named: Object.values(
+      Object.fromEntries(
+        [...(tvRun.result?.inserted || []), ...finalRows.filter((r) => (tvRun.result?.named || []).some((n) => n.key === `${r.Date}|${r.Program}|${r.Channel}`))]
+          .filter((r) => /ชื่อตอนจาก|ยังไม่มีชื่อตอน/.test(String(r.Notes || "")))
+          .sort((a, b) => String(a.Date).localeCompare(String(b.Date)))
+          .map((r) => [r.Program, { date: String(r.Date), program: String(r.Program), topic: String(r.Topic || ""), clips: (String(r.Notes).match(/คลิปวันนั้น d+/) || [""])[0] }]),
+      ),
+    ),
   };
 }
 if (!allOk) {
@@ -847,13 +857,19 @@ async function tvStep(rows) {
       episodes.push(...parsed.episodes);
       competitors.push({ source: s, rows: parsed.competitors });
       Object.assign(status, { ok: true, episodes: parsed.episodes.length, pending: parsed.pending.length, cancelled: parsed.cancelled.length, competitors: parsed.competitors.length });
+      // Rows read with a correction or left out (a Nielsen tab's dates): for a person to check.
+      if (parsed.problems?.length) status.problems = parsed.problems.slice(0, 20);
     } catch (e) {
       status.error = String(e.message || e).slice(0, 200);
     }
     tvStatus.push(status);
     console.log(`  ${s.name}${status.from ? ` [${status.from}]` : ""}: ${status.ok ? `${status.episodes} เทป · รอ rating ${status.pending} · งด ${status.cancelled} · คู่แข่ง ${status.competitors}` : `ERROR ${status.error}`}`);
+    for (const p of status.problems || []) console.log(`      ติด: ${p}`);
   }
   if (!episodes.length) return { result: null, episodes, competitors };
+  // Tabs without episode names (เงินทองของจริง): named from the day's clips.
+  const naming = nameEpisodes(episodes, rows);
+  if (naming.named || naming.waiting.length) console.log(`  ชื่อตอนจากคลิป: ${naming.named} เทป · ยังไม่มีคลิปของวันนั้น ${naming.waiting.length}${naming.waiting.length ? ` (${naming.waiting.slice(-5).join(", ")})` : ""}`);
   const merged = mergeTvEpisodes(rows, episodes);
   const lines = merged.updated.map((u) => ({ key: u.key, before: JSON.stringify(u.before), after: JSON.stringify(u.after) }));
   fs.writeFileSync(path.join(outDir, "tv-updated.csv"), csvText(lines, ["key", "before", "after"]));

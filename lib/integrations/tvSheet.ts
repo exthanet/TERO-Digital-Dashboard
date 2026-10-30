@@ -39,6 +39,10 @@ export interface TvEpisode {
   rural: number;
   /** One31 "Viewership (15+)"; 0 when blank. */
   viewers: number;
+  /** Set when the name came from the day's clips (a tab without episode names). */
+  episodeId?: string;
+  notes?: string;
+  named?: boolean;
 }
 
 export interface TvCompetitor {
@@ -104,13 +108,18 @@ export interface ParsedTvSheet {
   cancelled: string[];
   skippedRows: number;
   missingColumns: string[];
+  /** Rows read with a correction, or left out, for a person to check (Excel row numbers). */
+  problems?: string[];
 }
 
 /**
  * Read one tab (rows as arrays, header first). Columns are found by their
- * header text, so the team may reorder or add columns.
+ * header text, so the team may reorder or add columns. A Nielsen export
+ * ("Date", "15+NW", no episode names) is read by parseNielsenSheet.
  */
 export function parseTvSheet(aoa: unknown[][], source: Pick<TvSource, "channel" | "program">): ParsedTvSheet {
+  const nielsen = aoa.slice(0, 10).findIndex((r) => (r || []).map(clean).includes("Date") && (r || []).map(clean).includes("15+NW"));
+  if (!(aoa[0] || []).map(clean).includes("วันที่") && nielsen >= 0) return parseNielsenSheet(aoa, nielsen, source);
   const header = (aoa[0] || []).map(clean);
   const find = (...names: string[]) => {
     for (const n of names) {
@@ -188,6 +197,111 @@ export function parseTvSheet(aoa: unknown[][], source: Pick<TvSource, "channel" 
   return out;
 }
 
+const WEEKDAYS: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+
+/**
+ * One date cell of a Nielsen export, checked against its "Day of week": an Excel day
+ * number, "05/01/2026" or "9/3/69" (Buddhist year). A year typed wrong ("11/02/2027"
+ * next to 2026 rows) is read with the year of the rows before it when the weekday then
+ * matches. Anything else is left out rather than guessed.
+ */
+export function nielsenDay(v: unknown, dow: unknown, prevYear = 0): { date: string; fixed?: string; problem?: string } {
+  const want = WEEKDAYS[String(dow ?? "").trim().slice(0, 3).toLowerCase()];
+  const weekdayOk = (d: string) => !!d && (want === undefined || new Date(`${d}T00:00:00Z`).getUTCDay() === want);
+  const day = (y: number, m: number, d: number) => {
+    const t = new Date(Date.UTC(y, m - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d ? t.toISOString().slice(0, 10) : "";
+  };
+  if (typeof v === "number") {
+    const d = sourceDay(v);
+    return weekdayOk(d) ? { date: d } : { date: "", problem: `วันที่ ${d || v} ไม่ตรงกับวัน ${dow}` };
+  }
+  const text = String(v ?? "").trim();
+  const m = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!m) return { date: "", problem: text ? `อ่านวันที่ "${text}" ไม่ได้` : "" };
+  let year = Number(m[3]);
+  if (year < 100) year += 2500;
+  if (year > 2400) year -= 543;
+  const d = day(year, Number(m[2]), Number(m[1]));
+  if (weekdayOk(d)) return { date: d };
+  if (prevYear && prevYear !== year) {
+    const again = day(prevYear, Number(m[2]), Number(m[1]));
+    if (weekdayOk(again)) return { date: again, fixed: `"${text}" ปีพิมพ์ผิด อ่านเป็น ${again}` };
+  }
+  return { date: "", problem: `"${text}" ไม่ตรงกับวัน ${dow}` };
+}
+
+/**
+ * A Nielsen export tab: header row with "Date", "Day of week", "Duration", "15+NW"
+ * (the total rating), the four areas and "Viewership (15+)"; no episode names (the sync
+ * names the episodes from the day's clips). Rows below the table (summaries) have no date.
+ * A day that appears twice keeps its first row.
+ */
+export function parseNielsenSheet(aoa: unknown[][], headerRow: number, source: Pick<TvSource, "channel" | "program">): ParsedTvSheet {
+  const header = (aoa[headerRow] || []).map(clean);
+  const find = (name: string) => header.indexOf(clean(name));
+  const col = {
+    date: find("Date"),
+    dow: find("Day of week"),
+    duration: find("Duration"),
+    rating: find("15+NW"),
+    bkk: find("15+BKK"),
+    urban: find("15+URBAN"),
+    bkkUrban: find("15+BKK&URBAN"),
+    rural: find("15+RURAL"),
+    viewers: header.findIndex((h) => h.startsWith("Viewership")),
+  };
+  const required = ["date", "rating", "bkk", "urban", "bkkUrban", "rural"] as const;
+  const missingColumns = required.filter((k) => col[k] < 0).map((k) => k);
+  const out: ParsedTvSheet = { episodes: [], competitors: [], pending: [], cancelled: [], skippedRows: 0, missingColumns, problems: [] };
+  if (missingColumns.length) return out;
+  const seen = new Map<string, number>();
+  let prevYear = 0;
+  for (let i = headerRow + 1; i < aoa.length; i++) {
+    const r = aoa[i] || [];
+    const excelRow = i + 1;
+    const parsed = nielsenDay(r[col.date], col.dow >= 0 ? r[col.dow] : "", prevYear);
+    if (!parsed.date) {
+      out.skippedRows++;
+      // A row with a rating but no usable date is a lost episode: say so.
+      if (parsed.problem && Number.isFinite(num(r[col.rating]))) out.problems!.push(`แถว ${excelRow}: ${parsed.problem} (ไม่ได้นำเข้า)`);
+      continue;
+    }
+    const date = parsed.date;
+    prevYear = Number(date.slice(0, 4));
+    if (parsed.fixed) out.problems!.push(`แถว ${excelRow}: ${parsed.fixed}`);
+    if (seen.has(date)) {
+      out.problems!.push(`แถว ${excelRow}: วันที่ ${date} ซ้ำกับแถว ${seen.get(date)} (ใช้แถว ${seen.get(date)})`);
+      continue;
+    }
+    seen.set(date, excelRow);
+    const rating = num(r[col.rating]);
+    if (!Number.isFinite(rating) || rating <= 0) {
+      if (String(r[col.rating] ?? "").includes("งด")) out.cancelled.push(date);
+      else out.pending.push(date);
+      continue;
+    }
+    // Duration is an Excel time (a fraction of a day) or minutes.
+    const d = num(col.duration >= 0 ? r[col.duration] : "");
+    const minutes = Number.isFinite(d) ? (d < 1 ? d * 1440 : d) : 0;
+    out.episodes.push({
+      date,
+      program: source.program,
+      channel: source.channel,
+      topic: "",
+      topicType: "",
+      durationMin: Math.round(minutes * 10) / 10,
+      rating,
+      bkk: num(r[col.bkk]) || 0,
+      urban: num(r[col.urban]) || 0,
+      bkkUrban: num(r[col.bkkUrban]) || 0,
+      rural: num(r[col.rural]) || 0,
+      viewers: col.viewers >= 0 ? num(r[col.viewers]) || 0 : 0,
+    });
+  }
+  return out;
+}
+
 const round = (n: number) => Math.round(n);
 
 /** The owned numbers of one episode, as masterData stores them. */
@@ -235,6 +349,8 @@ export interface TvMergeResult {
   removed: { key: string; row: Row }[];
   /** Copies whose ratings differ: left untouched for a person to check. */
   conflicts: string[];
+  /** Episodes named from the day's clips whose blank name / EP / note were filled (key → columns). */
+  named: { key: string; columns: string[] }[];
   /** Copies with the same ratings but different audience numbers (fixed from the rating). */
   audienceFixed: string[];
   unchanged: number;
@@ -246,7 +362,7 @@ export interface TvMergeResult {
  * when their ratings are identical; otherwise they are all left as they are.
  */
 export function mergeTvEpisodes(rows: Row[], episodes: TvEpisode[]): TvMergeResult {
-  const out: TvMergeResult = { rows: [], updated: [], inserted: [], removed: [], conflicts: [], audienceFixed: [], unchanged: 0 };
+  const out: TvMergeResult = { rows: [], updated: [], inserted: [], removed: [], conflicts: [], audienceFixed: [], named: [], unchanged: 0 };
   const byKey = new Map<string, number[]>();
   rows.forEach((r, i) => {
     if (!isTvRow(r)) return;
@@ -264,11 +380,11 @@ export function mergeTvEpisodes(rows: Row[], episodes: TvEpisode[]): TvMergeResu
     if (!idx.length) {
       const row: Row = Object.fromEntries(columns.map((c) => [c, null]));
       Object.assign(row, {
-        Date: e.date, Program: e.program, Episode_ID: null, Topic: e.topic, Topic_Type: e.topicType,
+        Date: e.date, Program: e.program, Episode_ID: e.episodeId || null, Topic: e.topic, Topic_Type: e.topicType,
         VDO_Type: "TV", Platform: "TV", Channel: e.channel, Content_ID: `TV-${e.channel}-${e.date}`, URL: "-",
         Publish_Time: null, Duration_Min: e.durationMin, Views: 0, Likes: 0, Comments: 0, Shares: 0,
         Engagement: 0, Engagement_Rate: 0, Best_of_Month: null, Upload_Count: 1, Revenue: 0,
-        Notes: `TV rating workbook (${e.channel})`, ...numbers,
+        Notes: e.notes || `TV rating workbook (${e.channel})`, ...numbers,
       });
       out.inserted.push(row);
       continue;
@@ -301,6 +417,23 @@ export function mergeTvEpisodes(rows: Row[], episodes: TvEpisode[]): TvMergeResu
         after[c] = v;
         base[c] = v;
       }
+    }
+    // A tab without names: the day's clips name the episode once they exist. Only blanks
+    // are filled (and the system's own note refreshed); a name the team typed stays.
+    if (e.named) {
+      const filled: string[] = [];
+      const fill = (c: string, v: unknown, when: boolean) => {
+        if (!when || v === undefined || v === "" || JSON.stringify(base[c]) === JSON.stringify(v)) return;
+        before[c] = base[c];
+        after[c] = v;
+        base[c] = v;
+        filled.push(c);
+      };
+      fill("Topic", e.topic, blank(base.Topic));
+      fill("Topic_Type", e.topicType, blank(base.Topic_Type));
+      fill("Episode_ID", e.episodeId || undefined, blank(base.Episode_ID));
+      fill("Notes", e.notes, blank(base.Notes) || String(base.Notes).startsWith("TV rating workbook"));
+      if (filled.length) out.named.push({ key: k, columns: filled });
     }
     if (base.Channel !== e.channel) {
       before.Channel = base.Channel;

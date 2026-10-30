@@ -153,6 +153,14 @@ export function TvSourcesModal({
                   <span className="sync-muted">ยังไม่เคย sync</span>
                 )}
                 {issues.length > 0 && <span className="tv-bad">{issues.join(" · ")}</span>}
+                {r?.problems?.length ? (
+                  <span className="tv-bad tv-problems">
+                    ติด {r.problems.length} แถว ให้ทีมตรวจในไฟล์:
+                    {r.problems.map((p) => (
+                      <span key={p}>{p}</span>
+                    ))}
+                  </span>
+                ) : null}
                 <button className="tv-remove" onClick={() => setSources((list) => (list || []).filter((x) => x.id !== s.id))} aria-label="ลบ">
                   <Trash2 size={15} />
                 </button>

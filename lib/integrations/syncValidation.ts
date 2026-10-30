@@ -270,6 +270,8 @@ export function validateTv(before: Row[], tv: TvMergeResult, episodes: TvEpisode
   const lost = [...gb.keys()].filter((k) => !ga.has(k));
   const edits: string[] = [];
   const untouched = new Set(before);
+  // Blanks filled on an episode named from the day's clips are allowed edits.
+  const named = new Map((tv.named || []).map((n) => [n.key, new Set(n.columns)]));
   for (const [k, list] of gb) {
     const now = ga.get(k);
     if (!now) continue;
@@ -277,7 +279,7 @@ export function validateTv(before: Row[], tv: TvMergeResult, episodes: TvEpisode
       if (untouched.has(r)) continue; // the very same row object: not modified
       const orig = list.find((b) => b.Channel === r.Channel) || list.find((b) => tvChannel(b.Channel) === tvChannel(r.Channel)) || list[0];
       for (const c of new Set([...Object.keys(orig), ...Object.keys(r)])) {
-        if (TV_OWNED.has(c) || c === "Channel") continue;
+        if (TV_OWNED.has(c) || c === "Channel" || named.get(k)?.has(c)) continue;
         if (JSON.stringify(orig[c]) === JSON.stringify(r[c])) continue;
         const fromCopy = blankish(orig[c]) && list.some((b) => JSON.stringify(b[c]) === JSON.stringify(r[c]));
         if (!fromCopy && edits.length < 10) edits.push(`${k} คอลัมน์ ${c}`);

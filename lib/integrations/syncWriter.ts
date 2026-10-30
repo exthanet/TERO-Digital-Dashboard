@@ -162,6 +162,8 @@ export interface TvSourceStatus {
   competitors?: number;
   error?: string;
   from?: string;
+  /** Rows read with a correction or left out, for a person to check. */
+  problems?: string[];
 }
 
 /** An optional data source beside the platforms (e.g. YouTube Analytics): never fails the run. */
@@ -183,7 +185,7 @@ export interface RunReport {
   sources: Record<string, unknown>[];
   tvSources?: TvSourceStatus[];
   /** TV this run: air days of new episodes, episodes updated, latest air day with a rating. */
-  tv?: { inserted: string[]; updated: number; latest: string };
+  tv?: { inserted: string[]; updated: number; latest: string; named?: { date: string; program: string; topic: string; clips: string }[] };
   integrations?: Record<string, IntegrationStatus>;
   notify?: { ok: boolean; at: string; to: number; error?: string };
   totals: Record<string, number>;

@@ -59,7 +59,12 @@ export function tvLine(report: Partial<RunReport>): string | null {
     pending ? `รอ rating ${n(pending)}` : "",
     from ? `จาก${from}` : "",
   ].filter(Boolean);
-  return `📺 TV: ${parts.join(" · ")}`;
+  // Programs named from their clips: the newest day's name and clip count, and rows to check.
+  const named = (tv?.named || []).map((n) => `
+📺 ${n.program} ${dayTh(n.date)}: ${n.topic ? n.topic.slice(0, 60) : "ยังไม่มีชื่อตอน"}${n.clips ? ` · ${n.clips}` : ""}`).join("");
+  const stuck = sources.reduce((a, s) => a + (s.problems?.length || 0), 0);
+  return `📺 TV: ${parts.join(" · ")}${named}${stuck ? `
+⚠️ TV ติด ${stuck} แถว (ดูสถานะการ Sync)` : ""}`;
 }
 
 /**

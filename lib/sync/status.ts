@@ -25,6 +25,8 @@ export interface TvSourceStatus {
   error?: string;
   /** Where the numbers came from: "link" (sharing link), "sharepoint" (Graph), "upload" (admin upload) or "file". */
   from?: string;
+  /** Rows read with a correction or left out (Excel row numbers), for a person to check. */
+  problems?: string[];
 }
 
 export interface SyncStatus {
